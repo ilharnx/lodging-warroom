@@ -413,6 +413,10 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
                     }
                     fetchTrip();
                   }}
+                  onRescrape={async () => {
+                    await fetch(`/api/listings/${listing.id}/rescrape`, { method: "POST" });
+                    fetchTrip();
+                  }}
                 />
               ))}
             </div>
@@ -469,6 +473,10 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
             await fetch(`/api/listings/${detailListing.id}/vote?userName=${encodeURIComponent(userName)}`, {
               method: "DELETE",
             });
+            fetchTrip();
+          }}
+          onRescrape={async () => {
+            await fetch(`/api/listings/${detailListing.id}/rescrape`, { method: "POST" });
             fetchTrip();
           }}
         />

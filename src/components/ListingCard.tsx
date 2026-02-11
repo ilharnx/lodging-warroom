@@ -28,11 +28,14 @@ interface Listing {
   rating: number | null;
   reviewCount: number | null;
   beachDistance: string | null;
+  beachType: string | null;
   kidFriendly: boolean;
+  kidNotes: string | null;
   scrapeStatus: string;
   scrapeError: string | null;
   address: string | null;
   neighborhood: string | null;
+  addedBy: string | null;
   photos: Photo[];
   votes: Vote[];
   amenities: unknown;
@@ -46,6 +49,7 @@ interface ListingCardProps {
   onSelect: () => void;
   onViewDetail: () => void;
   onVote: (value: 1 | -1) => void;
+  onRescrape?: () => void;
 }
 
 function formatPrice(amount: number | null, currency: string = "USD"): string {
@@ -103,6 +107,7 @@ export function ListingCard({
   onSelect,
   onViewDetail,
   onVote,
+  onRescrape,
 }: ListingCardProps) {
   const voteTotal = listing.votes.reduce((sum, v) => sum + v.value, 0);
   const userVote = listing.votes.find((v) => v.userName === userName);
@@ -121,9 +126,18 @@ export function ListingCard({
   const isScraping =
     listing.scrapeStatus === "pending" || listing.scrapeStatus === "scraping";
   const isFailed = listing.scrapeStatus === "failed";
+  const isPartial = listing.scrapeStatus === "partial";
   const isGenericName =
-    listing.name.startsWith("Listing from") || listing.name === "Loading...";
-  const hasPrice = listing.totalCost != null || listing.perNight != null;
+    listing.name.startsWith("Listing from") ||
+    listing.name === "Loading..." ||
+    listing.name.startsWith("VRBO ") ||
+    listing.name.startsWith("Airbnb Listing");
+  const hasBig4 =
+    listing.bedrooms != null ||
+    listing.bathrooms != null ||
+    listing.kitchen ||
+    listing.beachDistance ||
+    listing.beachType;
 
   return (
     <div
@@ -199,13 +213,59 @@ export function ListingCard({
           </div>
         )}
         {isFailed && (
-          <div className="mb-2 px-2.5 py-1 bg-red-500/10 border border-red-500/20 text-red-400 text-xs rounded-md">
-            Scrape failed{listing.scrapeError ? ` — ${listing.scrapeError}` : ""}
+          <div className="mb-2 px-2.5 py-1 bg-red-500/10 border border-red-500/20 text-red-400 text-xs rounded-md flex items-center justify-between">
+            <span>Scrape failed</span>
+            {onRescrape && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onRescrape(); }}
+                className="ml-2 text-[10px] font-semibold underline hover:text-red-300 transition"
+              >
+                Retry
+              </button>
+            )}
+          </div>
+        )}
+        {isPartial && (
+          <div className="mb-2 px-2.5 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs rounded-md flex items-center justify-between">
+            <span>Limited data scraped</span>
+            {onRescrape && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onRescrape(); }}
+                className="ml-2 text-[10px] font-semibold underline hover:text-amber-300 transition"
+              >
+                Retry
+              </button>
+            )}
           </div>
         )}
 
-        {/* Title row */}
-        <div className="flex items-start justify-between gap-2">
+        {/* Source + Rating row */}
+        <div className="flex items-center gap-2 mb-2">
+          <span
+            className={`shrink-0 px-2 py-0.5 rounded-md border text-[10px] font-semibold uppercase tracking-wide ${sourceColor(
+              listing.source
+            )}`}
+          >
+            {sourceLabel(listing.source)}
+          </span>
+          {listing.rating != null && listing.rating > 0 && (
+            <span className="text-xs text-[var(--navy-400)] flex items-center gap-1">
+              <span className="text-yellow-400">&#9733;</span>
+              <span className="text-white font-medium">{listing.rating}</span>
+              {listing.reviewCount ? (
+                <span className="text-[var(--navy-500)]">({listing.reviewCount})</span>
+              ) : null}
+            </span>
+          )}
+          {listing.neighborhood && (
+            <span className="text-[11px] text-[var(--navy-500)] ml-auto truncate max-w-[120px]">
+              {listing.neighborhood}
+            </span>
+          )}
+        </div>
+
+        {/* Title + Price side by side */}
+        <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <h3 className="font-semibold text-white text-sm leading-snug">
               {isGenericName ? (
@@ -216,82 +276,70 @@ export function ListingCard({
                 <span className="line-clamp-2">{listing.name}</span>
               )}
             </h3>
-            {(listing.neighborhood || listing.address) && (
-              <p className="text-xs text-[var(--navy-400)] mt-0.5 truncate">
-                {listing.neighborhood || listing.address}
-              </p>
-            )}
             {isGenericName && (
               <p className="text-[10px] text-[var(--navy-500)] mt-0.5 truncate">
                 {getDomain(listing.url)}
               </p>
             )}
           </div>
-          <span
-            className={`shrink-0 px-2 py-0.5 rounded-md border text-[10px] font-semibold uppercase tracking-wide ${sourceColor(
-              listing.source
-            )}`}
-          >
-            {sourceLabel(listing.source)}
-          </span>
+          <div className="text-right shrink-0">
+            {listing.totalCost ? (
+              <>
+                <div className="text-lg font-bold text-[var(--gold-400)]">
+                  {formatPrice(listing.totalCost, listing.currency)}
+                </div>
+                <div className="text-[10px] text-[var(--navy-400)]">
+                  {perPerson ? `${formatPrice(perPerson)}/pp` : "total"}
+                </div>
+              </>
+            ) : listing.perNight ? (
+              <>
+                <div className="text-lg font-bold text-[var(--gold-400)]">
+                  {formatPrice(listing.perNight, listing.currency)}
+                </div>
+                <div className="text-[10px] text-[var(--navy-400)]">/night</div>
+              </>
+            ) : (
+              <span className="text-xs text-[var(--navy-500)] italic">
+                {isScraping ? "..." : "—"}
+              </span>
+            )}
+          </div>
         </div>
 
-        {/* Price */}
-        <div className="mt-2.5 flex items-baseline gap-2">
-          {listing.totalCost ? (
-            <>
-              <span className="text-lg font-bold text-[var(--gold-400)]">
-                {formatPrice(listing.totalCost, listing.currency)}
-              </span>
-              <span className="text-xs text-[var(--navy-400)]">total</span>
-              {perPerson && (
-                <span className="text-xs font-medium text-[var(--gold-400)] opacity-70">
-                  ({formatPrice(perPerson)}/pp)
-                </span>
-              )}
-            </>
-          ) : listing.perNight ? (
-            <>
-              <span className="text-lg font-bold text-[var(--gold-400)]">
-                {formatPrice(listing.perNight, listing.currency)}
-              </span>
-              <span className="text-xs text-[var(--navy-400)]">/night</span>
-            </>
-          ) : (
-            <span className="text-sm text-[var(--navy-500)] italic">
-              {isScraping ? "Fetching price..." : "Price not available"}
-            </span>
-          )}
-        </div>
-
-        {/* Property details chips */}
-        {(listing.bedrooms != null ||
-          listing.bathrooms != null ||
-          listing.kitchen ||
-          listing.beachDistance ||
-          hasPool ||
-          listing.kidFriendly) && (
-          <div className="mt-2 flex flex-wrap gap-1.5">
+        {/* The Big 4 grid - barbados style */}
+        {hasBig4 && (
+          <div className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-1 px-2.5 py-2 bg-[var(--navy-900)]/60 rounded-lg border border-[var(--navy-600)]/30">
             {listing.bedrooms != null && (
-              <span className="px-2 py-0.5 bg-[var(--navy-700)] text-[var(--navy-400)] text-[11px] rounded-md">
+              <div className="flex items-center gap-1.5 text-[12px] text-[var(--navy-400)]">
+                <span className="text-[14px] w-5 text-center opacity-60">&#x1F6CF;&#xFE0F;</span>
                 {listing.bedrooms} bed{listing.bedrooms !== 1 ? "s" : ""}
-              </span>
+              </div>
             )}
             {listing.bathrooms != null && (
-              <span className="px-2 py-0.5 bg-[var(--navy-700)] text-[var(--navy-400)] text-[11px] rounded-md">
-                {listing.bathrooms} bath
-              </span>
+              <div className="flex items-center gap-1.5 text-[12px] text-[var(--navy-400)]">
+                <span className="text-[14px] w-5 text-center opacity-60">&#x1F6BF;</span>
+                {listing.bathrooms} bath{listing.bathrooms !== 1 ? "s" : ""}
+              </div>
             )}
             {listing.kitchen && (
-              <span className="px-2 py-0.5 bg-[var(--navy-700)] text-[var(--navy-400)] text-[11px] rounded-md capitalize">
-                {listing.kitchen} kitchen
-              </span>
+              <div className="flex items-center gap-1.5 text-[12px] text-[var(--navy-400)]">
+                <span className="text-[14px] w-5 text-center opacity-60">&#x1F373;</span>
+                <span className="capitalize truncate">{listing.kitchen}</span>
+              </div>
             )}
-            {listing.beachDistance && (
-              <span className="px-2 py-0.5 bg-[var(--navy-700)] text-[var(--navy-400)] text-[11px] rounded-md">
-                {listing.beachDistance}
-              </span>
+            {(listing.beachDistance || listing.beachType) && (
+              <div className="flex items-center gap-1.5 text-[12px] text-[var(--navy-400)]">
+                <span className="text-[14px] w-5 text-center opacity-60">&#x1F3D6;&#xFE0F;</span>
+                <span className="truncate">{listing.beachDistance || listing.beachType}</span>
+              </div>
             )}
+          </div>
+        )}
+
+        {/* Amenity highlights */}
+        {(hasPool || listing.kidFriendly) && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
             {hasPool && (
               <span className="px-2 py-0.5 bg-blue-500/10 text-blue-400 text-[11px] rounded-md">
                 Pool
@@ -299,29 +347,18 @@ export function ListingCard({
             )}
             {listing.kidFriendly && (
               <span className="px-2 py-0.5 bg-green-500/10 text-green-400 text-[11px] rounded-md">
-                Kid-friendly
+                {listing.kidNotes
+                  ? `Kid-friendly: ${listing.kidNotes}`
+                  : "Kid-friendly"}
               </span>
             )}
-          </div>
-        )}
-
-        {/* Rating */}
-        {listing.rating != null && listing.rating > 0 && (
-          <div className="mt-2 flex items-center gap-1.5 text-xs">
-            <span className="text-yellow-400">&#9733;</span>
-            <span className="text-white font-medium">{listing.rating}</span>
-            {listing.reviewCount ? (
-              <span className="text-[var(--navy-400)]">
-                ({listing.reviewCount.toLocaleString()} reviews)
-              </span>
-            ) : null}
           </div>
         )}
 
         {/* Actions */}
         <div className="mt-3 pt-3 border-t border-[var(--navy-600)]/50 flex items-center justify-between">
           {/* Voting */}
-          <div className="flex items-center gap-0.5">
+          <div className="flex items-center gap-1.5">
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -361,6 +398,11 @@ export function ListingCard({
             >
               &#9660;
             </button>
+            {listing.addedBy && (
+              <span className="text-[10px] text-[var(--navy-500)] ml-1.5">
+                by {listing.addedBy}
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-2">

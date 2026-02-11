@@ -65,6 +65,7 @@ interface ListingDetailProps {
   onNeedName: () => void;
   onVote: (value: 1 | -1) => void;
   onRemoveVote: () => void;
+  onRescrape?: () => void;
 }
 
 function formatPrice(amount: number | null, currency: string = "USD"): string {
@@ -125,6 +126,7 @@ export function ListingDetail({
   onNeedName,
   onVote,
   onRemoveVote,
+  onRescrape,
 }: ListingDetailProps) {
   const [photoFilter, setPhotoFilter] = useState("all");
   const [commentText, setCommentText] = useState("");
@@ -168,6 +170,7 @@ export function ListingDetail({
   const isScraping =
     listing.scrapeStatus === "pending" || listing.scrapeStatus === "scraping";
   const isFailed = listing.scrapeStatus === "failed";
+  const isPartial = listing.scrapeStatus === "partial";
   const hasAnyDetail =
     listing.bedrooms != null ||
     listing.bathrooms != null ||
@@ -310,9 +313,34 @@ export function ListingDetail({
             </div>
           )}
           {isFailed && (
-            <div className="mt-3 px-3 py-2 bg-red-500/10 border border-red-500/20 text-red-400 text-sm rounded-lg">
-              Scrape failed{listing.scrapeError ? `: ${listing.scrapeError}` : ""}.
-              You can edit details manually or view the original listing.
+            <div className="mt-3 px-3 py-2 bg-red-500/10 border border-red-500/20 text-red-400 text-sm rounded-lg flex items-center justify-between">
+              <span>
+                Scrape failed{listing.scrapeError ? `: ${listing.scrapeError}` : ""}.
+                Edit manually or view the original.
+              </span>
+              {onRescrape && (
+                <button
+                  onClick={onRescrape}
+                  className="ml-3 shrink-0 px-3 py-1 text-xs font-semibold bg-red-500/20 border border-red-500/30 rounded-md hover:bg-red-500/30 transition"
+                >
+                  Retry Scrape
+                </button>
+              )}
+            </div>
+          )}
+          {isPartial && (
+            <div className="mt-3 px-3 py-2 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm rounded-lg flex items-center justify-between">
+              <span>
+                Limited data extracted. Edit manually for best results.
+              </span>
+              {onRescrape && (
+                <button
+                  onClick={onRescrape}
+                  className="ml-3 shrink-0 px-3 py-1 text-xs font-semibold bg-amber-500/20 border border-amber-500/30 rounded-md hover:bg-amber-500/30 transition"
+                >
+                  Retry Scrape
+                </button>
+              )}
             </div>
           )}
 

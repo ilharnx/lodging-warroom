@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { detectPlatform } from "@/lib/scraper/detect";
 import { scrapeUrl } from "@/lib/scraper";
@@ -65,9 +66,13 @@ export async function POST(
           },
         });
 
-        // Fire off scrape in background
-        scrapeUrl(listing.id, url, platform).catch((err) => {
-          console.error(`Scrape failed for ${listing.id}:`, err);
+        // Use after() to keep serverless function alive for scrape
+        after(async () => {
+          try {
+            await scrapeUrl(listing.id, url, platform);
+          } catch (err) {
+            console.error(`Scrape failed for ${listing.id}:`, err);
+          }
         });
 
         results.push({ url, status: "queued", listingId: listing.id });

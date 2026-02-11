@@ -30,7 +30,7 @@ export interface CommentData {
   text: string;
 }
 
-export type ScrapeStatus = "pending" | "scraping" | "done" | "failed";
+export type ScrapeStatus = "pending" | "scraping" | "done" | "partial" | "failed";
 export type Platform = "airbnb" | "vrbo" | "booking" | "other";
 export type KitchenType = "full" | "kitchenette" | "microwave" | "none";
 export type PhotoCategory =
