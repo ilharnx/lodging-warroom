@@ -35,7 +35,7 @@ interface Listing {
   neighborhood: string | null;
   photos: Photo[];
   votes: Vote[];
-  amenities: string | null;
+  amenities: unknown;
 }
 
 interface ListingCardProps {
@@ -92,8 +92,8 @@ export function ListingCard({
     ? Math.round(listing.totalCost / adults)
     : null;
 
-  const hasPool = listing.amenities
-    ? JSON.parse(listing.amenities).some(
+  const hasPool = Array.isArray(listing.amenities)
+    ? listing.amenities.some(
         (a: string) =>
           a.toLowerCase().includes("pool") ||
           a.toLowerCase().includes("swimming")

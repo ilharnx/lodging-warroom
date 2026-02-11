@@ -38,12 +38,12 @@ interface Listing {
   lat: number;
   lng: number;
   bedrooms: number | null;
-  beds: string | null;
+  beds: unknown;
   bathrooms: number | null;
   bathroomNotes: string | null;
   kitchen: string | null;
   kitchenDetails: string | null;
-  amenities: string | null;
+  amenities: unknown;
   kidFriendly: boolean;
   kidNotes: string | null;
   beachType: string | null;
@@ -181,7 +181,7 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
     // Filter by pool
     if (filters.hasPool) {
       listings = listings.filter((l) => {
-        const amenities = l.amenities ? JSON.parse(l.amenities) : [];
+        const amenities = Array.isArray(l.amenities) ? l.amenities : [];
         return amenities.some(
           (a: string) =>
             a.toLowerCase().includes("pool") ||

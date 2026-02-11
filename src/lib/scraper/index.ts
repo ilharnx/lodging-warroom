@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import type { Platform, ScrapedListing } from "@/types";
 import { scrapeAirbnb } from "./airbnb";
 import { scrapeGeneric } from "./generic";
@@ -61,12 +62,12 @@ export async function scrapeUrl(
         lat: data.lat,
         lng: data.lng,
         bedrooms: data.bedrooms || null,
-        beds: data.beds ? JSON.stringify(data.beds) : null,
+        beds: data.beds ? (data.beds as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
         bathrooms: data.bathrooms || null,
         bathroomNotes: data.bathroomNotes || null,
         kitchen: data.kitchen || null,
         kitchenDetails: data.kitchenDetails || null,
-        amenities: data.amenities ? JSON.stringify(data.amenities) : null,
+        amenities: data.amenities ? (data.amenities as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
         kidFriendly: data.kidFriendly || false,
         kidNotes: data.kidNotes || null,
         beachType: data.beachType || null,

@@ -35,12 +35,12 @@ interface Listing {
   taxes: number | null;
   currency: string;
   bedrooms: number | null;
-  beds: string | null;
+  beds: unknown;
   bathrooms: number | null;
   bathroomNotes: string | null;
   kitchen: string | null;
   kitchenDetails: string | null;
-  amenities: string | null;
+  amenities: unknown;
   kidFriendly: boolean;
   kidNotes: string | null;
   beachType: string | null;
@@ -101,10 +101,10 @@ export function ListingDetail({
       ? listing.photos
       : listing.photos.filter((p) => p.category === photoFilter);
 
-  const amenities: string[] = listing.amenities
-    ? JSON.parse(listing.amenities)
+  const amenities: string[] = Array.isArray(listing.amenities)
+    ? listing.amenities
     : [];
-  const beds = listing.beds ? JSON.parse(listing.beds) : [];
+  const beds = Array.isArray(listing.beds) ? listing.beds : [];
   const perPerson = listing.totalCost
     ? Math.round(listing.totalCost / adults)
     : null;

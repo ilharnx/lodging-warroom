@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL")
 }
 
 model Trip {
@@ -32,7 +33,7 @@ model Listing {
   externalId     String?
 
   name           String
-  description    String?
+  description    String?   @db.Text
   totalCost      Float?
   perNight       Float?
   cleaningFee    Float?
@@ -46,17 +47,17 @@ model Listing {
   lng            Float
 
   bedrooms       Int?
-  beds           String?
+  beds           Json?
   bathrooms      Float?
-  bathroomNotes  String?
+  bathroomNotes  String?   @db.Text
   kitchen        String?
-  kitchenDetails String?
+  kitchenDetails String?   @db.Text
 
   photos         Photo[]
-  amenities      String?
+  amenities      Json?
 
   kidFriendly    Boolean   @default(false)
-  kidNotes       String?
+  kidNotes       String?   @db.Text
   beachType      String?
   beachDistance   String?
 
@@ -68,7 +69,7 @@ model Listing {
   addedBy        String?
 
   scrapeStatus   String    @default("pending")
-  scrapeError    String?
+  scrapeError    String?   @db.Text
   lastScraped    DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
@@ -80,7 +81,7 @@ model Photo {
   listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
   url       String
   category  String?
-  caption   String?
+  caption   String? @db.Text
   sortOrder Int     @default(0)
 }
 
@@ -100,6 +101,6 @@ model Comment {
   listingId String
   listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
   userName  String
-  text      String
+  text      String   @db.Text
   createdAt DateTime @default(now())
 }
