@@ -4,14 +4,26 @@ import { extractAirbnbId } from "./detect";
 // Known public Airbnb API key (used by their web client)
 const AIRBNB_API_KEY = "d306zoyjsyarp7ifhu67rjxn52tv0t20";
 
+/** Ensure Airbnb image URLs are high-resolution */
+function airbnbImgHiRes(url: string): string {
+  if (!url) return url;
+  // Remove existing size params and add high-res
+  const base = url.split("?")[0];
+  if (base.includes("muscache.com")) {
+    return base + "?im_w=1200";
+  }
+  return url;
+}
+
 export async function scrapeAirbnb(url: string): Promise<ScrapedListing> {
   const externalId = extractAirbnbId(url);
 
-  // Strategy 1: Try the Airbnb v2 API (most reliable)
+  // Strategy 1: Try the Airbnb v2 API
   if (externalId) {
     try {
       const apiResult = await fetchAirbnbApi(externalId);
       if (apiResult && apiResult.name && apiResult.name.length > 3) {
+        console.log(`Airbnb API success for ${externalId}: "${apiResult.name}", ${apiResult.photos?.length || 0} photos`);
         return apiResult;
       }
     } catch (err) {
@@ -19,7 +31,7 @@ export async function scrapeAirbnb(url: string): Promise<ScrapedListing> {
     }
   }
 
-  // Strategy 2: Scrape the HTML page
+  // Strategy 2: Scrape the HTML page (desktop UA)
   try {
     const response = await fetch(url, {
       headers: {
@@ -48,6 +60,7 @@ export async function scrapeAirbnb(url: string): Promise<ScrapedListing> {
     }
 
     const html = await response.text();
+    console.log(`Airbnb HTML fetched: ${html.length} chars`);
     return parseAirbnbHtml(html, url, externalId);
   } catch (error) {
     console.error("Airbnb HTML scrape error:", error);
@@ -65,69 +78,117 @@ export async function scrapeAirbnb(url: string): Promise<ScrapedListing> {
 async function fetchAirbnbApi(
   listingId: string
 ): Promise<ScrapedListing | null> {
-  const apiUrl = `https://www.airbnb.com/api/v2/listings/${listingId}?_format=for_native&key=${AIRBNB_API_KEY}&locale=en`;
+  // Try multiple API formats for better data
+  const formats = ["for_native", "v1.8.0"];
 
-  const res = await fetch(apiUrl, {
-    headers: {
-      "User-Agent":
-        "Airbnb/23.49 iPhone/17.4 Type/Phone",
-      Accept: "application/json",
-      "Accept-Language": "en-US",
-      "X-Airbnb-API-Key": AIRBNB_API_KEY,
-    },
-  });
+  for (const format of formats) {
+    try {
+      const apiUrl = `https://www.airbnb.com/api/v2/listings/${listingId}?_format=${format}&key=${AIRBNB_API_KEY}&locale=en`;
 
-  if (!res.ok) {
-    console.log(`Airbnb API returned ${res.status}`);
-    return null;
+      const res = await fetch(apiUrl, {
+        headers: {
+          "User-Agent":
+            "Airbnb/24.10 iPhone/17.4.1 Type/Phone",
+          Accept: "application/json",
+          "Accept-Language": "en-US,en;q=0.9",
+          "X-Airbnb-API-Key": AIRBNB_API_KEY,
+          "X-Airbnb-Supports-Airlock-V2": "true",
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!res.ok) {
+        console.log(`Airbnb API (${format}) returned ${res.status}`);
+        continue;
+      }
+
+      const data = await res.json();
+      const listing = data?.listing;
+      if (!listing) continue;
+
+      const result = parseApiListing(listing, listingId);
+      if (result.name && result.name.length > 3) {
+        return result;
+      }
+    } catch (err) {
+      console.error(`Airbnb API (${format}) error:`, err);
+    }
   }
 
-  const data = await res.json();
-  const listing = data?.listing;
-  if (!listing) return null;
+  return null;
+}
 
+/** Parse listing data from the v2 API response */
+function parseApiListing(
+  listing: Record<string, unknown>,
+  listingId: string
+): ScrapedListing {
   const result: ScrapedListing = {
-    name: listing.name || listing.title || "",
+    name: (listing.name as string) || (listing.title as string) || "",
     source: "airbnb",
     externalId: listingId,
-    description: listing.description || listing.space || undefined,
-    lat: listing.lat || 0,
-    lng: listing.lng || 0,
-    bedrooms: listing.bedrooms || undefined,
-    bathrooms: listing.bathrooms || undefined,
-    rating: listing.star_rating || undefined,
-    reviewCount: listing.review_count || listing.reviews_count || undefined,
-    address: listing.public_address || listing.smart_location || undefined,
-    neighborhood: listing.neighborhood_overview
+    description: (listing.description as string) || (listing.space as string) || undefined,
+    lat: (listing.lat as number) || 0,
+    lng: (listing.lng as number) || 0,
+    bedrooms: (listing.bedrooms as number) || undefined,
+    bathrooms: (listing.bathrooms as number) || undefined,
+    rating: (listing.star_rating as number) || undefined,
+    reviewCount: (listing.review_count as number) || (listing.reviews_count as number) || undefined,
+    address: (listing.public_address as string) || (listing.smart_location as string) || undefined,
+    neighborhood: (listing.neighborhood_overview as string)
       ? undefined
-      : listing.city || undefined,
-    currency: listing.price_native_currency || "USD",
+      : (listing.city as string) || undefined,
+    currency: (listing.price_native_currency as string) || "USD",
   };
 
   // Price
   if (listing.price_native) {
-    result.perNight = listing.price_native;
+    result.perNight = listing.price_native as number;
   } else if (listing.price) {
-    result.perNight = listing.price;
+    result.perNight = listing.price as number;
   }
 
-  // Photos
-  if (listing.photos && Array.isArray(listing.photos)) {
-    result.photos = listing.photos
-      .slice(0, 20)
-      .map(
-        (p: { xl_picture_url?: string; picture?: string; large?: string }) => ({
-          url: p.xl_picture_url || p.picture || p.large || "",
-        })
-      )
-      .filter((p: { url: string }) => p.url);
-  } else if (listing.xl_picture_url) {
-    result.photos = [{ url: listing.xl_picture_url }];
+  // Photos — check multiple field structures
+  const photos: { url: string; caption?: string }[] = [];
+  const seenUrls = new Set<string>();
+
+  const rawPhotos = listing.photos as Array<Record<string, unknown>> | undefined;
+  if (rawPhotos && Array.isArray(rawPhotos)) {
+    for (const p of rawPhotos.slice(0, 30)) {
+      // Direct URL fields
+      const url =
+        (p.xl_picture_url as string) ||
+        (p.picture_url as string) ||
+        (p.picture as string) ||
+        (p.large as string) ||
+        (p.original as string) ||
+        (p.large_cover as string) || "";
+
+      // Also check nested urls object
+      const urls = p.urls as Record<string, string> | undefined;
+      const nestedUrl = urls?.xl_picture_url || urls?.large || urls?.medium || "";
+
+      const finalUrl = airbnbImgHiRes(url || nestedUrl);
+      if (finalUrl && !seenUrls.has(finalUrl)) {
+        seenUrls.add(finalUrl);
+        photos.push({ url: finalUrl, caption: (p.caption as string) || undefined });
+      }
+    }
   }
+
+  // Single cover image fallback
+  if (photos.length === 0 && listing.xl_picture_url) {
+    photos.push({ url: airbnbImgHiRes(listing.xl_picture_url as string) });
+  }
+  if (photos.length === 0 && listing.picture_url) {
+    photos.push({ url: airbnbImgHiRes(listing.picture_url as string) });
+  }
+
+  if (photos.length > 0) result.photos = photos;
 
   // Amenities
   if (listing.amenities && Array.isArray(listing.amenities)) {
-    result.amenities = listing.amenities;
+    result.amenities = listing.amenities as string[];
   }
 
   // Kitchen detection from amenities
@@ -139,9 +200,6 @@ async function fetchAirbnbApi(
       result.kitchen = "full";
     } else if (amenLower.some((a: string) => a.includes("kitchenette"))) {
       result.kitchen = "kitchenette";
-    }
-    if (amenLower.some((a: string) => a.includes("pool"))) {
-      // noted in amenities
     }
   }
 
@@ -161,33 +219,31 @@ function parseAirbnbHtml(
     lng: 0,
   };
 
-  // Try extracting from deferred state script
-  const deferredMatch = html.match(
-    /<script[^>]*id="data-deferred-state-0"[^>]*>([\s\S]*?)<\/script>/
-  );
-  const nextDataMatch = html.match(
-    /<script[^>]*id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/
-  );
+  // Try extracting from deferred state script (multiple possible IDs)
+  const deferredPatterns = [
+    /<script[^>]*id="data-deferred-state-0"[^>]*>([\s\S]*?)<\/script>/,
+    /<script[^>]*id="data-deferred-state"[^>]*>([\s\S]*?)<\/script>/,
+    /<script[^>]*id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/,
+  ];
 
   let jsonData: Record<string, unknown> | null = null;
 
-  if (deferredMatch) {
-    try {
-      jsonData = JSON.parse(deferredMatch[1]);
-    } catch {
-      /* parse failed */
-    }
-  }
-  if (!jsonData && nextDataMatch) {
-    try {
-      jsonData = JSON.parse(nextDataMatch[1]);
-    } catch {
-      /* parse failed */
+  for (const pattern of deferredPatterns) {
+    if (jsonData) break;
+    const match = html.match(pattern);
+    if (match) {
+      try {
+        jsonData = JSON.parse(match[1]);
+        console.log(`Airbnb: found embedded JSON via ${pattern.source?.slice(0, 40) || "pattern"}`);
+      } catch {
+        /* parse failed */
+      }
     }
   }
 
   if (jsonData) {
     extractFromAirbnbJson(jsonData, result);
+    console.log(`Airbnb JSON extraction: name="${result.name}", photos=${result.photos?.length || 0}, lat=${result.lat}`);
   }
 
   // Fallback: extract from meta/title tags
@@ -195,20 +251,19 @@ function parseAirbnbHtml(
     const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/);
     if (titleMatch) {
       result.name = titleMatch[1]
-        .replace(/- Airbnb$/, "")
+        .replace(/\s*[-–|].*Airbnb.*$/i, "")
         .replace(/\s+/g, " ")
         .trim();
     }
   }
 
   if (!result.name) {
-    // OG title
     const ogTitleMatch =
       html.match(/<meta[^>]*property="og:title"[^>]*content="([^"]*)"/) ||
       html.match(/<meta[^>]*content="([^"]*)"[^>]*property="og:title"/);
     if (ogTitleMatch) {
       result.name = ogTitleMatch[1]
-        .replace(/- Airbnb$/, "")
+        .replace(/\s*[-–|].*Airbnb.*$/i, "")
         .replace(/\s+/g, " ")
         .trim();
     }
@@ -218,12 +273,14 @@ function parseAirbnbHtml(
     result.name = `Airbnb Listing ${externalId || ""}`.trim();
   }
 
-  // OG image
-  const ogImageMatch =
-    html.match(/<meta[^>]*property="og:image"[^>]*content="([^"]+)"/) ||
-    html.match(/<meta[^>]*content="([^"]+)"[^>]*property="og:image"/);
-  if (ogImageMatch && (!result.photos || result.photos.length === 0)) {
-    result.photos = [{ url: ogImageMatch[1], category: "exterior" }];
+  // OG image (only if we have no photos yet)
+  if (!result.photos || result.photos.length === 0) {
+    const ogImageMatch =
+      html.match(/<meta[^>]*property="og:image"[^>]*content="([^"]+)"/) ||
+      html.match(/<meta[^>]*content="([^"]+)"[^>]*property="og:image"/);
+    if (ogImageMatch) {
+      result.photos = [{ url: airbnbImgHiRes(ogImageMatch[1]) }];
+    }
   }
 
   // OG description
@@ -232,19 +289,21 @@ function parseAirbnbHtml(
       html.match(/<meta[^>]*property="og:description"[^>]*content="([^"]+)"/) ||
       html.match(/<meta[^>]*content="([^"]+)"[^>]*property="og:description"/);
     if (ogDescMatch) {
-      result.description = ogDescMatch[1];
+      result.description = ogDescMatch[1].replace(/&amp;/g, "&");
     }
   }
 
   // Coordinates
-  const latMatch = html.match(/"lat":\s*([-\d.]+)/);
-  const lngMatch = html.match(/"lng":\s*([-\d.]+)/);
-  if (latMatch && lngMatch) {
-    result.lat = parseFloat(latMatch[1]);
-    result.lng = parseFloat(lngMatch[1]);
+  if (result.lat === 0 || result.lng === 0) {
+    const latMatch = html.match(/"lat":\s*([-\d.]+)/);
+    const lngMatch = html.match(/"lng":\s*([-\d.]+)/);
+    if (latMatch && lngMatch) {
+      result.lat = parseFloat(latMatch[1]);
+      result.lng = parseFloat(lngMatch[1]);
+    }
   }
 
-  // Bedroom/bathroom from meta description or HTML
+  // Bedroom/bathroom from HTML text
   if (!result.bedrooms) {
     const bedroomMatch = html.match(/(\d+)\s*bedroom/i);
     if (bedroomMatch) result.bedrooms = parseInt(bedroomMatch[1]);
@@ -263,7 +322,57 @@ function parseAirbnbHtml(
     }
   }
 
+  // CDN-based image extraction — find ALL Airbnb image URLs in the page
+  // This works even when the structured JSON parsing misses photos
+  if (!result.photos || result.photos.length <= 1) {
+    const cdnPhotos = extractAirbnbCdnImages(html);
+    if (cdnPhotos.length > (result.photos?.length || 0)) {
+      result.photos = cdnPhotos;
+    }
+  }
+
+  console.log(`Airbnb HTML result: name="${result.name}", photos=${result.photos?.length || 0}`);
   return result;
+}
+
+/** Extract image URLs from Airbnb's CDN patterns in raw HTML */
+function extractAirbnbCdnImages(html: string): { url: string }[] {
+  const seenUrls = new Set<string>();
+  const photos: { url: string }[] = [];
+
+  // Airbnb image CDN patterns
+  const patterns = [
+    /https:\/\/a0\.muscache\.com\/im\/pictures\/[a-zA-Z0-9\-/_.]+(?:\?[^"'\s<>]*)?/g,
+    /https:\/\/a0\.muscache\.com\/im\/ml\/photo_enhancement\/[a-zA-Z0-9\-/_.]+(?:\?[^"'\s<>]*)?/g,
+    /https:\/\/a0\.muscache\.com\/4ea\/air\/v2\/pictures\/[a-zA-Z0-9\-/_.]+(?:\?[^"'\s<>]*)?/g,
+  ];
+
+  for (const pattern of patterns) {
+    for (const m of html.matchAll(pattern)) {
+      if (seenUrls.size >= 30) break;
+      let imgUrl = m[0].replace(/&amp;/g, "&");
+      // Skip tiny images, avatars, icons
+      if (
+        imgUrl.includes("avatar") ||
+        imgUrl.includes("user") ||
+        imgUrl.includes("1x1") ||
+        imgUrl.includes("pixel") ||
+        imgUrl.includes("icon")
+      ) continue;
+
+      // Normalize to high-res
+      imgUrl = airbnbImgHiRes(imgUrl);
+
+      // Deduplicate by base path (ignore query params)
+      const basePath = imgUrl.split("?")[0];
+      if (!seenUrls.has(basePath)) {
+        seenUrls.add(basePath);
+        photos.push({ url: imgUrl });
+      }
+    }
+  }
+
+  return photos;
 }
 
 function extractFromAirbnbJson(
@@ -272,43 +381,105 @@ function extractFromAirbnbJson(
 ): void {
   const flat = flattenObject(data);
 
-  // Name
+  // Name — try specific listing title patterns first
   for (const [key, val] of Object.entries(flat)) {
     if (
-      (key.endsWith(".title") || key.endsWith(".name")) &&
       typeof val === "string" &&
       val.length > 5 &&
       val.length < 200 &&
-      !result.name
+      !result.name &&
+      (
+        key.includes("listingTitle") ||
+        key.includes("listing.title") ||
+        key.includes("listing.name") ||
+        (key.endsWith(".title") && key.includes("stayProduct"))
+      )
     ) {
       result.name = val;
       break;
     }
   }
 
-  // Photos
-  const photos: { url: string; caption?: string }[] = [];
-  for (const [key, val] of Object.entries(flat)) {
-    if (
-      (key.includes("photo") || key.includes("picture")) &&
-      key.endsWith(".baseUrl") &&
-      typeof val === "string" &&
-      val.startsWith("http")
-    ) {
-      photos.push({ url: val });
+  // Broader name fallback
+  if (!result.name) {
+    for (const [key, val] of Object.entries(flat)) {
+      if (
+        (key.endsWith(".title") || key.endsWith(".name")) &&
+        typeof val === "string" &&
+        val.length > 5 &&
+        val.length < 200
+      ) {
+        result.name = val;
+        break;
+      }
     }
   }
-  if (photos.length > 0) result.photos = photos;
+
+  // Photos — look for ALL image URLs (mediaItems, photos, pictures, baseUrl, etc.)
+  const photos: { url: string; caption?: string }[] = [];
+  const seenUrls = new Set<string>();
+
+  for (const [key, val] of Object.entries(flat)) {
+    if (
+      typeof val === "string" &&
+      val.startsWith("http") &&
+      val.includes("muscache.com") &&
+      !val.includes("avatar") &&
+      !val.includes("user") &&
+      !val.includes("1x1") &&
+      (
+        key.endsWith(".baseUrl") ||
+        key.endsWith(".url") ||
+        key.endsWith(".picture_url") ||
+        key.endsWith(".xl_picture_url") ||
+        key.endsWith(".pictureUrl") ||
+        key.includes("mediaItems") ||
+        key.includes("photo") ||
+        key.includes("picture") ||
+        key.includes("image")
+      )
+    ) {
+      const hiRes = airbnbImgHiRes(val);
+      const basePath = hiRes.split("?")[0];
+      if (!seenUrls.has(basePath)) {
+        seenUrls.add(basePath);
+
+        // Try to find a caption for this photo
+        const captionKey = key.replace(/\.(?:baseUrl|url|picture_url|xl_picture_url|pictureUrl)$/, ".caption");
+        const caption = flat[captionKey];
+
+        photos.push({
+          url: hiRes,
+          caption: typeof caption === "string" ? caption : undefined,
+        });
+      }
+    }
+    if (photos.length >= 30) break;
+  }
+
+  if (photos.length > 0) {
+    result.photos = photos;
+  }
 
   // Rating & reviews
   for (const [key, val] of Object.entries(flat)) {
-    if (key.includes("rating") && key.includes("value") && typeof val === "number") {
+    if (
+      (key.includes("rating") || key.includes("Rating")) &&
+      (key.includes("value") || key.includes("Value") || key.endsWith(".rating")) &&
+      typeof val === "number" &&
+      val > 0 &&
+      val <= 5
+    ) {
       result.rating = val;
       break;
     }
   }
   for (const [key, val] of Object.entries(flat)) {
-    if (key.includes("reviewCount") && typeof val === "number") {
+    if (
+      (key.includes("reviewCount") || key.includes("review_count") || key.includes("reviewsCount")) &&
+      typeof val === "number" &&
+      val > 0
+    ) {
       result.reviewCount = val;
       break;
     }
@@ -316,13 +487,23 @@ function extractFromAirbnbJson(
 
   // Bedrooms & Bathrooms
   for (const [key, val] of Object.entries(flat)) {
-    if (key.includes("bedroom") && key.includes("count") && typeof val === "number") {
+    if (
+      (key.includes("bedroom") || key.includes("Bedroom")) &&
+      (key.includes("count") || key.includes("Count") || key.endsWith(".bedrooms")) &&
+      typeof val === "number" &&
+      val > 0
+    ) {
       result.bedrooms = val;
       break;
     }
   }
   for (const [key, val] of Object.entries(flat)) {
-    if (key.includes("bathroom") && key.includes("count") && typeof val === "number") {
+    if (
+      (key.includes("bathroom") || key.includes("Bathroom")) &&
+      (key.includes("count") || key.includes("Count") || key.endsWith(".bathrooms")) &&
+      typeof val === "number" &&
+      val > 0
+    ) {
       result.bathrooms = val;
       break;
     }
@@ -342,11 +523,27 @@ function extractFromAirbnbJson(
   for (const [key, val] of Object.entries(flat)) {
     if (
       (key.includes("price") || key.includes("Price")) &&
-      key.includes("amount") &&
+      (key.includes("amount") || key.includes("Amount") || key.includes("total")) &&
       typeof val === "number" &&
-      val > 0
+      val > 0 &&
+      val < 100000
     ) {
       if (!result.perNight) result.perNight = val;
+    }
+  }
+
+  // Description
+  if (!result.description) {
+    for (const [key, val] of Object.entries(flat)) {
+      if (
+        (key.includes("description") || key.includes("Description") || key.includes("summary")) &&
+        typeof val === "string" &&
+        val.length > 30 &&
+        val.length < 5000
+      ) {
+        result.description = val;
+        break;
+      }
     }
   }
 }

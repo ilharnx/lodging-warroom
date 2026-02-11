@@ -126,7 +126,7 @@ export default function MapView({
   if (noToken) {
     return (
       <div style={{
-        height: "100%", background: "#FAF8F5",
+        height: "100%", background: "#F3F0EB",
         display: "flex", alignItems: "center", justifyContent: "center", padding: 32,
       }}>
         <div style={{ textAlign: "center", maxWidth: 320 }}>
@@ -135,7 +135,7 @@ export default function MapView({
             Map View
           </h3>
           <p style={{ fontSize: 13, color: "#999", marginBottom: 16 }}>
-            Set <code style={{ color: "#E94E3C", background: "#f5f3ef", padding: "1px 6px", borderRadius: 4 }}>
+            Set <code style={{ color: "#E94E3C", background: "#EFEAE4", padding: "1px 6px", borderRadius: 4 }}>
               NEXT_PUBLIC_MAPBOX_TOKEN
             </code> in your <code>.env</code> to enable the map.
           </p>
@@ -148,7 +148,7 @@ export default function MapView({
                   style={{
                     width: "100%", textAlign: "left" as const, padding: "8px 12px", borderRadius: 8,
                     fontSize: 13, cursor: "pointer", fontFamily: "inherit",
-                    border: selectedId === l.id ? "1px solid #E94E3C" : "1px solid #E8E6E3",
+                    border: selectedId === l.id ? "1px solid #E94E3C" : "1px solid #DDD8D0",
                     background: selectedId === l.id ? "rgba(233,78,60,0.06)" : "#fff",
                     color: selectedId === l.id ? "#E94E3C" : "#888",
                   }}

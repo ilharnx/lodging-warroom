@@ -92,7 +92,7 @@ export function ImportModal({ tripId, onClose, onImported }: ImportModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="bg-white border border-[#E8E6E3] rounded-xl p-6 max-w-md w-full mx-4">
+      <div className="bg-white border border-[#DDD8D0] rounded-xl p-6 max-w-md w-full mx-4">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold text-[#1a1a1a]">Bulk Import</h2>
           <button
@@ -104,12 +104,12 @@ export function ImportModal({ tripId, onClose, onImported }: ImportModalProps) {
         </div>
 
         {/* Mode tabs */}
-        <div className="flex gap-1 mb-4 bg-[#FAF8F5] rounded-lg p-1">
+        <div className="flex gap-1 mb-4 bg-[#F3F0EB] rounded-lg p-1">
           <button
             onClick={() => setMode("urls")}
             className={`flex-1 px-3 py-1.5 text-sm rounded-md transition ${
               mode === "urls"
-                ? "bg-[#f5f3ef] text-[#1a1a1a] font-medium"
+                ? "bg-[#EFEAE4] text-[#1a1a1a] font-medium"
                 : "text-[#999]"
             }`}
           >
@@ -119,7 +119,7 @@ export function ImportModal({ tripId, onClose, onImported }: ImportModalProps) {
             onClick={() => setMode("csv")}
             className={`flex-1 px-3 py-1.5 text-sm rounded-md transition ${
               mode === "csv"
-                ? "bg-[#f5f3ef] text-[#1a1a1a] font-medium"
+                ? "bg-[#EFEAE4] text-[#1a1a1a] font-medium"
                 : "text-[#999]"
             }`}
           >
@@ -135,7 +135,7 @@ export function ImportModal({ tripId, onClose, onImported }: ImportModalProps) {
               scraping
             </p>
             {result.skipped > 0 && (
-              <p className="text-sm text-yellow-400 mt-1">
+              <p className="text-sm text-[#8B6914] mt-1">
                 {result.skipped} skipped (invalid URLs)
               </p>
             )}
@@ -150,9 +150,9 @@ export function ImportModal({ tripId, onClose, onImported }: ImportModalProps) {
               value={urlText}
               onChange={(e) => setUrlText(e.target.value)}
               rows={6}
-              className="w-full px-4 py-3 bg-[#FAF8F5] border border-[#E8E6E3] rounded-lg text-[#1a1a1a] placeholder:text-[#bbb] focus:outline-none focus:border-[#E94E3C] text-sm font-mono resize-none"
+              className="w-full px-4 py-3 bg-[#F3F0EB] border border-[#DDD8D0] rounded-lg text-[#1a1a1a] placeholder:text-[#bbb] focus:outline-none focus:border-[#E94E3C] text-sm font-mono resize-none"
             />
-            {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
+            {error && <p className="mt-2 text-sm text-[#b91c1c]">{error}</p>}
             <button
               type="submit"
               disabled={loading}
@@ -165,7 +165,7 @@ export function ImportModal({ tripId, onClose, onImported }: ImportModalProps) {
           <div>
             <div
               onClick={() => fileRef.current?.click()}
-              className="border-2 border-dashed border-[#E8E6E3] rounded-lg p-8 text-center cursor-pointer hover:border-[#E94E3C] transition"
+              className="border-2 border-dashed border-[#DDD8D0] rounded-lg p-8 text-center cursor-pointer hover:border-[#E94E3C] transition"
             >
               <div className="text-2xl text-[#999] mb-2">
                 &#128196;
@@ -184,7 +184,7 @@ export function ImportModal({ tripId, onClose, onImported }: ImportModalProps) {
               onChange={handleFileUpload}
               className="hidden"
             />
-            {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
+            {error && <p className="mt-2 text-sm text-[#b91c1c]">{error}</p>}
             {loading && (
               <p className="mt-2 text-sm text-[#E94E3C]">
                 Uploading and processing...

@@ -159,7 +159,7 @@ export function ListingCard({
         <div
           style={{
             height: 80,
-            background: "linear-gradient(135deg, #FAF8F5 0%, #f0ede8 100%)",
+            background: "linear-gradient(135deg, #F3F0EB 0%, #E8E3DC 100%)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -202,8 +202,8 @@ export function ListingCard({
           <div
             style={{
               marginBottom: 8, padding: "5px 10px",
-              background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.15)",
-              borderRadius: 6, fontSize: 12, color: "#d97706",
+              background: "rgba(139,105,20,0.06)", border: "1px solid rgba(139,105,20,0.15)",
+              borderRadius: 6, fontSize: 12, color: "#7a5c12",
               display: "flex", alignItems: "center", justifyContent: "space-between",
             }}
           >
@@ -211,7 +211,7 @@ export function ListingCard({
             {onRescrape && (
               <button
                 onClick={(e) => { e.stopPropagation(); onRescrape(); }}
-                style={{ fontSize: 10, fontWeight: 600, textDecoration: "underline", cursor: "pointer", background: "none", border: "none", color: "#d97706", fontFamily: "inherit" }}
+                style={{ fontSize: 10, fontWeight: 600, textDecoration: "underline", cursor: "pointer", background: "none", border: "none", color: "#7a5c12", fontFamily: "inherit" }}
               >
                 Retry
               </button>
@@ -276,7 +276,7 @@ export function ListingCard({
         {(listing.bedrooms != null || listing.bathrooms != null || listing.kitchen || listing.beachType || listing.beachDistance) && (
           <div style={{
             display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 16px", marginTop: 12,
-            padding: "10px 12px", background: "#FAF8F5", borderRadius: 10, border: "1px solid #f0ede8",
+            padding: "10px 12px", background: "#F3F0EB", borderRadius: 10, border: "1px solid #E8E3DC",
           }}>
             {listing.bedrooms != null && (
               <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 13, color: "#555" }}>
@@ -326,7 +326,7 @@ export function ListingCard({
         {/* Actions */}
         <div style={{
           display: "flex", justifyContent: "space-between", alignItems: "center",
-          marginTop: 14, paddingTop: 12, borderTop: "1px solid #f0ede8",
+          marginTop: 14, paddingTop: 12, borderTop: "1px solid #E8E3DC",
         }}>
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
             <button

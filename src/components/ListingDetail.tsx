@@ -249,11 +249,11 @@ export function ListingDetail({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="bg-white border border-[#E8E6E3] rounded-2xl max-w-2xl w-full relative shadow-2xl">
+      <div className="bg-white border border-[#DDD8D0] rounded-2xl max-w-2xl w-full relative shadow-2xl">
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-[#f5f3ef] border border-[#E8E6E3] text-[#777] hover:text-[#1a1a1a] hover:border-[#bbb] transition"
+          className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-[#EFEAE4] border border-[#DDD8D0] text-[#777] hover:text-[#1a1a1a] hover:border-[#bbb] transition"
         >
           &#10005;
         </button>
@@ -274,7 +274,7 @@ export function ListingDetail({
                   type="text"
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
-                  className="w-full text-xl font-bold bg-[#FAF8F5] border border-[#E8E6E3] rounded-lg px-3 py-1.5 text-[#1a1a1a] focus:outline-none focus:border-[#E94E3C]"
+                  className="w-full text-xl font-bold bg-[#F3F0EB] border border-[#DDD8D0] rounded-lg px-3 py-1.5 text-[#1a1a1a] focus:outline-none focus:border-[#E94E3C]"
                   placeholder="Listing name"
                 />
               ) : (
@@ -293,7 +293,7 @@ export function ListingDetail({
             {listing.rating != null && listing.rating > 0 && (
               <div className="text-right shrink-0">
                 <div className="text-sm text-[#1a1a1a] font-semibold">
-                  <span className="text-yellow-400">&#9733;</span>{" "}
+                  <span className="text-[#D4A017]">&#9733;</span>{" "}
                   {listing.rating}
                 </div>
                 {listing.reviewCount != null && listing.reviewCount > 0 && (
@@ -307,13 +307,13 @@ export function ListingDetail({
 
           {/* Scrape status banner */}
           {isScraping && (
-            <div className="mt-3 px-3 py-2 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm rounded-lg flex items-center gap-2 scraping-pulse">
-              <div className="w-4 h-4 border-2 border-amber-400/40 border-t-amber-400 rounded-full animate-spin" />
+            <div className="mt-3 px-3 py-2 bg-[#8B6914]/8 border border-[#8B6914]/15 text-[#8B6914] text-sm rounded-lg flex items-center gap-2 scraping-pulse">
+              <div className="w-4 h-4 border-2 border-[#8B6914]/30 border-t-[#8B6914] rounded-full animate-spin" />
               Scraping in progress... details will update automatically.
             </div>
           )}
           {isFailed && (
-            <div className="mt-3 px-3 py-2 bg-red-500/10 border border-red-500/20 text-red-400 text-sm rounded-lg flex items-center justify-between">
+            <div className="mt-3 px-3 py-2 bg-[#b91c1c]/8 border border-[#b91c1c]/15 text-[#b91c1c] text-sm rounded-lg flex items-center justify-between">
               <span>
                 Scrape failed{listing.scrapeError ? `: ${listing.scrapeError}` : ""}.
                 Edit manually or view the original.
@@ -321,7 +321,7 @@ export function ListingDetail({
               {onRescrape && (
                 <button
                   onClick={onRescrape}
-                  className="ml-3 shrink-0 px-3 py-1 text-xs font-semibold bg-red-500/20 border border-red-500/30 rounded-md hover:bg-red-500/30 transition"
+                  className="ml-3 shrink-0 px-3 py-1 text-xs font-semibold bg-[#b91c1c]/15 border border-[#b91c1c]/20 rounded-md hover:bg-[#b91c1c]/20 transition"
                 >
                   Retry Scrape
                 </button>
@@ -329,14 +329,14 @@ export function ListingDetail({
             </div>
           )}
           {isPartial && (
-            <div className="mt-3 px-3 py-2 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm rounded-lg flex items-center justify-between">
+            <div className="mt-3 px-3 py-2 bg-[#8B6914]/8 border border-[#8B6914]/15 text-[#8B6914] text-sm rounded-lg flex items-center justify-between">
               <span>
                 Limited data extracted. Edit manually for best results.
               </span>
               {onRescrape && (
                 <button
                   onClick={onRescrape}
-                  className="ml-3 shrink-0 px-3 py-1 text-xs font-semibold bg-amber-500/20 border border-amber-500/30 rounded-md hover:bg-amber-500/30 transition"
+                  className="ml-3 shrink-0 px-3 py-1 text-xs font-semibold bg-[#8B6914]/15 border border-[#8B6914]/20 rounded-md hover:bg-[#8B6914]/20 transition"
                 >
                   Retry Scrape
                 </button>
@@ -345,7 +345,7 @@ export function ListingDetail({
           )}
 
           {/* Price block */}
-          <div className="mt-4 p-4 bg-[#FAF8F5] rounded-xl border border-[#E8E6E3]">
+          <div className="mt-4 p-4 bg-[#F3F0EB] rounded-xl border border-[#DDD8D0]">
             {editing ? (
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
@@ -357,7 +357,7 @@ export function ListingDetail({
                       type="number"
                       value={editPerNight}
                       onChange={(e) => setEditPerNight(e.target.value)}
-                      className="w-full px-3 py-1.5 text-sm bg-white border border-[#E8E6E3] rounded-lg text-[#1a1a1a] focus:outline-none focus:border-[#E94E3C]"
+                      className="w-full px-3 py-1.5 text-sm bg-white border border-[#DDD8D0] rounded-lg text-[#1a1a1a] focus:outline-none focus:border-[#E94E3C]"
                       placeholder="e.g. 250"
                     />
                   </div>
@@ -369,7 +369,7 @@ export function ListingDetail({
                       type="number"
                       value={editTotalCost}
                       onChange={(e) => setEditTotalCost(e.target.value)}
-                      className="w-full px-3 py-1.5 text-sm bg-white border border-[#E8E6E3] rounded-lg text-[#1a1a1a] focus:outline-none focus:border-[#E94E3C]"
+                      className="w-full px-3 py-1.5 text-sm bg-white border border-[#DDD8D0] rounded-lg text-[#1a1a1a] focus:outline-none focus:border-[#E94E3C]"
                       placeholder="e.g. 2500"
                     />
                   </div>
@@ -381,7 +381,7 @@ export function ListingDetail({
                       type="number"
                       value={editBedrooms}
                       onChange={(e) => setEditBedrooms(e.target.value)}
-                      className="w-full px-3 py-1.5 text-sm bg-white border border-[#E8E6E3] rounded-lg text-[#1a1a1a] focus:outline-none focus:border-[#E94E3C]"
+                      className="w-full px-3 py-1.5 text-sm bg-white border border-[#DDD8D0] rounded-lg text-[#1a1a1a] focus:outline-none focus:border-[#E94E3C]"
                       placeholder="e.g. 3"
                     />
                   </div>
@@ -394,7 +394,7 @@ export function ListingDetail({
                       step="0.5"
                       value={editBathrooms}
                       onChange={(e) => setEditBathrooms(e.target.value)}
-                      className="w-full px-3 py-1.5 text-sm bg-white border border-[#E8E6E3] rounded-lg text-[#1a1a1a] focus:outline-none focus:border-[#E94E3C]"
+                      className="w-full px-3 py-1.5 text-sm bg-white border border-[#DDD8D0] rounded-lg text-[#1a1a1a] focus:outline-none focus:border-[#E94E3C]"
                       placeholder="e.g. 2"
                     />
                   </div>
@@ -420,7 +420,7 @@ export function ListingDetail({
 
                 {/* Cost breakdown */}
                 {(listing.cleaningFee || listing.serviceFee || listing.taxes) && (
-                  <div className="mt-3 pt-3 border-t border-[#E8E6E3] space-y-1.5 text-xs">
+                  <div className="mt-3 pt-3 border-t border-[#DDD8D0] space-y-1.5 text-xs">
                     {listing.perNight && (
                       <div className="flex justify-between text-[#777]">
                         <span>Nightly rate</span>
@@ -457,7 +457,7 @@ export function ListingDetail({
                 )}
 
                 {hiddenCostWarning && (
-                  <div className="mt-2 px-2.5 py-1.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs rounded-lg">
+                  <div className="mt-2 px-2.5 py-1.5 bg-[#8B6914]/8 border border-[#8B6914]/15 text-[#8B6914] text-xs rounded-lg">
                     Heads up: fees are &gt;15% of the nightly total
                   </div>
                 )}
@@ -500,7 +500,7 @@ export function ListingDetail({
               ) : (
                 <button
                   onClick={() => setEditing(true)}
-                  className="px-3 py-1.5 text-xs font-medium bg-[#f5f3ef] border border-[#E8E6E3] text-[#777] rounded-lg hover:border-[#bbb] hover:text-[#1a1a1a] transition"
+                  className="px-3 py-1.5 text-xs font-medium bg-[#EFEAE4] border border-[#DDD8D0] text-[#777] rounded-lg hover:border-[#bbb] hover:text-[#1a1a1a] transition"
                 >
                   Edit
                 </button>
@@ -516,8 +516,8 @@ export function ListingDetail({
                 }}
                 className={`p-1.5 rounded-md transition-all ${
                   userVote?.value === 1
-                    ? "text-green-400 bg-green-400/15"
-                    : "text-[#777] hover:text-green-400 hover:bg-green-400/10"
+                    ? "text-[#15803d] bg-[#15803d]/10"
+                    : "text-[#777] hover:text-[#15803d] hover:bg-[#15803d]/8"
                 }`}
                 title={userVote?.value === 1 ? "Remove upvote" : "Upvote"}
               >
@@ -526,9 +526,9 @@ export function ListingDetail({
               <span
                 className={`text-sm font-bold min-w-[24px] text-center ${
                   voteTotal > 0
-                    ? "text-green-400"
+                    ? "text-[#15803d]"
                     : voteTotal < 0
-                      ? "text-red-400"
+                      ? "text-[#b91c1c]"
                       : "text-[#999]"
                 }`}
               >
@@ -541,8 +541,8 @@ export function ListingDetail({
                 }}
                 className={`p-1.5 rounded-md transition-all ${
                   userVote?.value === -1
-                    ? "text-red-400 bg-red-400/15"
-                    : "text-[#777] hover:text-red-400 hover:bg-red-400/10"
+                    ? "text-[#b91c1c] bg-[#b91c1c]/10"
+                    : "text-[#777] hover:text-[#b91c1c] hover:bg-[#b91c1c]/8"
                 }`}
                 title={userVote?.value === -1 ? "Remove downvote" : "Downvote"}
               >
@@ -571,7 +571,7 @@ export function ListingDetail({
                     className={`px-3 py-1 text-xs rounded-full whitespace-nowrap transition ${
                       photoFilter === cat.key
                         ? "bg-[#E94E3C] text-white font-semibold"
-                        : "bg-[#f5f3ef] text-[#777] hover:text-[#1a1a1a]"
+                        : "bg-[#EFEAE4] text-[#777] hover:text-[#1a1a1a]"
                     }`}
                   >
                     {cat.label} ({count})
@@ -663,7 +663,7 @@ export function ListingDetail({
               listing.beachDistance) && (
               <div className="grid grid-cols-2 gap-3">
                 {listing.bedrooms != null && (
-                  <div className="p-3 bg-[#FAF8F5] rounded-lg border border-[#E8E6E3]">
+                  <div className="p-3 bg-[#F3F0EB] rounded-lg border border-[#DDD8D0]">
                     <div className="text-[10px] uppercase tracking-wider text-[#999] mb-1">
                       Bedrooms
                     </div>
@@ -686,7 +686,7 @@ export function ListingDetail({
                 )}
 
                 {listing.bathrooms != null && (
-                  <div className="p-3 bg-[#FAF8F5] rounded-lg border border-[#E8E6E3]">
+                  <div className="p-3 bg-[#F3F0EB] rounded-lg border border-[#DDD8D0]">
                     <div className="text-[10px] uppercase tracking-wider text-[#999] mb-1">
                       Bathrooms
                     </div>
@@ -702,7 +702,7 @@ export function ListingDetail({
                 )}
 
                 {listing.kitchen && (
-                  <div className="p-3 bg-[#FAF8F5] rounded-lg border border-[#E8E6E3]">
+                  <div className="p-3 bg-[#F3F0EB] rounded-lg border border-[#DDD8D0]">
                     <div className="text-[10px] uppercase tracking-wider text-[#999] mb-1">
                       Kitchen
                     </div>
@@ -718,7 +718,7 @@ export function ListingDetail({
                 )}
 
                 {listing.beachDistance && (
-                  <div className="p-3 bg-[#FAF8F5] rounded-lg border border-[#E8E6E3]">
+                  <div className="p-3 bg-[#F3F0EB] rounded-lg border border-[#DDD8D0]">
                     <div className="text-[10px] uppercase tracking-wider text-[#999] mb-1">
                       Beach
                     </div>
@@ -737,8 +737,8 @@ export function ListingDetail({
 
             {/* Kid stuff */}
             {listing.kidFriendly && (
-              <div className="p-3 bg-green-500/5 border border-green-500/20 rounded-lg">
-                <div className="text-sm font-semibold text-green-400 mb-0.5">
+              <div className="p-3 bg-[#15803d]/5 border border-[#15803d]/15 rounded-lg">
+                <div className="text-sm font-semibold text-[#15803d] mb-0.5">
                   Kid-Friendly
                 </div>
                 <p className="text-sm text-[#777]">
@@ -757,7 +757,7 @@ export function ListingDetail({
                   {amenities.map((a: string, i: number) => (
                     <span
                       key={i}
-                      className="px-2.5 py-1 bg-[#f5f3ef] text-[#777] text-xs rounded-md"
+                      className="px-2.5 py-1 bg-[#EFEAE4] text-[#777] text-xs rounded-md"
                     >
                       {a}
                     </span>
@@ -781,7 +781,7 @@ export function ListingDetail({
         ) : !editing ? (
           /* Empty state when no details were scraped */
           <div className="p-6">
-            <div className="text-center py-6 px-4 bg-[#FAF8F5] rounded-xl border border-[#E8E6E3]">
+            <div className="text-center py-6 px-4 bg-[#F3F0EB] rounded-xl border border-[#DDD8D0]">
               <div className="text-3xl mb-2 opacity-30">
                 {isScraping ? "\u23F3" : "\u270F"}
               </div>
@@ -800,7 +800,7 @@ export function ListingDetail({
         ) : null}
 
         {/* Comments section */}
-        <div className="border-t border-[#E8E6E3] p-6">
+        <div className="border-t border-[#DDD8D0] p-6">
           <h3 className="text-[10px] uppercase tracking-wider text-[#999] mb-4">
             Comments ({listing.comments.length})
           </h3>
@@ -810,7 +810,7 @@ export function ListingDetail({
               {listing.comments.map((comment) => (
                 <div
                   key={comment.id}
-                  className="p-3 bg-[#FAF8F5] rounded-lg group"
+                  className="p-3 bg-[#F3F0EB] rounded-lg group"
                 >
                   <div className="flex items-baseline justify-between gap-2">
                     <div className="flex items-baseline gap-2">
@@ -824,7 +824,7 @@ export function ListingDetail({
                     {comment.userName === userName && (
                       <button
                         onClick={() => deleteComment(comment.id)}
-                        className="text-[10px] text-[#999] hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
+                        className="text-[10px] text-[#999] hover:text-[#b91c1c] opacity-0 group-hover:opacity-100 transition-all"
                         title="Delete comment"
                       >
                         delete
@@ -845,7 +845,7 @@ export function ListingDetail({
               placeholder="Add a comment..."
               value={commentText}
               onChange={(e) => setCommentText(e.target.value)}
-              className="flex-1 px-3 py-2 text-sm bg-[#FAF8F5] border border-[#E8E6E3] rounded-lg text-[#1a1a1a] placeholder:text-[#999] focus:outline-none focus:border-[#E94E3C] transition"
+              className="flex-1 px-3 py-2 text-sm bg-[#F3F0EB] border border-[#DDD8D0] rounded-lg text-[#1a1a1a] placeholder:text-[#999] focus:outline-none focus:border-[#E94E3C] transition"
             />
             <button
               type="submit"
@@ -858,18 +858,18 @@ export function ListingDetail({
         </div>
 
         {/* Footer actions */}
-        <div className="border-t border-[#E8E6E3] p-4 flex items-center justify-between">
+        <div className="border-t border-[#DDD8D0] p-4 flex items-center justify-between">
           <a
             href={listing.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="px-4 py-2 text-sm font-medium bg-[#f5f3ef] border border-[#E8E6E3] text-[#1a1a1a] rounded-lg hover:border-[#bbb] transition"
+            className="px-4 py-2 text-sm font-medium bg-[#EFEAE4] border border-[#DDD8D0] text-[#1a1a1a] rounded-lg hover:border-[#bbb] transition"
           >
             View on {sourceLabel(listing.source)} &#8599;
           </a>
           <button
             onClick={deleteListing}
-            className="px-4 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition"
+            className="px-4 py-2 text-sm text-[#b91c1c] hover:text-[#b91c1c] hover:bg-[#b91c1c]/8 rounded-lg transition"
           >
             Remove
           </button>

@@ -66,8 +66,8 @@ export default function Home() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5]">
-      <header className="border-b border-[#E8E6E3] px-6 py-4">
+    <div className="min-h-screen bg-[#F3F0EB]">
+      <header className="border-b border-[#DDD8D0] px-6 py-4">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <h1 className="text-xl font-bold text-[#E94E3C]">
             Lodging War Room
@@ -110,7 +110,7 @@ export default function Home() {
                   <a
                     key={trip.id}
                     href={`/trip/${trip.id}`}
-                    className="block p-5 bg-white border border-[#E8E6E3] rounded-xl hover:border-[#E94E3C] transition"
+                    className="block p-5 bg-white border border-[#DDD8D0] rounded-xl hover:border-[#E94E3C] transition"
                   >
                     <h3 className="font-bold text-[#1a1a1a] text-lg">
                       {trip.name}
@@ -148,7 +148,7 @@ export default function Home() {
                   onChange={(e) =>
                     setForm({ ...form, name: e.target.value })
                   }
-                  className="w-full px-4 py-2.5 bg-white border border-[#E8E6E3] rounded-lg text-[#1a1a1a] placeholder:text-[#bbb] focus:outline-none focus:border-[#E94E3C]"
+                  className="w-full px-4 py-2.5 bg-white border border-[#DDD8D0] rounded-lg text-[#1a1a1a] placeholder:text-[#bbb] focus:outline-none focus:border-[#E94E3C]"
                 />
               </div>
 
@@ -164,7 +164,7 @@ export default function Home() {
                   onChange={(e) =>
                     setForm({ ...form, destination: e.target.value })
                   }
-                  className="w-full px-4 py-2.5 bg-white border border-[#E8E6E3] rounded-lg text-[#1a1a1a] placeholder:text-[#bbb] focus:outline-none focus:border-[#E94E3C]"
+                  className="w-full px-4 py-2.5 bg-white border border-[#DDD8D0] rounded-lg text-[#1a1a1a] placeholder:text-[#bbb] focus:outline-none focus:border-[#E94E3C]"
                 />
                 <div className="mt-2 flex flex-wrap gap-2">
                   {presets.map((p) => (
@@ -180,7 +180,7 @@ export default function Home() {
                           centerLng: String(p.lng),
                         })
                       }
-                      className="px-3 py-1 text-xs bg-[#f5f3ef] border border-[#E8E6E3] rounded-full text-[#999] hover:border-[#E94E3C] hover:text-[#E94E3C] transition"
+                      className="px-3 py-1 text-xs bg-[#EFEAE4] border border-[#DDD8D0] rounded-full text-[#999] hover:border-[#E94E3C] hover:text-[#E94E3C] transition"
                     >
                       {p.name}
                     </button>
@@ -201,7 +201,7 @@ export default function Home() {
                     onChange={(e) =>
                       setForm({ ...form, centerLat: e.target.value })
                     }
-                    className="w-full px-4 py-2.5 bg-white border border-[#E8E6E3] rounded-lg text-[#1a1a1a] placeholder:text-[#bbb] focus:outline-none focus:border-[#E94E3C]"
+                    className="w-full px-4 py-2.5 bg-white border border-[#DDD8D0] rounded-lg text-[#1a1a1a] placeholder:text-[#bbb] focus:outline-none focus:border-[#E94E3C]"
                   />
                 </div>
                 <div>
@@ -216,7 +216,7 @@ export default function Home() {
                     onChange={(e) =>
                       setForm({ ...form, centerLng: e.target.value })
                     }
-                    className="w-full px-4 py-2.5 bg-white border border-[#E8E6E3] rounded-lg text-[#1a1a1a] placeholder:text-[#bbb] focus:outline-none focus:border-[#E94E3C]"
+                    className="w-full px-4 py-2.5 bg-white border border-[#DDD8D0] rounded-lg text-[#1a1a1a] placeholder:text-[#bbb] focus:outline-none focus:border-[#E94E3C]"
                   />
                 </div>
               </div>
@@ -233,7 +233,7 @@ export default function Home() {
                     onChange={(e) =>
                       setForm({ ...form, adults: e.target.value })
                     }
-                    className="w-full px-4 py-2.5 bg-white border border-[#E8E6E3] rounded-lg text-[#1a1a1a] focus:outline-none focus:border-[#E94E3C]"
+                    className="w-full px-4 py-2.5 bg-white border border-[#DDD8D0] rounded-lg text-[#1a1a1a] focus:outline-none focus:border-[#E94E3C]"
                   />
                 </div>
                 <div>
@@ -247,7 +247,7 @@ export default function Home() {
                     onChange={(e) =>
                       setForm({ ...form, kids: e.target.value })
                     }
-                    className="w-full px-4 py-2.5 bg-white border border-[#E8E6E3] rounded-lg text-[#1a1a1a] focus:outline-none focus:border-[#E94E3C]"
+                    className="w-full px-4 py-2.5 bg-white border border-[#DDD8D0] rounded-lg text-[#1a1a1a] focus:outline-none focus:border-[#E94E3C]"
                   />
                 </div>
               </div>
@@ -262,7 +262,7 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={() => setShowCreate(false)}
-                  className="px-4 py-2.5 bg-[#f5f3ef] border border-[#E8E6E3] text-[#999] rounded-lg hover:border-[#bbb] transition"
+                  className="px-4 py-2.5 bg-[#EFEAE4] border border-[#DDD8D0] text-[#999] rounded-lg hover:border-[#bbb] transition"
                 >
                   Cancel
                 </button>

@@ -1,21 +1,21 @@
 @import "tailwindcss";
 
 :root {
-  /* Barbados warm light palette */
-  --bg: #FAF8F5;
-  --card: #fff;
-  --panel: #f5f3ef;
-  --panel-border: #f0ede8;
-  --border: #E8E6E3;
+  /* Barbados warm palette — slightly muted to reduce glare */
+  --bg: #F3F0EB;
+  --card: #FDFCFA;
+  --panel: #EFEAE4;
+  --panel-border: #E8E3DC;
+  --border: #DDD8D0;
   --accent: #E94E3C;
   --accent-hover: #d4443a;
   --accent-light: rgba(233, 78, 60, 0.06);
   --accent-border: rgba(233, 78, 60, 0.15);
   --text: #1a1a1a;
   --text-secondary: #555;
-  --text-muted: #999;
-  --text-faint: #bbb;
-  --text-ghost: #ddd;
+  --text-muted: #888;
+  --text-faint: #aaa;
+  --text-ghost: #ccc;
 }
 
 body {

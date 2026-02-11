@@ -228,7 +228,7 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#FAF8F5] flex items-center justify-center">
+      <div className="min-h-screen bg-[#F3F0EB] flex items-center justify-center">
         <div className="text-[#999]">Loading trip...</div>
       </div>
     );
@@ -236,7 +236,7 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
 
   if (!trip) {
     return (
-      <div className="min-h-screen bg-[#FAF8F5] flex items-center justify-center">
+      <div className="min-h-screen bg-[#F3F0EB] flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-xl font-bold text-[#1a1a1a] mb-2">Trip not found</h1>
           <a href="/" className="text-[#E94E3C] hover:underline">
@@ -248,11 +248,11 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
   }
 
   return (
-    <div className="h-screen flex flex-col bg-[#FAF8F5]">
+    <div className="h-screen flex flex-col bg-[#F3F0EB]">
       {/* Name prompt modal */}
       {showNamePrompt && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="bg-white border border-[#E8E6E3] rounded-xl p-6 max-w-sm w-full mx-4">
+          <div className="bg-white border border-[#DDD8D0] rounded-xl p-6 max-w-sm w-full mx-4">
             <h2 className="text-lg font-bold text-[#1a1a1a] mb-2">
               What&apos;s your name?
             </h2>
@@ -274,7 +274,7 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
                 required
                 placeholder="Your first name"
                 autoFocus
-                className="w-full px-4 py-2.5 bg-[#FAF8F5] border border-[#E8E6E3] rounded-lg text-[#1a1a1a] placeholder:text-[#bbb] focus:outline-none focus:border-[#E94E3C] mb-4"
+                className="w-full px-4 py-2.5 bg-[#F3F0EB] border border-[#DDD8D0] rounded-lg text-[#1a1a1a] placeholder:text-[#bbb] focus:outline-none focus:border-[#E94E3C] mb-4"
               />
               <button
                 type="submit"
@@ -300,7 +300,7 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
       )}
 
       {/* Header */}
-      <header className="border-b border-[#E8E6E3] px-4 py-3 flex items-center justify-between shrink-0">
+      <header className="border-b border-[#DDD8D0] px-4 py-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
           <a
             href="/"
@@ -319,18 +319,18 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
                 &#9998;
               </span>
             </h1>
-            <p className="text-xs text-[#999]">
-              {trip.destination} &middot; {trip.adults} adults
+            <p className="text-xs text-[#888]">
+              {trip.destination} {"\u00B7"} {trip.adults} adults
               {trip.kids > 0 ? ` + ${trip.kids} kids` : ""}
-              {trip.nights ? ` &middot; ${trip.nights} nights` : ""}
-              {" "}&middot; {trip.listings.length} listings
+              {trip.nights ? ` \u00B7 ${trip.nights} nights` : ""}
+              {" \u00B7 "}{trip.listings.length} listings
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowImportModal(true)}
-            className="px-3 py-1.5 text-sm bg-[#f5f3ef] border border-[#E8E6E3] text-[#999] rounded-lg hover:border-[#E94E3C] hover:text-[#E94E3C] transition"
+            className="px-3 py-1.5 text-sm bg-[#EFEAE4] border border-[#DDD8D0] text-[#999] rounded-lg hover:border-[#E94E3C] hover:text-[#E94E3C] transition"
           >
             Import
           </button>
@@ -365,7 +365,7 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
         </div>
 
         {/* Listing cards */}
-        <div className="flex-1 lg:w-[420px] lg:flex-none overflow-y-auto border-l border-[#E8E6E3]">
+        <div className="flex-1 lg:w-[420px] lg:flex-none overflow-y-auto border-l border-[#DDD8D0]">
           {filteredListings.length === 0 ? (
             <div className="p-8 text-center">
               <p className="text-[#999] mb-4">
@@ -547,7 +547,7 @@ function EditTripModal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="bg-white border border-[#E8E6E3] rounded-xl p-6 max-w-lg w-full mx-4 shadow-2xl">
+      <div className="bg-white border border-[#DDD8D0] rounded-xl p-6 max-w-lg w-full mx-4 shadow-2xl">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold text-[#1a1a1a]">Edit Trip</h2>
           <button
@@ -570,7 +570,7 @@ function EditTripModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Barbados 2026"
-              className="w-full px-4 py-2.5 bg-[#FAF8F5] border border-[#E8E6E3] rounded-lg text-[#1a1a1a] placeholder:text-[#bbb] focus:outline-none focus:border-[#E94E3C] text-sm"
+              className="w-full px-4 py-2.5 bg-[#F3F0EB] border border-[#DDD8D0] rounded-lg text-[#1a1a1a] placeholder:text-[#bbb] focus:outline-none focus:border-[#E94E3C] text-sm"
             />
           </div>
 
@@ -585,7 +585,7 @@ function EditTripModal({
               value={destination}
               onChange={(e) => setDestination(e.target.value)}
               placeholder="e.g. Barbados"
-              className="w-full px-4 py-2.5 bg-[#FAF8F5] border border-[#E8E6E3] rounded-lg text-[#1a1a1a] placeholder:text-[#bbb] focus:outline-none focus:border-[#E94E3C] text-sm"
+              className="w-full px-4 py-2.5 bg-[#F3F0EB] border border-[#DDD8D0] rounded-lg text-[#1a1a1a] placeholder:text-[#bbb] focus:outline-none focus:border-[#E94E3C] text-sm"
             />
           </div>
 
@@ -600,7 +600,7 @@ function EditTripModal({
                 min="1"
                 value={adults}
                 onChange={(e) => setAdults(e.target.value)}
-                className="w-full px-3 py-2.5 bg-[#FAF8F5] border border-[#E8E6E3] rounded-lg text-[#1a1a1a] focus:outline-none focus:border-[#E94E3C] text-sm"
+                className="w-full px-3 py-2.5 bg-[#F3F0EB] border border-[#DDD8D0] rounded-lg text-[#1a1a1a] focus:outline-none focus:border-[#E94E3C] text-sm"
               />
             </div>
             <div>
@@ -612,7 +612,7 @@ function EditTripModal({
                 min="0"
                 value={kids}
                 onChange={(e) => setKids(e.target.value)}
-                className="w-full px-3 py-2.5 bg-[#FAF8F5] border border-[#E8E6E3] rounded-lg text-[#1a1a1a] focus:outline-none focus:border-[#E94E3C] text-sm"
+                className="w-full px-3 py-2.5 bg-[#F3F0EB] border border-[#DDD8D0] rounded-lg text-[#1a1a1a] focus:outline-none focus:border-[#E94E3C] text-sm"
               />
             </div>
             <div>
@@ -625,7 +625,7 @@ function EditTripModal({
                 value={nights}
                 onChange={(e) => setNights(e.target.value)}
                 placeholder="—"
-                className="w-full px-3 py-2.5 bg-[#FAF8F5] border border-[#E8E6E3] rounded-lg text-[#1a1a1a] placeholder:text-[#bbb] focus:outline-none focus:border-[#E94E3C] text-sm"
+                className="w-full px-3 py-2.5 bg-[#F3F0EB] border border-[#DDD8D0] rounded-lg text-[#1a1a1a] placeholder:text-[#bbb] focus:outline-none focus:border-[#E94E3C] text-sm"
               />
             </div>
           </div>
@@ -640,7 +640,7 @@ function EditTripModal({
                 type="text"
                 value={centerLat}
                 onChange={(e) => setCenterLat(e.target.value)}
-                className="w-full px-3 py-2.5 bg-[#FAF8F5] border border-[#E8E6E3] rounded-lg text-[#1a1a1a] focus:outline-none focus:border-[#E94E3C] text-sm"
+                className="w-full px-3 py-2.5 bg-[#F3F0EB] border border-[#DDD8D0] rounded-lg text-[#1a1a1a] focus:outline-none focus:border-[#E94E3C] text-sm"
               />
             </div>
             <div>
@@ -651,13 +651,13 @@ function EditTripModal({
                 type="text"
                 value={centerLng}
                 onChange={(e) => setCenterLng(e.target.value)}
-                className="w-full px-3 py-2.5 bg-[#FAF8F5] border border-[#E8E6E3] rounded-lg text-[#1a1a1a] focus:outline-none focus:border-[#E94E3C] text-sm"
+                className="w-full px-3 py-2.5 bg-[#F3F0EB] border border-[#DDD8D0] rounded-lg text-[#1a1a1a] focus:outline-none focus:border-[#E94E3C] text-sm"
               />
             </div>
           </div>
 
           {error && (
-            <p className="text-sm text-red-400">{error}</p>
+            <p className="text-sm text-[#b91c1c]">{error}</p>
           )}
 
           <div className="flex gap-3 pt-1">
@@ -671,7 +671,7 @@ function EditTripModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 bg-[#f5f3ef] border border-[#E8E6E3] text-[#777] rounded-lg hover:border-[#bbb] transition"
+              className="px-4 py-2.5 bg-[#EFEAE4] border border-[#DDD8D0] text-[#777] rounded-lg hover:border-[#bbb] transition"
             >
               Cancel
             </button>

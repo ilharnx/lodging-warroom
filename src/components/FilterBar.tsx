@@ -74,7 +74,7 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
   };
 
   return (
-    <div style={{ borderBottom: "1px solid #E8E6E3", flexShrink: 0, background: "#fff" }}>
+    <div style={{ borderBottom: "1px solid #DDD8D0", flexShrink: 0, background: "#fff" }}>
       <div style={{
         padding: "12px 28px",
         display: "flex",
@@ -88,8 +88,8 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
           onChange={(e) => update({ sortBy: e.target.value as FilterState["sortBy"] })}
           style={{
             ...dropStyle,
-            background: "#FAF8F5",
-            borderColor: "#E8E6E3",
+            background: "#F3F0EB",
+            borderColor: "#DDD8D0",
           }}
         >
           <option value="recent">Sort: Recent</option>
@@ -150,7 +150,7 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
       {expanded && (
         <div style={{
           padding: "12px 28px 16px",
-          borderTop: "1px solid #f0ede8",
+          borderTop: "1px solid #E8E3DC",
           display: "grid",
           gridTemplateColumns: "repeat(4, 1fr)",
           gap: 12,

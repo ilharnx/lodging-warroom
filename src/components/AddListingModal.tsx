@@ -99,7 +99,7 @@ export function AddListingModal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="bg-white border border-[#E8E6E3] rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
+      <div className="bg-white border border-[#DDD8D0] rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold text-[#1a1a1a]">Add Listings</h2>
           <button
@@ -111,13 +111,13 @@ export function AddListingModal({
         </div>
 
         {/* Mode toggle */}
-        <div className="flex gap-1 mb-4 p-1 bg-[#FAF8F5] rounded-lg">
+        <div className="flex gap-1 mb-4 p-1 bg-[#F3F0EB] rounded-lg">
           <button
             type="button"
             onClick={() => { setMode("single"); setInput(""); setError(""); setStatus(""); }}
             className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition ${
               mode === "single"
-                ? "bg-[#f5f3ef] text-[#1a1a1a]"
+                ? "bg-[#EFEAE4] text-[#1a1a1a]"
                 : "text-[#777] hover:text-[#1a1a1a]"
             }`}
           >
@@ -128,7 +128,7 @@ export function AddListingModal({
             onClick={() => { setMode("multi"); setInput(""); setError(""); setStatus(""); }}
             className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition ${
               mode === "multi"
-                ? "bg-[#f5f3ef] text-[#1a1a1a]"
+                ? "bg-[#EFEAE4] text-[#1a1a1a]"
                 : "text-[#777] hover:text-[#1a1a1a]"
             }`}
           >
@@ -151,7 +151,7 @@ export function AddListingModal({
               value={input}
               onChange={(e) => setInput(e.target.value)}
               autoFocus
-              className="w-full px-4 py-3 bg-[#FAF8F5] border border-[#E8E6E3] rounded-lg text-[#1a1a1a] placeholder:text-[#bbb] focus:outline-none focus:border-[#E94E3C] text-sm"
+              className="w-full px-4 py-3 bg-[#F3F0EB] border border-[#DDD8D0] rounded-lg text-[#1a1a1a] placeholder:text-[#bbb] focus:outline-none focus:border-[#E94E3C] text-sm"
             />
           ) : (
             <div className="relative">
@@ -162,7 +162,7 @@ export function AddListingModal({
                 onChange={(e) => setInput(e.target.value)}
                 autoFocus
                 rows={5}
-                className="w-full px-4 py-3 bg-[#FAF8F5] border border-[#E8E6E3] rounded-lg text-[#1a1a1a] placeholder:text-[#bbb] focus:outline-none focus:border-[#E94E3C] text-sm resize-none"
+                className="w-full px-4 py-3 bg-[#F3F0EB] border border-[#DDD8D0] rounded-lg text-[#1a1a1a] placeholder:text-[#bbb] focus:outline-none focus:border-[#E94E3C] text-sm resize-none"
               />
               {urls.length > 0 && (
                 <div className="absolute top-2 right-2 px-2 py-0.5 bg-[#E94E3C]/20 text-[#E94E3C] text-[10px] font-semibold rounded">
@@ -173,11 +173,11 @@ export function AddListingModal({
           )}
 
           {error && (
-            <p className="mt-2 text-sm text-red-400">{error}</p>
+            <p className="mt-2 text-sm text-[#b91c1c]">{error}</p>
           )}
 
           {status && !error && (
-            <p className="mt-2 text-sm text-green-400">{status}</p>
+            <p className="mt-2 text-sm text-[#15803d]">{status}</p>
           )}
 
           <div className="mt-4 flex gap-3">
@@ -195,7 +195,7 @@ export function AddListingModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 bg-[#f5f3ef] border border-[#E8E6E3] text-[#777] rounded-lg hover:border-[#bbb] transition"
+              className="px-4 py-2.5 bg-[#EFEAE4] border border-[#DDD8D0] text-[#777] rounded-lg hover:border-[#bbb] transition"
             >
               Cancel
             </button>
