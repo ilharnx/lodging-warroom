@@ -68,7 +68,7 @@ function Badge({ source }: { source: string }) {
     airbnb: "#FF5A5F",
     vrbo: "#3D67FF",
     booking: "#003B95",
-    other: "#999",
+    other: "#706B65",
   };
   const labels: Record<string, string> = {
     airbnb: "Airbnb",
@@ -131,7 +131,10 @@ export function ListingCard({
   return (
     <div
       id={`listing-${listing.id}`}
+      role="button"
+      tabIndex={0}
       onClick={onSelect}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(); } }}
       style={{
         background: "#fff",
         border: isSelected ? "2px solid #E94E3C" : "1px solid #E8E6E3",
@@ -150,7 +153,7 @@ export function ListingCard({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={listing.photos[0].url}
-            alt=""
+            alt={listing.name}
             style={{ width: "100%", height: "100%", objectFit: "cover" }}
             loading="lazy"
           />
@@ -167,11 +170,11 @@ export function ListingCard({
           }}
         >
           {isScraping ? (
-            <span className="scraping-pulse" style={{ fontSize: 13, color: "#999" }}>
+            <span className="scraping-pulse" style={{ fontSize: 13, color: "#706B65" }}>
               Scraping...
             </span>
           ) : (
-            <span style={{ fontSize: 32, opacity: 0.25 }}>&#127968;</span>
+            <span style={{ fontSize: 32, opacity: 0.25 }} aria-hidden="true">&#127968;</span>
           )}
         </div>
       )}
@@ -223,13 +226,13 @@ export function ListingCard({
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
           <Badge source={listing.source} />
           {listing.rating != null && listing.rating > 0 && (
-            <span style={{ fontSize: 12, color: "#888", display: "flex", alignItems: "center", gap: 3 }}>
+            <span style={{ fontSize: 12, color: "#706B65", display: "flex", alignItems: "center", gap: 3 }}>
               <span style={{ color: "#E94E3C" }}>&#9733;</span> {listing.rating}
-              {listing.reviewCount ? <span style={{ color: "#bbb" }}>({listing.reviewCount})</span> : null}
+              {listing.reviewCount ? <span style={{ color: "#8a8480" }}>({listing.reviewCount})</span> : null}
             </span>
           )}
           {listing.neighborhood && (
-            <span style={{ fontSize: 11, color: "#bbb", marginLeft: "auto" }}>{listing.neighborhood}</span>
+            <span style={{ fontSize: 11, color: "#8a8480", marginLeft: "auto" }}>{listing.neighborhood}</span>
           )}
         </div>
 
@@ -239,7 +242,7 @@ export function ListingCard({
             className="font-heading"
             style={{
               margin: 0, fontSize: 17, fontWeight: 600,
-              color: isGenericName ? "#999" : "#1a1a1a",
+              color: isGenericName ? "#706B65" : "#1a1a1a",
               lineHeight: 1.3, flex: 1,
               overflow: "hidden", textOverflow: "ellipsis",
               display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const,
@@ -253,7 +256,7 @@ export function ListingCard({
                 <div style={{ fontSize: 22, fontWeight: 800, color: "#E94E3C" }}>
                   {formatPrice(listing.totalCost, listing.currency)}
                 </div>
-                <div style={{ fontSize: 11, color: "#999" }}>
+                <div style={{ fontSize: 11, color: "#706B65" }}>
                   {perPerson ? `$${perPerson}/person` : "total"}
                 </div>
               </>
@@ -262,10 +265,10 @@ export function ListingCard({
                 <div style={{ fontSize: 22, fontWeight: 800, color: "#E94E3C" }}>
                   {formatPrice(listing.perNight, listing.currency)}
                 </div>
-                <div style={{ fontSize: 11, color: "#999" }}>/night</div>
+                <div style={{ fontSize: 11, color: "#706B65" }}>/night</div>
               </>
             ) : (
-              <span style={{ fontSize: 12, color: "#bbb", fontStyle: "italic" }}>
+              <span style={{ fontSize: 12, color: "#8a8480", fontStyle: "italic" }}>
                 {isScraping ? "..." : "—"}
               </span>
             )}
@@ -280,25 +283,25 @@ export function ListingCard({
           }}>
             {listing.bedrooms != null && (
               <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 13, color: "#555" }}>
-                <span style={{ fontSize: 16, width: 22, textAlign: "center" }}>&#128716;</span>
+                <span style={{ fontSize: 16, width: 22, textAlign: "center" }} aria-hidden="true">&#128716;</span>
                 {listing.bedrooms} bed{listing.bedrooms !== 1 ? "s" : ""}
               </div>
             )}
             {listing.bathrooms != null && (
               <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 13, color: "#555" }}>
-                <span style={{ fontSize: 16, width: 22, textAlign: "center" }}>&#128703;</span>
+                <span style={{ fontSize: 16, width: 22, textAlign: "center" }} aria-hidden="true">&#128703;</span>
                 {listing.bathrooms} bath{listing.bathrooms !== 1 ? "s" : ""}
               </div>
             )}
             {listing.kitchen && (
               <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 13, color: "#555" }}>
-                <span style={{ fontSize: 16, width: 22, textAlign: "center" }}>&#127859;</span>
+                <span style={{ fontSize: 16, width: 22, textAlign: "center" }} aria-hidden="true">&#127859;</span>
                 <span style={{ textTransform: "capitalize" }}>{listing.kitchen}</span>
               </div>
             )}
             {(listing.beachDistance || listing.beachType) && (
               <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 13, color: "#555" }}>
-                <span style={{ fontSize: 16, width: 22, textAlign: "center" }}>&#127958;</span>
+                <span style={{ fontSize: 16, width: 22, textAlign: "center" }} aria-hidden="true">&#127958;</span>
                 {listing.beachDistance || listing.beachType}
               </div>
             )}
@@ -307,7 +310,7 @@ export function ListingCard({
 
         {/* Bathroom notes */}
         {listing.bathroomNotes && (
-          <div style={{ marginTop: 6, fontSize: 12, color: "#999", fontStyle: "italic" }}>
+          <div style={{ marginTop: 6, fontSize: 12, color: "#706B65", fontStyle: "italic" }}>
             {listing.bathroomNotes}
           </div>
         )}
@@ -330,29 +333,31 @@ export function ListingCard({
         }}>
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
             <button
+              aria-label="Upvote"
               onClick={(e) => { e.stopPropagation(); onVote(1); }}
               style={{
                 background: userVote?.value === 1 ? "rgba(233,78,60,0.08)" : "#fff",
-                border: userVote?.value === 1 ? "1px solid #E94E3C" : "1px solid #ddd",
+                border: userVote?.value === 1 ? "1px solid #E94E3C" : "1px solid #DDD8D0",
                 borderRadius: 8, padding: "5px 12px", cursor: "pointer",
-                fontSize: 13, color: voteTotal > 0 ? "#E94E3C" : "#999", fontWeight: 700, fontFamily: "inherit",
+                fontSize: 13, color: voteTotal > 0 ? "#E94E3C" : "#706B65", fontWeight: 700, fontFamily: "inherit",
               }}
             >
               &#128293; {voteTotal}
             </button>
             <button
+              aria-label="Downvote"
               onClick={(e) => { e.stopPropagation(); onVote(-1); }}
               style={{
                 background: userVote?.value === -1 ? "rgba(239,68,68,0.08)" : "#fff",
-                border: userVote?.value === -1 ? "1px solid #ef4444" : "1px solid #ddd",
+                border: userVote?.value === -1 ? "1px solid #ef4444" : "1px solid #DDD8D0",
                 borderRadius: 8, padding: "5px 10px", cursor: "pointer",
-                fontSize: 13, color: userVote?.value === -1 ? "#ef4444" : "#ccc", fontFamily: "inherit",
+                fontSize: 13, color: userVote?.value === -1 ? "#ef4444" : "#8a8480", fontFamily: "inherit",
               }}
             >
               &#128078;
             </button>
             {listing.addedBy && (
-              <span style={{ fontSize: 11, color: "#ccc", marginLeft: 4 }}>by {listing.addedBy}</span>
+              <span style={{ fontSize: 11, color: "#8a8480", marginLeft: 4 }}>by {listing.addedBy}</span>
             )}
           </div>
           <div style={{ display: "flex", gap: 6 }}>

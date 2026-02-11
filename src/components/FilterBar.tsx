@@ -53,9 +53,9 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
     fontFamily: "inherit",
     fontWeight: 600,
     transition: "all 0.15s",
-    border: active ? "1.5px solid #E94E3C" : "1px solid #ddd",
+    border: active ? "1.5px solid #E94E3C" : "1px solid #DDD8D0",
     background: active ? "rgba(233,78,60,0.06)" : "#fff",
-    color: active ? "#E94E3C" : "#888",
+    color: active ? "#E94E3C" : "#706B65",
     whiteSpace: "nowrap",
   });
 
@@ -66,10 +66,9 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
     cursor: "pointer",
     fontFamily: "inherit",
     fontWeight: 600,
-    border: "1px solid #ddd",
+    border: "1px solid #DDD8D0",
     background: "#fff",
-    color: "#888",
-    outline: "none",
+    color: "#706B65",
     paddingRight: 24,
   };
 
@@ -98,7 +97,7 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
           <option value="rating">Sort: Rating</option>
         </select>
 
-        <span style={{ color: "#eee", margin: "0 2px" }}>|</span>
+        <span style={{ color: "#DDD8D0", margin: "0 2px" }}>|</span>
 
         {/* Source chips */}
         {SOURCES.map(({ key, label }) => (
@@ -111,7 +110,7 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
           </button>
         ))}
 
-        <span style={{ color: "#eee", margin: "0 2px" }}>|</span>
+        <span style={{ color: "#DDD8D0", margin: "0 2px" }}>|</span>
 
         {/* Quick filters */}
         <button onClick={() => update({ hasPool: !filters.hasPool })} style={chip(filters.hasPool)}>
@@ -156,7 +155,7 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
           gap: 12,
         }}>
           <div>
-            <label style={{ fontSize: 10, fontWeight: 700, color: "#999", marginBottom: 5, display: "block", textTransform: "uppercase", letterSpacing: 1.2 }}>
+            <label style={{ fontSize: 10, fontWeight: 700, color: "#706B65", marginBottom: 5, display: "block", textTransform: "uppercase", letterSpacing: 1.2 }}>
               Min Bedrooms
             </label>
             <select
@@ -173,7 +172,7 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
           </div>
 
           <div>
-            <label style={{ fontSize: 10, fontWeight: 700, color: "#999", marginBottom: 5, display: "block", textTransform: "uppercase", letterSpacing: 1.2 }}>
+            <label style={{ fontSize: 10, fontWeight: 700, color: "#706B65", marginBottom: 5, display: "block", textTransform: "uppercase", letterSpacing: 1.2 }}>
               Min Bathrooms
             </label>
             <select
@@ -190,7 +189,7 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
           </div>
 
           <div>
-            <label style={{ fontSize: 10, fontWeight: 700, color: "#999", marginBottom: 5, display: "block", textTransform: "uppercase", letterSpacing: 1.2 }}>
+            <label style={{ fontSize: 10, fontWeight: 700, color: "#706B65", marginBottom: 5, display: "block", textTransform: "uppercase", letterSpacing: 1.2 }}>
               Kitchen
             </label>
             <div style={{ display: "flex", gap: 4 }}>
@@ -201,9 +200,9 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
                   style={{
                     padding: "6px 12px", borderRadius: 8, fontSize: 11, cursor: "pointer",
                     fontFamily: "inherit", fontWeight: 600, transition: "all 0.15s",
-                    border: filters.kitchen.includes(type) ? "1.5px solid #E94E3C" : "1px solid #ddd",
+                    border: filters.kitchen.includes(type) ? "1.5px solid #E94E3C" : "1px solid #DDD8D0",
                     background: filters.kitchen.includes(type) ? "rgba(233,78,60,0.06)" : "#fff",
-                    color: filters.kitchen.includes(type) ? "#E94E3C" : "#999",
+                    color: filters.kitchen.includes(type) ? "#E94E3C" : "#706B65",
                   }}
                 >
                   {type === "full" ? "Full" : "Kitchenette"}
@@ -213,7 +212,7 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
           </div>
 
           <div>
-            <label style={{ fontSize: 10, fontWeight: 700, color: "#999", marginBottom: 5, display: "block", textTransform: "uppercase", letterSpacing: 1.2 }}>
+            <label style={{ fontSize: 10, fontWeight: 700, color: "#706B65", marginBottom: 5, display: "block", textTransform: "uppercase", letterSpacing: 1.2 }}>
               Min Rating
             </label>
             <select

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useModal } from "@/hooks/useModal";
 
 interface Photo {
   id: string;
@@ -89,10 +90,10 @@ function sourceLabel(source: string): string {
 
 function sourceColor(source: string): string {
   const colors: Record<string, string> = {
-    airbnb: "bg-rose-500/20 text-rose-400",
-    vrbo: "bg-blue-500/20 text-blue-400",
-    booking: "bg-indigo-500/20 text-indigo-400",
-    other: "bg-gray-500/20 text-gray-400",
+    airbnb: "bg-[#FF5A5F]/15 text-[#c4403f]",
+    vrbo: "bg-[#3D67FF]/15 text-[#2a4bb3]",
+    booking: "bg-[#003B95]/15 text-[#003B95]",
+    other: "bg-[#706B65]/15 text-[#706B65]",
   };
   return colors[source] || colors.other;
 }
@@ -148,10 +149,30 @@ export function ListingDetail({
   );
   const [saving, setSaving] = useState(false);
 
+  const modalRef = useModal(onClose);
+
   const filteredPhotos =
     photoFilter === "all"
       ? listing.photos
       : listing.photos.filter((p) => p.category === photoFilter);
+
+  const handleLightboxKeyDown = useCallback((e: KeyboardEvent) => {
+    if (selectedPhotoIdx === null) return;
+    if (e.key === "ArrowLeft" && selectedPhotoIdx > 0) {
+      setSelectedPhotoIdx(selectedPhotoIdx - 1);
+    } else if (e.key === "ArrowRight" && selectedPhotoIdx < filteredPhotos.length - 1) {
+      setSelectedPhotoIdx(selectedPhotoIdx + 1);
+    } else if (e.key === "Escape") {
+      setSelectedPhotoIdx(null);
+    }
+  }, [selectedPhotoIdx, filteredPhotos.length]);
+
+  useEffect(() => {
+    if (selectedPhotoIdx !== null) {
+      document.addEventListener("keydown", handleLightboxKeyDown);
+      return () => document.removeEventListener("keydown", handleLightboxKeyDown);
+    }
+  }, [selectedPhotoIdx, handleLightboxKeyDown]);
 
   const amenities: string[] = Array.isArray(listing.amenities)
     ? listing.amenities
@@ -249,11 +270,12 @@ export function ListingDetail({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="bg-white border border-[#DDD8D0] rounded-2xl max-w-2xl w-full relative shadow-2xl">
+      <div ref={modalRef} role="dialog" aria-modal="true" aria-label={listing.name} className="bg-white border border-[#DDD8D0] rounded-2xl max-w-2xl w-full relative shadow-2xl">
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-[#EFEAE4] border border-[#DDD8D0] text-[#777] hover:text-[#1a1a1a] hover:border-[#bbb] transition"
+          aria-label="Close"
+          className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-[#EFEAE4] border border-[#DDD8D0] text-[#636058] hover:text-[#1a1a1a] hover:border-[#bbb] transition"
         >
           &#10005;
         </button>
@@ -274,19 +296,19 @@ export function ListingDetail({
                   type="text"
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
-                  className="w-full text-xl font-bold bg-[#F3F0EB] border border-[#DDD8D0] rounded-lg px-3 py-1.5 text-[#1a1a1a] focus:outline-none focus:border-[#E94E3C]"
+                  className="w-full text-xl font-bold bg-[#F3F0EB] border border-[#DDD8D0] rounded-lg px-3 py-1.5 text-[#1a1a1a] focus:border-[#E94E3C]"
                   placeholder="Listing name"
                 />
               ) : (
                 <h2 className="text-xl font-bold text-[#1a1a1a] leading-tight">
                   {isGenericName ? (
-                    <span className="text-[#777]">{listing.name}</span>
+                    <span className="text-[#636058]">{listing.name}</span>
                   ) : (
                     listing.name
                   )}
                 </h2>
               )}
-              <p className="text-sm text-[#777] mt-1">
+              <p className="text-sm text-[#636058] mt-1">
                 {listing.neighborhood || listing.address || getDomain(listing.url)}
               </p>
             </div>
@@ -297,7 +319,7 @@ export function ListingDetail({
                   {listing.rating}
                 </div>
                 {listing.reviewCount != null && listing.reviewCount > 0 && (
-                  <div className="text-xs text-[#777]">
+                  <div className="text-xs text-[#636058]">
                     {listing.reviewCount.toLocaleString()} reviews
                   </div>
                 )}
@@ -350,43 +372,43 @@ export function ListingDetail({
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[10px] uppercase tracking-wider text-[#999] mb-1 block">
+                    <label className="text-[10px] uppercase tracking-wider text-[#706B65] mb-1 block">
                       Per Night ($)
                     </label>
                     <input
                       type="number"
                       value={editPerNight}
                       onChange={(e) => setEditPerNight(e.target.value)}
-                      className="w-full px-3 py-1.5 text-sm bg-white border border-[#DDD8D0] rounded-lg text-[#1a1a1a] focus:outline-none focus:border-[#E94E3C]"
+                      className="w-full px-3 py-1.5 text-sm bg-white border border-[#DDD8D0] rounded-lg text-[#1a1a1a] focus:border-[#E94E3C]"
                       placeholder="e.g. 250"
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] uppercase tracking-wider text-[#999] mb-1 block">
+                    <label className="text-[10px] uppercase tracking-wider text-[#706B65] mb-1 block">
                       Total Cost ($)
                     </label>
                     <input
                       type="number"
                       value={editTotalCost}
                       onChange={(e) => setEditTotalCost(e.target.value)}
-                      className="w-full px-3 py-1.5 text-sm bg-white border border-[#DDD8D0] rounded-lg text-[#1a1a1a] focus:outline-none focus:border-[#E94E3C]"
+                      className="w-full px-3 py-1.5 text-sm bg-white border border-[#DDD8D0] rounded-lg text-[#1a1a1a] focus:border-[#E94E3C]"
                       placeholder="e.g. 2500"
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] uppercase tracking-wider text-[#999] mb-1 block">
+                    <label className="text-[10px] uppercase tracking-wider text-[#706B65] mb-1 block">
                       Bedrooms
                     </label>
                     <input
                       type="number"
                       value={editBedrooms}
                       onChange={(e) => setEditBedrooms(e.target.value)}
-                      className="w-full px-3 py-1.5 text-sm bg-white border border-[#DDD8D0] rounded-lg text-[#1a1a1a] focus:outline-none focus:border-[#E94E3C]"
+                      className="w-full px-3 py-1.5 text-sm bg-white border border-[#DDD8D0] rounded-lg text-[#1a1a1a] focus:border-[#E94E3C]"
                       placeholder="e.g. 3"
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] uppercase tracking-wider text-[#999] mb-1 block">
+                    <label className="text-[10px] uppercase tracking-wider text-[#706B65] mb-1 block">
                       Bathrooms
                     </label>
                     <input
@@ -394,7 +416,7 @@ export function ListingDetail({
                       step="0.5"
                       value={editBathrooms}
                       onChange={(e) => setEditBathrooms(e.target.value)}
-                      className="w-full px-3 py-1.5 text-sm bg-white border border-[#DDD8D0] rounded-lg text-[#1a1a1a] focus:outline-none focus:border-[#E94E3C]"
+                      className="w-full px-3 py-1.5 text-sm bg-white border border-[#DDD8D0] rounded-lg text-[#1a1a1a] focus:border-[#E94E3C]"
                       placeholder="e.g. 2"
                     />
                   </div>
@@ -408,7 +430,7 @@ export function ListingDetail({
                       ? formatPrice(listing.totalCost, listing.currency)
                       : formatPrice(listing.perNight, listing.currency)}
                   </span>
-                  <span className="text-sm text-[#777]">
+                  <span className="text-sm text-[#636058]">
                     {listing.totalCost ? "total" : "/night"}
                   </span>
                   {perPerson && (
@@ -422,7 +444,7 @@ export function ListingDetail({
                 {(listing.cleaningFee || listing.serviceFee || listing.taxes) && (
                   <div className="mt-3 pt-3 border-t border-[#DDD8D0] space-y-1.5 text-xs">
                     {listing.perNight && (
-                      <div className="flex justify-between text-[#777]">
+                      <div className="flex justify-between text-[#636058]">
                         <span>Nightly rate</span>
                         <span className="text-[#1a1a1a]">
                           {formatPrice(listing.perNight)}/night
@@ -430,7 +452,7 @@ export function ListingDetail({
                       </div>
                     )}
                     {listing.cleaningFee && (
-                      <div className="flex justify-between text-[#777]">
+                      <div className="flex justify-between text-[#636058]">
                         <span>Cleaning fee</span>
                         <span className="text-[#1a1a1a]">
                           {formatPrice(listing.cleaningFee)}
@@ -438,7 +460,7 @@ export function ListingDetail({
                       </div>
                     )}
                     {listing.serviceFee && (
-                      <div className="flex justify-between text-[#777]">
+                      <div className="flex justify-between text-[#636058]">
                         <span>Service fee</span>
                         <span className="text-[#1a1a1a]">
                           {formatPrice(listing.serviceFee)}
@@ -446,7 +468,7 @@ export function ListingDetail({
                       </div>
                     )}
                     {listing.taxes && (
-                      <div className="flex justify-between text-[#777]">
+                      <div className="flex justify-between text-[#636058]">
                         <span>Taxes</span>
                         <span className="text-[#1a1a1a]">
                           {formatPrice(listing.taxes)}
@@ -464,12 +486,12 @@ export function ListingDetail({
               </>
             ) : (
               <div className="text-center py-2">
-                <span className="text-[#777] text-sm">
+                <span className="text-[#636058] text-sm">
                   {isScraping
                     ? "Fetching price..."
                     : "Price not available from scrape"}
                 </span>
-                <p className="text-xs text-[#999] mt-1">
+                <p className="text-xs text-[#706B65] mt-1">
                   {isScraping
                     ? ""
                     : "Click Edit to add pricing manually"}
@@ -492,7 +514,7 @@ export function ListingDetail({
                   </button>
                   <button
                     onClick={() => setEditing(false)}
-                    className="px-3 py-1.5 text-xs text-[#777] hover:text-[#1a1a1a] transition"
+                    className="px-3 py-1.5 text-xs text-[#636058] hover:text-[#1a1a1a] transition"
                   >
                     Cancel
                   </button>
@@ -500,7 +522,7 @@ export function ListingDetail({
               ) : (
                 <button
                   onClick={() => setEditing(true)}
-                  className="px-3 py-1.5 text-xs font-medium bg-[#EFEAE4] border border-[#DDD8D0] text-[#777] rounded-lg hover:border-[#bbb] hover:text-[#1a1a1a] transition"
+                  className="px-3 py-1.5 text-xs font-medium bg-[#EFEAE4] border border-[#DDD8D0] text-[#636058] rounded-lg hover:border-[#bbb] hover:text-[#1a1a1a] transition"
                 >
                   Edit
                 </button>
@@ -517,7 +539,7 @@ export function ListingDetail({
                 className={`p-1.5 rounded-md transition-all ${
                   userVote?.value === 1
                     ? "text-[#15803d] bg-[#15803d]/10"
-                    : "text-[#777] hover:text-[#15803d] hover:bg-[#15803d]/8"
+                    : "text-[#636058] hover:text-[#15803d] hover:bg-[#15803d]/8"
                 }`}
                 title={userVote?.value === 1 ? "Remove upvote" : "Upvote"}
               >
@@ -529,7 +551,7 @@ export function ListingDetail({
                     ? "text-[#15803d]"
                     : voteTotal < 0
                       ? "text-[#b91c1c]"
-                      : "text-[#999]"
+                      : "text-[#706B65]"
                 }`}
               >
                 {voteTotal}
@@ -542,7 +564,7 @@ export function ListingDetail({
                 className={`p-1.5 rounded-md transition-all ${
                   userVote?.value === -1
                     ? "text-[#b91c1c] bg-[#b91c1c]/10"
-                    : "text-[#777] hover:text-[#b91c1c] hover:bg-[#b91c1c]/8"
+                    : "text-[#636058] hover:text-[#b91c1c] hover:bg-[#b91c1c]/8"
                 }`}
                 title={userVote?.value === -1 ? "Remove downvote" : "Downvote"}
               >
@@ -571,7 +593,7 @@ export function ListingDetail({
                     className={`px-3 py-1 text-xs rounded-full whitespace-nowrap transition ${
                       photoFilter === cat.key
                         ? "bg-[#E94E3C] text-white font-semibold"
-                        : "bg-[#EFEAE4] text-[#777] hover:text-[#1a1a1a]"
+                        : "bg-[#EFEAE4] text-[#636058] hover:text-[#1a1a1a]"
                     }`}
                   >
                     {cat.label} ({count})
@@ -585,13 +607,17 @@ export function ListingDetail({
               {filteredPhotos.map((photo, idx) => (
                 <div
                   key={photo.id}
+                  role="button"
+                  tabIndex={0}
                   className="aspect-video relative cursor-pointer hover:opacity-90 transition"
                   onClick={() => setSelectedPhotoIdx(idx)}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedPhotoIdx(idx); } }}
+                  aria-label={`View photo ${idx + 1}`}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={photo.url}
-                    alt={photo.caption || ""}
+                    alt={photo.caption || listing.name}
                     className="w-full h-full object-cover"
                     loading="lazy"
                   />
@@ -609,11 +635,15 @@ export function ListingDetail({
         {/* Photo lightbox */}
         {selectedPhotoIdx !== null && filteredPhotos[selectedPhotoIdx] && (
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Photo lightbox"
             className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
             onClick={() => setSelectedPhotoIdx(null)}
           >
             <button
               onClick={() => setSelectedPhotoIdx(null)}
+              aria-label="Close lightbox"
               className="absolute top-4 right-4 text-white/70 hover:text-white text-2xl"
             >
               &#10005;
@@ -624,6 +654,7 @@ export function ListingDetail({
                   e.stopPropagation();
                   setSelectedPhotoIdx(selectedPhotoIdx - 1);
                 }}
+                aria-label="Previous photo"
                 className="absolute left-4 top-1/2 -translate-y-1/2 text-white/70 hover:text-white text-3xl"
               >
                 &#8249;
@@ -635,6 +666,7 @@ export function ListingDetail({
                   e.stopPropagation();
                   setSelectedPhotoIdx(selectedPhotoIdx + 1);
                 }}
+                aria-label="Next photo"
                 className="absolute right-4 top-1/2 -translate-y-1/2 text-white/70 hover:text-white text-3xl"
               >
                 &#8250;
@@ -643,7 +675,7 @@ export function ListingDetail({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={filteredPhotos[selectedPhotoIdx].url}
-              alt={filteredPhotos[selectedPhotoIdx].caption || ""}
+              alt={filteredPhotos[selectedPhotoIdx].caption || listing.name}
               className="max-w-full max-h-[85vh] object-contain rounded-lg"
               onClick={(e) => e.stopPropagation()}
             />
@@ -664,14 +696,14 @@ export function ListingDetail({
               <div className="grid grid-cols-2 gap-3">
                 {listing.bedrooms != null && (
                   <div className="p-3 bg-[#F3F0EB] rounded-lg border border-[#DDD8D0]">
-                    <div className="text-[10px] uppercase tracking-wider text-[#999] mb-1">
+                    <div className="text-[10px] uppercase tracking-wider text-[#706B65] mb-1">
                       Bedrooms
                     </div>
                     <div className="text-lg font-bold text-[#1a1a1a]">
                       {listing.bedrooms}
                     </div>
                     {beds.length > 0 && (
-                      <div className="mt-1 text-xs text-[#777]">
+                      <div className="mt-1 text-xs text-[#636058]">
                         {beds.map(
                           (bed: { type: string; count: number }, i: number) => (
                             <span key={i}>
@@ -687,14 +719,14 @@ export function ListingDetail({
 
                 {listing.bathrooms != null && (
                   <div className="p-3 bg-[#F3F0EB] rounded-lg border border-[#DDD8D0]">
-                    <div className="text-[10px] uppercase tracking-wider text-[#999] mb-1">
+                    <div className="text-[10px] uppercase tracking-wider text-[#706B65] mb-1">
                       Bathrooms
                     </div>
                     <div className="text-lg font-bold text-[#1a1a1a]">
                       {listing.bathrooms}
                     </div>
                     {listing.bathroomNotes && (
-                      <div className="mt-1 text-xs text-[#777]">
+                      <div className="mt-1 text-xs text-[#636058]">
                         {listing.bathroomNotes}
                       </div>
                     )}
@@ -703,14 +735,14 @@ export function ListingDetail({
 
                 {listing.kitchen && (
                   <div className="p-3 bg-[#F3F0EB] rounded-lg border border-[#DDD8D0]">
-                    <div className="text-[10px] uppercase tracking-wider text-[#999] mb-1">
+                    <div className="text-[10px] uppercase tracking-wider text-[#706B65] mb-1">
                       Kitchen
                     </div>
                     <div className="text-lg font-bold text-[#1a1a1a] capitalize">
                       {listing.kitchen}
                     </div>
                     {listing.kitchenDetails && (
-                      <div className="mt-1 text-xs text-[#777]">
+                      <div className="mt-1 text-xs text-[#636058]">
                         {listing.kitchenDetails}
                       </div>
                     )}
@@ -719,14 +751,14 @@ export function ListingDetail({
 
                 {listing.beachDistance && (
                   <div className="p-3 bg-[#F3F0EB] rounded-lg border border-[#DDD8D0]">
-                    <div className="text-[10px] uppercase tracking-wider text-[#999] mb-1">
+                    <div className="text-[10px] uppercase tracking-wider text-[#706B65] mb-1">
                       Beach
                     </div>
                     <div className="text-sm font-semibold text-[#1a1a1a]">
                       {listing.beachDistance}
                     </div>
                     {listing.beachType && (
-                      <div className="mt-1 text-xs text-[#777]">
+                      <div className="mt-1 text-xs text-[#636058]">
                         {listing.beachType} water
                       </div>
                     )}
@@ -741,7 +773,7 @@ export function ListingDetail({
                 <div className="text-sm font-semibold text-[#15803d] mb-0.5">
                   Kid-Friendly
                 </div>
-                <p className="text-sm text-[#777]">
+                <p className="text-sm text-[#636058]">
                   {listing.kidNotes || "This property is marked as kid-friendly"}
                 </p>
               </div>
@@ -750,14 +782,14 @@ export function ListingDetail({
             {/* Amenities */}
             {amenities.length > 0 && (
               <div>
-                <h3 className="text-[10px] uppercase tracking-wider text-[#999] mb-2">
+                <h3 className="text-[10px] uppercase tracking-wider text-[#706B65] mb-2">
                   Amenities
                 </h3>
                 <div className="flex flex-wrap gap-1.5">
                   {amenities.map((a: string, i: number) => (
                     <span
                       key={i}
-                      className="px-2.5 py-1 bg-[#EFEAE4] text-[#777] text-xs rounded-md"
+                      className="px-2.5 py-1 bg-[#EFEAE4] text-[#636058] text-xs rounded-md"
                     >
                       {a}
                     </span>
@@ -769,10 +801,10 @@ export function ListingDetail({
             {/* Description */}
             {listing.description && (
               <div>
-                <h3 className="text-[10px] uppercase tracking-wider text-[#999] mb-2">
+                <h3 className="text-[10px] uppercase tracking-wider text-[#706B65] mb-2">
                   Description
                 </h3>
-                <p className="text-sm text-[#777] leading-relaxed line-clamp-6">
+                <p className="text-sm text-[#636058] leading-relaxed line-clamp-6">
                   {listing.description}
                 </p>
               </div>
@@ -785,12 +817,12 @@ export function ListingDetail({
               <div className="text-3xl mb-2 opacity-30">
                 {isScraping ? "\u23F3" : "\u270F"}
               </div>
-              <p className="text-sm text-[#777]">
+              <p className="text-sm text-[#636058]">
                 {isScraping
                   ? "Scraping property details..."
                   : "No property details available from scrape."}
               </p>
-              <p className="text-xs text-[#999] mt-1">
+              <p className="text-xs text-[#706B65] mt-1">
                 {isScraping
                   ? "This should take a few seconds."
                   : "Click Edit above to add details manually."}
@@ -801,7 +833,7 @@ export function ListingDetail({
 
         {/* Comments section */}
         <div className="border-t border-[#DDD8D0] p-6">
-          <h3 className="text-[10px] uppercase tracking-wider text-[#999] mb-4">
+          <h3 className="text-[10px] uppercase tracking-wider text-[#706B65] mb-4">
             Comments ({listing.comments.length})
           </h3>
 
@@ -817,21 +849,21 @@ export function ListingDetail({
                       <span className="text-sm font-medium text-[#1a1a1a]">
                         {comment.userName}
                       </span>
-                      <span className="text-[10px] text-[#999]">
+                      <span className="text-[10px] text-[#706B65]">
                         {new Date(comment.createdAt).toLocaleDateString()}
                       </span>
                     </div>
                     {comment.userName === userName && (
                       <button
                         onClick={() => deleteComment(comment.id)}
-                        className="text-[10px] text-[#999] hover:text-[#b91c1c] opacity-0 group-hover:opacity-100 transition-all"
+                        className="text-[10px] text-[#706B65] hover:text-[#b91c1c] opacity-0 group-hover:opacity-100 transition-all"
                         title="Delete comment"
                       >
                         delete
                       </button>
                     )}
                   </div>
-                  <p className="text-sm text-[#777] mt-1">
+                  <p className="text-sm text-[#636058] mt-1">
                     {comment.text}
                   </p>
                 </div>
@@ -845,7 +877,7 @@ export function ListingDetail({
               placeholder="Add a comment..."
               value={commentText}
               onChange={(e) => setCommentText(e.target.value)}
-              className="flex-1 px-3 py-2 text-sm bg-[#F3F0EB] border border-[#DDD8D0] rounded-lg text-[#1a1a1a] placeholder:text-[#999] focus:outline-none focus:border-[#E94E3C] transition"
+              className="flex-1 px-3 py-2 text-sm bg-[#F3F0EB] border border-[#DDD8D0] rounded-lg text-[#1a1a1a] placeholder:text-[#8a8480] focus:border-[#E94E3C] transition"
             />
             <button
               type="submit"

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { useModal } from "@/hooks/useModal";
 
 interface ImportModalProps {
   tripId: string;
@@ -19,6 +20,7 @@ export function ImportModal({ tripId, onClose, onImported }: ImportModalProps) {
     skipped: number;
   } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const modalRef = useModal(onClose);
 
   async function handleUrlSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -91,13 +93,14 @@ export function ImportModal({ tripId, onClose, onImported }: ImportModalProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="bg-white border border-[#DDD8D0] rounded-xl p-6 max-w-md w-full mx-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div ref={modalRef} role="dialog" aria-modal="true" aria-labelledby="import-title" className="bg-white border border-[#DDD8D0] rounded-xl p-6 max-w-md w-full mx-4">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-[#1a1a1a]">Bulk Import</h2>
+          <h2 id="import-title" className="text-lg font-bold text-[#1a1a1a]">Bulk Import</h2>
           <button
             onClick={onClose}
-            className="text-[#999] hover:text-[#1a1a1a] transition"
+            aria-label="Close"
+            className="text-[#706B65] hover:text-[#1a1a1a] transition"
           >
             &#10005;
           </button>
@@ -110,7 +113,7 @@ export function ImportModal({ tripId, onClose, onImported }: ImportModalProps) {
             className={`flex-1 px-3 py-1.5 text-sm rounded-md transition ${
               mode === "urls"
                 ? "bg-[#EFEAE4] text-[#1a1a1a] font-medium"
-                : "text-[#999]"
+                : "text-[#706B65]"
             }`}
           >
             Paste URLs
@@ -120,7 +123,7 @@ export function ImportModal({ tripId, onClose, onImported }: ImportModalProps) {
             className={`flex-1 px-3 py-1.5 text-sm rounded-md transition ${
               mode === "csv"
                 ? "bg-[#EFEAE4] text-[#1a1a1a] font-medium"
-                : "text-[#999]"
+                : "text-[#706B65]"
             }`}
           >
             Upload CSV
@@ -139,7 +142,7 @@ export function ImportModal({ tripId, onClose, onImported }: ImportModalProps) {
                 {result.skipped} skipped (invalid URLs)
               </p>
             )}
-            <p className="text-xs text-[#999] mt-2">
+            <p className="text-xs text-[#706B65] mt-2">
               Listings will appear on the map as they finish scraping.
             </p>
           </div>
@@ -150,7 +153,7 @@ export function ImportModal({ tripId, onClose, onImported }: ImportModalProps) {
               value={urlText}
               onChange={(e) => setUrlText(e.target.value)}
               rows={6}
-              className="w-full px-4 py-3 bg-[#F3F0EB] border border-[#DDD8D0] rounded-lg text-[#1a1a1a] placeholder:text-[#bbb] focus:outline-none focus:border-[#E94E3C] text-sm font-mono resize-none"
+              className="w-full px-4 py-3 bg-[#F3F0EB] border border-[#DDD8D0] rounded-lg text-[#1a1a1a] placeholder:text-[#8a8480] focus:border-[#E94E3C] text-sm font-mono resize-none"
             />
             {error && <p className="mt-2 text-sm text-[#b91c1c]">{error}</p>}
             <button
@@ -164,16 +167,19 @@ export function ImportModal({ tripId, onClose, onImported }: ImportModalProps) {
         ) : (
           <div>
             <div
+              role="button"
+              tabIndex={0}
               onClick={() => fileRef.current?.click()}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileRef.current?.click(); } }}
               className="border-2 border-dashed border-[#DDD8D0] rounded-lg p-8 text-center cursor-pointer hover:border-[#E94E3C] transition"
             >
-              <div className="text-2xl text-[#999] mb-2">
+              <div className="text-2xl text-[#706B65] mb-2">
                 &#128196;
               </div>
-              <p className="text-sm text-[#999]">
+              <p className="text-sm text-[#706B65]">
                 Click to upload a CSV file
               </p>
-              <p className="text-xs text-[#999] mt-1">
+              <p className="text-xs text-[#706B65] mt-1">
                 Must have a &quot;url&quot; column
               </p>
             </div>
@@ -196,7 +202,7 @@ export function ImportModal({ tripId, onClose, onImported }: ImportModalProps) {
         <div className="mt-4 flex justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm text-[#999] hover:text-[#1a1a1a] transition"
+            className="px-4 py-2 text-sm text-[#706B65] hover:text-[#1a1a1a] transition"
           >
             Close
           </button>

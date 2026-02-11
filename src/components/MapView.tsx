@@ -134,7 +134,7 @@ export default function MapView({
           <h3 style={{ fontSize: 18, fontWeight: 700, color: "#1a1a1a", marginBottom: 8 }}>
             Map View
           </h3>
-          <p style={{ fontSize: 13, color: "#999", marginBottom: 16 }}>
+          <p style={{ fontSize: 13, color: "#706B65", marginBottom: 16 }}>
             Set <code style={{ color: "#E94E3C", background: "#EFEAE4", padding: "1px 6px", borderRadius: 4 }}>
               NEXT_PUBLIC_MAPBOX_TOKEN
             </code> in your <code>.env</code> to enable the map.
@@ -150,7 +150,7 @@ export default function MapView({
                     fontSize: 13, cursor: "pointer", fontFamily: "inherit",
                     border: selectedId === l.id ? "1px solid #E94E3C" : "1px solid #DDD8D0",
                     background: selectedId === l.id ? "rgba(233,78,60,0.06)" : "#fff",
-                    color: selectedId === l.id ? "#E94E3C" : "#888",
+                    color: selectedId === l.id ? "#E94E3C" : "#706B65",
                   }}
                 >
                   {l.name}

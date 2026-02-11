@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useModal } from "@/hooks/useModal";
 
 interface AddListingModalProps {
   tripId: string;
@@ -20,6 +21,7 @@ export function AddListingModal({
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
   const [mode, setMode] = useState<"single" | "multi">("single");
+  const modalRef = useModal(onClose);
 
   function parseUrls(text: string): string[] {
     return text
@@ -99,12 +101,13 @@ export function AddListingModal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="bg-white border border-[#DDD8D0] rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
+      <div ref={modalRef} role="dialog" aria-modal="true" aria-labelledby="add-listing-title" className="bg-white border border-[#DDD8D0] rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-[#1a1a1a]">Add Listings</h2>
+          <h2 id="add-listing-title" className="text-lg font-bold text-[#1a1a1a]">Add Listings</h2>
           <button
             onClick={onClose}
-            className="text-[#777] hover:text-[#1a1a1a] transition"
+            aria-label="Close"
+            className="text-[#636058] hover:text-[#1a1a1a] transition"
           >
             &#10005;
           </button>
@@ -118,7 +121,7 @@ export function AddListingModal({
             className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition ${
               mode === "single"
                 ? "bg-[#EFEAE4] text-[#1a1a1a]"
-                : "text-[#777] hover:text-[#1a1a1a]"
+                : "text-[#636058] hover:text-[#1a1a1a]"
             }`}
           >
             Single URL
@@ -129,14 +132,14 @@ export function AddListingModal({
             className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition ${
               mode === "multi"
                 ? "bg-[#EFEAE4] text-[#1a1a1a]"
-                : "text-[#777] hover:text-[#1a1a1a]"
+                : "text-[#636058] hover:text-[#1a1a1a]"
             }`}
           >
             Multiple URLs
           </button>
         </div>
 
-        <p className="text-sm text-[#777] mb-4">
+        <p className="text-sm text-[#636058] mb-4">
           {mode === "single"
             ? "Paste a listing URL from Airbnb, VRBO, Booking.com, or any vacation rental site."
             : "Paste multiple URLs, one per line. They'll all be scraped in parallel."}
@@ -151,7 +154,7 @@ export function AddListingModal({
               value={input}
               onChange={(e) => setInput(e.target.value)}
               autoFocus
-              className="w-full px-4 py-3 bg-[#F3F0EB] border border-[#DDD8D0] rounded-lg text-[#1a1a1a] placeholder:text-[#bbb] focus:outline-none focus:border-[#E94E3C] text-sm"
+              className="w-full px-4 py-3 bg-[#F3F0EB] border border-[#DDD8D0] rounded-lg text-[#1a1a1a] placeholder:text-[#8a8480] focus:border-[#E94E3C] text-sm"
             />
           ) : (
             <div className="relative">
@@ -162,7 +165,7 @@ export function AddListingModal({
                 onChange={(e) => setInput(e.target.value)}
                 autoFocus
                 rows={5}
-                className="w-full px-4 py-3 bg-[#F3F0EB] border border-[#DDD8D0] rounded-lg text-[#1a1a1a] placeholder:text-[#bbb] focus:outline-none focus:border-[#E94E3C] text-sm resize-none"
+                className="w-full px-4 py-3 bg-[#F3F0EB] border border-[#DDD8D0] rounded-lg text-[#1a1a1a] placeholder:text-[#8a8480] focus:border-[#E94E3C] text-sm resize-none"
               />
               {urls.length > 0 && (
                 <div className="absolute top-2 right-2 px-2 py-0.5 bg-[#E94E3C]/20 text-[#E94E3C] text-[10px] font-semibold rounded">
@@ -195,14 +198,14 @@ export function AddListingModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 bg-[#EFEAE4] border border-[#DDD8D0] text-[#777] rounded-lg hover:border-[#bbb] transition"
+              className="px-4 py-2.5 bg-[#EFEAE4] border border-[#DDD8D0] text-[#636058] rounded-lg hover:border-[#bbb] transition"
             >
               Cancel
             </button>
           </div>
         </form>
 
-        <div className="mt-4 text-xs text-[#999]">
+        <div className="mt-4 text-xs text-[#706B65]">
           Supported: Airbnb, VRBO, Booking.com, and most vacation rental sites.
           Data will be auto-extracted. You can edit anything after scraping.
         </div>

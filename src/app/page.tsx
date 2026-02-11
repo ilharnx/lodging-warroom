@@ -83,7 +83,7 @@ export default function Home() {
 
       <main className="max-w-5xl mx-auto px-6 py-8">
         {loading ? (
-          <div className="text-center py-20 text-[#999]">
+          <div className="text-center py-20 text-[#706B65]">
             Loading...
           </div>
         ) : trips.length === 0 && !showCreate ? (
@@ -91,7 +91,7 @@ export default function Home() {
             <h2 className="text-2xl font-bold text-[#1a1a1a] mb-2">
               Plan your next group trip
             </h2>
-            <p className="text-[#999] mb-8 max-w-md mx-auto">
+            <p className="text-[#706B65] mb-8 max-w-md mx-auto">
               Compare vacation rentals from Airbnb, VRBO, Booking.com and more
               — all in one place, on one map.
             </p>
@@ -115,10 +115,10 @@ export default function Home() {
                     <h3 className="font-bold text-[#1a1a1a] text-lg">
                       {trip.name}
                     </h3>
-                    <p className="text-sm text-[#999] mt-1">
+                    <p className="text-sm text-[#706B65] mt-1">
                       {trip.destination}
                     </p>
-                    <div className="mt-3 flex items-center gap-3 text-xs text-[#999]">
+                    <div className="mt-3 flex items-center gap-3 text-xs text-[#706B65]">
                       <span>{trip.adults} adults</span>
                       {trip.kids > 0 && <span>{trip.kids} kids</span>}
                       <span>{trip.listings.length} listings</span>
@@ -137,7 +137,7 @@ export default function Home() {
             </h2>
             <form onSubmit={createTrip} className="space-y-4">
               <div>
-                <label className="block text-sm text-[#999] mb-1">
+                <label className="block text-sm text-[#706B65] mb-1">
                   Trip Name
                 </label>
                 <input
@@ -148,12 +148,12 @@ export default function Home() {
                   onChange={(e) =>
                     setForm({ ...form, name: e.target.value })
                   }
-                  className="w-full px-4 py-2.5 bg-white border border-[#DDD8D0] rounded-lg text-[#1a1a1a] placeholder:text-[#bbb] focus:outline-none focus:border-[#E94E3C]"
+                  className="w-full px-4 py-2.5 bg-white border border-[#DDD8D0] rounded-lg text-[#1a1a1a] placeholder:text-[#8a8480] focus:outline-none focus:border-[#E94E3C]"
                 />
               </div>
 
               <div>
-                <label className="block text-sm text-[#999] mb-1">
+                <label className="block text-sm text-[#706B65] mb-1">
                   Destination
                 </label>
                 <input
@@ -164,7 +164,7 @@ export default function Home() {
                   onChange={(e) =>
                     setForm({ ...form, destination: e.target.value })
                   }
-                  className="w-full px-4 py-2.5 bg-white border border-[#DDD8D0] rounded-lg text-[#1a1a1a] placeholder:text-[#bbb] focus:outline-none focus:border-[#E94E3C]"
+                  className="w-full px-4 py-2.5 bg-white border border-[#DDD8D0] rounded-lg text-[#1a1a1a] placeholder:text-[#8a8480] focus:outline-none focus:border-[#E94E3C]"
                 />
                 <div className="mt-2 flex flex-wrap gap-2">
                   {presets.map((p) => (
@@ -180,7 +180,7 @@ export default function Home() {
                           centerLng: String(p.lng),
                         })
                       }
-                      className="px-3 py-1 text-xs bg-[#EFEAE4] border border-[#DDD8D0] rounded-full text-[#999] hover:border-[#E94E3C] hover:text-[#E94E3C] transition"
+                      className="px-3 py-1 text-xs bg-[#EFEAE4] border border-[#DDD8D0] rounded-full text-[#706B65] hover:border-[#E94E3C] hover:text-[#E94E3C] transition"
                     >
                       {p.name}
                     </button>
@@ -190,7 +190,7 @@ export default function Home() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm text-[#999] mb-1">
+                  <label className="block text-sm text-[#706B65] mb-1">
                     Center Latitude
                   </label>
                   <input
@@ -201,11 +201,11 @@ export default function Home() {
                     onChange={(e) =>
                       setForm({ ...form, centerLat: e.target.value })
                     }
-                    className="w-full px-4 py-2.5 bg-white border border-[#DDD8D0] rounded-lg text-[#1a1a1a] placeholder:text-[#bbb] focus:outline-none focus:border-[#E94E3C]"
+                    className="w-full px-4 py-2.5 bg-white border border-[#DDD8D0] rounded-lg text-[#1a1a1a] placeholder:text-[#8a8480] focus:outline-none focus:border-[#E94E3C]"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-[#999] mb-1">
+                  <label className="block text-sm text-[#706B65] mb-1">
                     Center Longitude
                   </label>
                   <input
@@ -216,14 +216,14 @@ export default function Home() {
                     onChange={(e) =>
                       setForm({ ...form, centerLng: e.target.value })
                     }
-                    className="w-full px-4 py-2.5 bg-white border border-[#DDD8D0] rounded-lg text-[#1a1a1a] placeholder:text-[#bbb] focus:outline-none focus:border-[#E94E3C]"
+                    className="w-full px-4 py-2.5 bg-white border border-[#DDD8D0] rounded-lg text-[#1a1a1a] placeholder:text-[#8a8480] focus:outline-none focus:border-[#E94E3C]"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm text-[#999] mb-1">
+                  <label className="block text-sm text-[#706B65] mb-1">
                     Adults
                   </label>
                   <input
@@ -237,7 +237,7 @@ export default function Home() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-[#999] mb-1">
+                  <label className="block text-sm text-[#706B65] mb-1">
                     Kids
                   </label>
                   <input
@@ -262,7 +262,7 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={() => setShowCreate(false)}
-                  className="px-4 py-2.5 bg-[#EFEAE4] border border-[#DDD8D0] text-[#999] rounded-lg hover:border-[#bbb] transition"
+                  className="px-4 py-2.5 bg-[#EFEAE4] border border-[#DDD8D0] text-[#706B65] rounded-lg hover:border-[#bbb] transition"
                 >
                   Cancel
                 </button>
