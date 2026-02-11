@@ -92,25 +92,25 @@ export function ImportModal({ tripId, onClose, onImported }: ImportModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="bg-[var(--navy-800)] border border-[var(--navy-600)] rounded-xl p-6 max-w-md w-full mx-4">
+      <div className="bg-white border border-[#E8E6E3] rounded-xl p-6 max-w-md w-full mx-4">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-white">Bulk Import</h2>
+          <h2 className="text-lg font-bold text-[#1a1a1a]">Bulk Import</h2>
           <button
             onClick={onClose}
-            className="text-[var(--navy-500)] hover:text-white transition"
+            className="text-[#999] hover:text-[#1a1a1a] transition"
           >
             &#10005;
           </button>
         </div>
 
         {/* Mode tabs */}
-        <div className="flex gap-1 mb-4 bg-[var(--navy-900)] rounded-lg p-1">
+        <div className="flex gap-1 mb-4 bg-[#FAF8F5] rounded-lg p-1">
           <button
             onClick={() => setMode("urls")}
             className={`flex-1 px-3 py-1.5 text-sm rounded-md transition ${
               mode === "urls"
-                ? "bg-[var(--navy-700)] text-white font-medium"
-                : "text-[var(--navy-500)]"
+                ? "bg-[#f5f3ef] text-[#1a1a1a] font-medium"
+                : "text-[#999]"
             }`}
           >
             Paste URLs
@@ -119,8 +119,8 @@ export function ImportModal({ tripId, onClose, onImported }: ImportModalProps) {
             onClick={() => setMode("csv")}
             className={`flex-1 px-3 py-1.5 text-sm rounded-md transition ${
               mode === "csv"
-                ? "bg-[var(--navy-700)] text-white font-medium"
-                : "text-[var(--navy-500)]"
+                ? "bg-[#f5f3ef] text-[#1a1a1a] font-medium"
+                : "text-[#999]"
             }`}
           >
             Upload CSV
@@ -130,7 +130,7 @@ export function ImportModal({ tripId, onClose, onImported }: ImportModalProps) {
         {result ? (
           <div className="text-center py-4">
             <div className="text-2xl mb-2">&#10003;</div>
-            <p className="text-white font-semibold">
+            <p className="text-[#1a1a1a] font-semibold">
               {result.queued} listing{result.queued !== 1 ? "s" : ""} queued for
               scraping
             </p>
@@ -139,7 +139,7 @@ export function ImportModal({ tripId, onClose, onImported }: ImportModalProps) {
                 {result.skipped} skipped (invalid URLs)
               </p>
             )}
-            <p className="text-xs text-[var(--navy-500)] mt-2">
+            <p className="text-xs text-[#999] mt-2">
               Listings will appear on the map as they finish scraping.
             </p>
           </div>
@@ -150,13 +150,13 @@ export function ImportModal({ tripId, onClose, onImported }: ImportModalProps) {
               value={urlText}
               onChange={(e) => setUrlText(e.target.value)}
               rows={6}
-              className="w-full px-4 py-3 bg-[var(--navy-900)] border border-[var(--navy-600)] rounded-lg text-white placeholder:text-[var(--navy-500)] focus:outline-none focus:border-[var(--gold-500)] text-sm font-mono resize-none"
+              className="w-full px-4 py-3 bg-[#FAF8F5] border border-[#E8E6E3] rounded-lg text-[#1a1a1a] placeholder:text-[#bbb] focus:outline-none focus:border-[#E94E3C] text-sm font-mono resize-none"
             />
             {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
             <button
               type="submit"
               disabled={loading}
-              className="mt-4 w-full px-4 py-2.5 bg-[var(--gold-500)] text-[var(--navy-900)] font-semibold rounded-lg hover:bg-[var(--gold-400)] transition disabled:opacity-50"
+              className="mt-4 w-full px-4 py-2.5 bg-[#E94E3C] text-white font-semibold rounded-lg hover:bg-[#d4443a] transition disabled:opacity-50"
             >
               {loading ? "Importing..." : "Scrape All"}
             </button>
@@ -165,15 +165,15 @@ export function ImportModal({ tripId, onClose, onImported }: ImportModalProps) {
           <div>
             <div
               onClick={() => fileRef.current?.click()}
-              className="border-2 border-dashed border-[var(--navy-600)] rounded-lg p-8 text-center cursor-pointer hover:border-[var(--gold-500)] transition"
+              className="border-2 border-dashed border-[#E8E6E3] rounded-lg p-8 text-center cursor-pointer hover:border-[#E94E3C] transition"
             >
-              <div className="text-2xl text-[var(--navy-500)] mb-2">
+              <div className="text-2xl text-[#999] mb-2">
                 &#128196;
               </div>
-              <p className="text-sm text-[var(--navy-500)]">
+              <p className="text-sm text-[#999]">
                 Click to upload a CSV file
               </p>
-              <p className="text-xs text-[var(--navy-500)] mt-1">
+              <p className="text-xs text-[#999] mt-1">
                 Must have a &quot;url&quot; column
               </p>
             </div>
@@ -186,7 +186,7 @@ export function ImportModal({ tripId, onClose, onImported }: ImportModalProps) {
             />
             {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
             {loading && (
-              <p className="mt-2 text-sm text-[var(--gold-400)]">
+              <p className="mt-2 text-sm text-[#E94E3C]">
                 Uploading and processing...
               </p>
             )}
@@ -196,7 +196,7 @@ export function ImportModal({ tripId, onClose, onImported }: ImportModalProps) {
         <div className="mt-4 flex justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm text-[var(--navy-500)] hover:text-white transition"
+            className="px-4 py-2 text-sm text-[#999] hover:text-[#1a1a1a] transition"
           >
             Close
           </button>

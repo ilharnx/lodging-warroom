@@ -8,9 +8,14 @@ interface FilterBarProps {
   onChange: (filters: FilterState) => void;
 }
 
+const SOURCES: { key: Platform; label: string }[] = [
+  { key: "airbnb", label: "Airbnb" },
+  { key: "vrbo", label: "VRBO" },
+  { key: "booking", label: "Booking" },
+];
+
 export function FilterBar({ filters, onChange }: FilterBarProps) {
   const [expanded, setExpanded] = useState(false);
-
   const activeCount = countActiveFilters(filters);
 
   function update(partial: Partial<FilterState>) {
@@ -33,93 +38,131 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
 
   function clearAll() {
     onChange({
-      sources: [],
-      priceMin: 0,
-      priceMax: Infinity,
-      bedroomsMin: 0,
-      bathroomsMin: 0,
-      kitchen: [],
-      kidFriendlyOnly: false,
-      beachDistance: "",
-      ratingMin: 0,
-      hasPool: false,
-      sortBy: "recent",
+      sources: [], priceMin: 0, priceMax: Infinity,
+      bedroomsMin: 0, bathroomsMin: 0, kitchen: [],
+      kidFriendlyOnly: false, beachDistance: "",
+      ratingMin: 0, hasPool: false, sortBy: "recent",
     });
   }
 
+  const chip = (active: boolean): React.CSSProperties => ({
+    padding: "6px 14px",
+    borderRadius: 20,
+    fontSize: 12,
+    cursor: "pointer",
+    fontFamily: "inherit",
+    fontWeight: 600,
+    transition: "all 0.15s",
+    border: active ? "1.5px solid #E94E3C" : "1px solid #ddd",
+    background: active ? "rgba(233,78,60,0.06)" : "#fff",
+    color: active ? "#E94E3C" : "#888",
+    whiteSpace: "nowrap",
+  });
+
+  const dropStyle: React.CSSProperties = {
+    padding: "6px 10px",
+    borderRadius: 20,
+    fontSize: 12,
+    cursor: "pointer",
+    fontFamily: "inherit",
+    fontWeight: 600,
+    border: "1px solid #ddd",
+    background: "#fff",
+    color: "#888",
+    outline: "none",
+    paddingRight: 24,
+  };
+
   return (
-    <div className="border-b border-[var(--navy-600)] shrink-0">
-      <div className="px-4 py-2 flex items-center gap-3 overflow-x-auto">
+    <div style={{ borderBottom: "1px solid #E8E6E3", flexShrink: 0, background: "#fff" }}>
+      <div style={{
+        padding: "12px 28px",
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 8,
+        alignItems: "center",
+      }}>
         {/* Sort */}
         <select
           value={filters.sortBy}
-          onChange={(e) =>
-            update({ sortBy: e.target.value as FilterState["sortBy"] })
-          }
-          className="px-3 py-1.5 text-xs bg-[var(--navy-700)] border border-[var(--navy-600)] text-[var(--navy-500)] rounded-lg focus:outline-none focus:border-[var(--gold-500)]"
+          onChange={(e) => update({ sortBy: e.target.value as FilterState["sortBy"] })}
+          style={{
+            ...dropStyle,
+            background: "#FAF8F5",
+            borderColor: "#E8E6E3",
+          }}
         >
-          <option value="recent">Recent</option>
-          <option value="price_asc">Price: Low to High</option>
-          <option value="votes_desc">Most Votes</option>
-          <option value="rating">Highest Rating</option>
+          <option value="recent">Sort: Recent</option>
+          <option value="votes_desc">Sort: Votes</option>
+          <option value="price_asc">Sort: Price</option>
+          <option value="rating">Sort: Rating</option>
         </select>
 
+        <span style={{ color: "#eee", margin: "0 2px" }}>|</span>
+
         {/* Source chips */}
-        {(["airbnb", "vrbo", "booking"] as Platform[]).map((source) => (
+        {SOURCES.map(({ key, label }) => (
           <button
-            key={source}
-            onClick={() => toggleSource(source)}
-            className={`px-3 py-1.5 text-xs rounded-full whitespace-nowrap transition ${
-              filters.sources.includes(source)
-                ? "bg-[var(--gold-500)] text-[var(--navy-900)] font-semibold"
-                : "bg-[var(--navy-700)] text-[var(--navy-500)] border border-[var(--navy-600)] hover:border-[var(--navy-500)]"
-            }`}
+            key={key}
+            onClick={() => toggleSource(key)}
+            style={chip(filters.sources.includes(key))}
           >
-            {source === "airbnb"
-              ? "Airbnb"
-              : source === "vrbo"
-                ? "VRBO"
-                : "Booking"}
+            {label}
           </button>
         ))}
 
-        {/* Toggle more filters */}
+        <span style={{ color: "#eee", margin: "0 2px" }}>|</span>
+
+        {/* Quick filters */}
+        <button onClick={() => update({ hasPool: !filters.hasPool })} style={chip(filters.hasPool)}>
+          Pool
+        </button>
+        <button onClick={() => update({ kidFriendlyOnly: !filters.kidFriendlyOnly })} style={chip(filters.kidFriendlyOnly)}>
+          Kid-friendly
+        </button>
+
+        {/* More filters toggle */}
         <button
           onClick={() => setExpanded(!expanded)}
-          className={`px-3 py-1.5 text-xs rounded-full whitespace-nowrap transition ${
-            activeCount > 0
-              ? "bg-[var(--gold-500)]/20 text-[var(--gold-400)] border border-[var(--gold-500)]"
-              : "bg-[var(--navy-700)] text-[var(--navy-500)] border border-[var(--navy-600)] hover:border-[var(--navy-500)]"
-          }`}
+          style={{
+            ...chip(activeCount > 0),
+            marginLeft: "auto",
+          }}
         >
-          Filters{activeCount > 0 ? ` (${activeCount})` : ""}{" "}
-          {expanded ? "&#9650;" : "&#9660;"}
+          Filters{activeCount > 0 ? ` (${activeCount})` : ""} {expanded ? "\u25B2" : "\u25BC"}
         </button>
 
         {activeCount > 0 && (
           <button
             onClick={clearAll}
-            className="px-3 py-1.5 text-xs text-red-400 hover:text-red-300 whitespace-nowrap"
+            style={{
+              background: "none", border: "none", cursor: "pointer",
+              fontSize: 12, color: "#E94E3C", fontWeight: 600, fontFamily: "inherit",
+              padding: "6px 8px",
+            }}
           >
-            Clear all
+            Clear
           </button>
         )}
       </div>
 
       {/* Expanded filters */}
       {expanded && (
-        <div className="px-4 py-3 border-t border-[var(--navy-700)] grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {/* Bedrooms */}
+        <div style={{
+          padding: "12px 28px 16px",
+          borderTop: "1px solid #f0ede8",
+          display: "grid",
+          gridTemplateColumns: "repeat(4, 1fr)",
+          gap: 12,
+        }}>
           <div>
-            <label className="block text-[10px] text-[var(--navy-500)] mb-1 uppercase tracking-wider">
+            <label style={{ fontSize: 10, fontWeight: 700, color: "#999", marginBottom: 5, display: "block", textTransform: "uppercase", letterSpacing: 1.2 }}>
               Min Bedrooms
             </label>
             <select
               value={filters.bedroomsMin}
-              onChange={(e) =>
-                update({ bedroomsMin: Number(e.target.value) })
-              }
-              className="w-full px-3 py-1.5 text-xs bg-[var(--navy-700)] border border-[var(--navy-600)] text-white rounded-lg focus:outline-none focus:border-[var(--gold-500)]"
+              onChange={(e) => update({ bedroomsMin: Number(e.target.value) })}
+              style={{ ...dropStyle, width: "100%", borderRadius: 8 }}
             >
               <option value="0">Any</option>
               <option value="1">1+</option>
@@ -129,41 +172,39 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
             </select>
           </div>
 
-          {/* Bathrooms */}
           <div>
-            <label className="block text-[10px] text-[var(--navy-500)] mb-1 uppercase tracking-wider">
+            <label style={{ fontSize: 10, fontWeight: 700, color: "#999", marginBottom: 5, display: "block", textTransform: "uppercase", letterSpacing: 1.2 }}>
               Min Bathrooms
             </label>
             <select
               value={filters.bathroomsMin}
-              onChange={(e) =>
-                update({ bathroomsMin: Number(e.target.value) })
-              }
-              className="w-full px-3 py-1.5 text-xs bg-[var(--navy-700)] border border-[var(--navy-600)] text-white rounded-lg focus:outline-none focus:border-[var(--gold-500)]"
+              onChange={(e) => update({ bathroomsMin: Number(e.target.value) })}
+              style={{ ...dropStyle, width: "100%", borderRadius: 8 }}
             >
               <option value="0">Any</option>
               <option value="1">1+</option>
               <option value="1.5">1.5+</option>
               <option value="2">2+</option>
-              <option value="2.5">2.5+</option>
+              <option value="3">3+</option>
             </select>
           </div>
 
-          {/* Kitchen */}
           <div>
-            <label className="block text-[10px] text-[var(--navy-500)] mb-1 uppercase tracking-wider">
+            <label style={{ fontSize: 10, fontWeight: 700, color: "#999", marginBottom: 5, display: "block", textTransform: "uppercase", letterSpacing: 1.2 }}>
               Kitchen
             </label>
-            <div className="flex flex-wrap gap-1">
+            <div style={{ display: "flex", gap: 4 }}>
               {(["full", "kitchenette"] as KitchenType[]).map((type) => (
                 <button
                   key={type}
                   onClick={() => toggleKitchen(type)}
-                  className={`px-2 py-1 text-[10px] rounded transition ${
-                    filters.kitchen.includes(type)
-                      ? "bg-[var(--gold-500)] text-[var(--navy-900)] font-semibold"
-                      : "bg-[var(--navy-800)] text-[var(--navy-500)] border border-[var(--navy-600)]"
-                  }`}
+                  style={{
+                    padding: "6px 12px", borderRadius: 8, fontSize: 11, cursor: "pointer",
+                    fontFamily: "inherit", fontWeight: 600, transition: "all 0.15s",
+                    border: filters.kitchen.includes(type) ? "1.5px solid #E94E3C" : "1px solid #ddd",
+                    background: filters.kitchen.includes(type) ? "rgba(233,78,60,0.06)" : "#fff",
+                    color: filters.kitchen.includes(type) ? "#E94E3C" : "#999",
+                  }}
                 >
                   {type === "full" ? "Full" : "Kitchenette"}
                 </button>
@@ -171,49 +212,20 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
             </div>
           </div>
 
-          {/* Min Rating */}
           <div>
-            <label className="block text-[10px] text-[var(--navy-500)] mb-1 uppercase tracking-wider">
+            <label style={{ fontSize: 10, fontWeight: 700, color: "#999", marginBottom: 5, display: "block", textTransform: "uppercase", letterSpacing: 1.2 }}>
               Min Rating
             </label>
             <select
               value={filters.ratingMin}
-              onChange={(e) =>
-                update({ ratingMin: Number(e.target.value) })
-              }
-              className="w-full px-3 py-1.5 text-xs bg-[var(--navy-700)] border border-[var(--navy-600)] text-white rounded-lg focus:outline-none focus:border-[var(--gold-500)]"
+              onChange={(e) => update({ ratingMin: Number(e.target.value) })}
+              style={{ ...dropStyle, width: "100%", borderRadius: 8 }}
             >
               <option value="0">Any</option>
               <option value="4">4+</option>
               <option value="4.5">4.5+</option>
               <option value="4.8">4.8+</option>
             </select>
-          </div>
-
-          {/* Toggles row */}
-          <div className="col-span-2 sm:col-span-4 flex gap-4">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={filters.kidFriendlyOnly}
-                onChange={(e) =>
-                  update({ kidFriendlyOnly: e.target.checked })
-                }
-                className="accent-[var(--gold-500)]"
-              />
-              <span className="text-xs text-[var(--navy-500)]">
-                Kid-friendly only
-              </span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={filters.hasPool}
-                onChange={(e) => update({ hasPool: e.target.checked })}
-                className="accent-[var(--gold-500)]"
-              />
-              <span className="text-xs text-[var(--navy-500)]">Has pool</span>
-            </label>
           </div>
         </div>
       )}
@@ -226,8 +238,6 @@ function countActiveFilters(filters: FilterState): number {
   if (filters.bedroomsMin > 0) count++;
   if (filters.bathroomsMin > 0) count++;
   if (filters.kitchen.length > 0) count++;
-  if (filters.kidFriendlyOnly) count++;
-  if (filters.hasPool) count++;
   if (filters.ratingMin > 0) count++;
   if (filters.priceMax < Infinity) count++;
   return count;

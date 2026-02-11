@@ -17,7 +17,7 @@ interface Listing {
 
 interface MapViewProps {
   listings: Listing[];
-  center: [number, number]; // [lng, lat]
+  center: [number, number];
   selectedId: string | null;
   onSelect: (id: string) => void;
   adults: number;
@@ -50,31 +50,24 @@ export default function MapView({
 
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
-      style: "mapbox://styles/mapbox/dark-v11",
+      style: "mapbox://styles/mapbox/light-v11",
       center,
       zoom: 11,
     });
 
-    map.current.addControl(new mapboxgl.NavigationControl(), "top-right");
-    map.current.addControl(
-      new mapboxgl.GeolocateControl({ trackUserLocation: false }),
-      "top-right"
-    );
+    map.current.addControl(new mapboxgl.NavigationControl(), "bottom-right");
 
     return () => {
       map.current?.remove();
     };
-    // Only init once
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Update markers when listings change
   useEffect(() => {
     if (!map.current || noToken) return;
 
     const currentIds = new Set(listings.map((l) => l.id));
 
-    // Remove markers no longer in list
     markers.current.forEach((entry, id) => {
       if (!currentIds.has(id)) {
         entry.marker.remove();
@@ -82,19 +75,17 @@ export default function MapView({
       }
     });
 
-    // Add or update markers
     listings.forEach((listing) => {
       if (listing.lat === 0 && listing.lng === 0) return;
 
       const price = listing.totalCost
-        ? `$${Math.round(listing.totalCost / adults)}/pp`
+        ? `$${(listing.totalCost / 1000).toFixed(1)}k`
         : listing.perNight
           ? `$${Math.round(listing.perNight)}/n`
           : "?";
 
       const existing = markers.current.get(listing.id);
       if (existing) {
-        // Update price text
         existing.el.textContent = price;
         existing.marker.setLngLat([listing.lng, listing.lat]);
       } else {
@@ -112,7 +103,6 @@ export default function MapView({
     });
   }, [listings, noToken, onSelect, adults]);
 
-  // Highlight selected marker
   useEffect(() => {
     markers.current.forEach((entry, id) => {
       if (id === selectedId) {
@@ -122,7 +112,6 @@ export default function MapView({
       }
     });
 
-    // Pan to selected
     if (selectedId && map.current) {
       const listing = listings.find((l) => l.id === selectedId);
       if (listing && listing.lat !== 0) {
@@ -136,32 +125,35 @@ export default function MapView({
 
   if (noToken) {
     return (
-      <div className="h-full bg-[var(--navy-800)] flex items-center justify-center p-8">
-        <div className="text-center max-w-md">
-          <div className="text-4xl mb-4">&#127758;</div>
-          <h3 className="text-lg font-bold text-white mb-2">Map View</h3>
-          <p className="text-sm text-[var(--navy-500)] mb-4">
-            Set <code className="text-[var(--gold-400)]">NEXT_PUBLIC_MAPBOX_TOKEN</code> in
-            your <code>.env</code> file to enable the interactive map.
+      <div style={{
+        height: "100%", background: "#FAF8F5",
+        display: "flex", alignItems: "center", justifyContent: "center", padding: 32,
+      }}>
+        <div style={{ textAlign: "center", maxWidth: 320 }}>
+          <div style={{ fontSize: 44, marginBottom: 12, opacity: 0.3 }}>&#127758;</div>
+          <h3 style={{ fontSize: 18, fontWeight: 700, color: "#1a1a1a", marginBottom: 8 }}>
+            Map View
+          </h3>
+          <p style={{ fontSize: 13, color: "#999", marginBottom: 16 }}>
+            Set <code style={{ color: "#E94E3C", background: "#f5f3ef", padding: "1px 6px", borderRadius: 4 }}>
+              NEXT_PUBLIC_MAPBOX_TOKEN
+            </code> in your <code>.env</code> to enable the map.
           </p>
-          <p className="text-xs text-[var(--navy-500)]">
-            Get a free token at{" "}
-            <span className="text-[var(--gold-400)]">mapbox.com</span>
-          </p>
-          {/* Fallback: show listing coordinates */}
           {listings.length > 0 && (
-            <div className="mt-6 space-y-2">
+            <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 6 }}>
               {listings.map((l) => (
                 <button
                   key={l.id}
                   onClick={() => onSelect(l.id)}
-                  className={`w-full text-left px-3 py-2 rounded text-sm ${
-                    selectedId === l.id
-                      ? "bg-[var(--gold-500)] text-[var(--navy-900)]"
-                      : "bg-[var(--navy-700)] text-[var(--navy-500)]"
-                  }`}
+                  style={{
+                    width: "100%", textAlign: "left" as const, padding: "8px 12px", borderRadius: 8,
+                    fontSize: 13, cursor: "pointer", fontFamily: "inherit",
+                    border: selectedId === l.id ? "1px solid #E94E3C" : "1px solid #E8E6E3",
+                    background: selectedId === l.id ? "rgba(233,78,60,0.06)" : "#fff",
+                    color: selectedId === l.id ? "#E94E3C" : "#888",
+                  }}
                 >
-                  {l.name} ({l.lat.toFixed(4)}, {l.lng.toFixed(4)})
+                  {l.name}
                 </button>
               ))}
             </div>
@@ -171,5 +163,5 @@ export default function MapView({
     );
   }
 
-  return <div ref={mapContainer} className="h-full w-full" />;
+  return <div ref={mapContainer} style={{ height: "100%", width: "100%", borderRadius: 14 }} />;
 }

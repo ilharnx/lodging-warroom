@@ -228,18 +228,18 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[var(--navy-900)] flex items-center justify-center">
-        <div className="text-[var(--navy-500)]">Loading trip...</div>
+      <div className="min-h-screen bg-[#FAF8F5] flex items-center justify-center">
+        <div className="text-[#999]">Loading trip...</div>
       </div>
     );
   }
 
   if (!trip) {
     return (
-      <div className="min-h-screen bg-[var(--navy-900)] flex items-center justify-center">
+      <div className="min-h-screen bg-[#FAF8F5] flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-xl font-bold text-white mb-2">Trip not found</h1>
-          <a href="/" className="text-[var(--gold-400)] hover:underline">
+          <h1 className="text-xl font-bold text-[#1a1a1a] mb-2">Trip not found</h1>
+          <a href="/" className="text-[#E94E3C] hover:underline">
             Back to trips
           </a>
         </div>
@@ -248,15 +248,15 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
   }
 
   return (
-    <div className="h-screen flex flex-col bg-[var(--navy-900)]">
+    <div className="h-screen flex flex-col bg-[#FAF8F5]">
       {/* Name prompt modal */}
       {showNamePrompt && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="bg-[var(--navy-800)] border border-[var(--navy-600)] rounded-xl p-6 max-w-sm w-full mx-4">
-            <h2 className="text-lg font-bold text-white mb-2">
+          <div className="bg-white border border-[#E8E6E3] rounded-xl p-6 max-w-sm w-full mx-4">
+            <h2 className="text-lg font-bold text-[#1a1a1a] mb-2">
               What&apos;s your name?
             </h2>
-            <p className="text-sm text-[var(--navy-500)] mb-4">
+            <p className="text-sm text-[#999] mb-4">
               Used for votes and comments. No signup needed.
             </p>
             <form
@@ -274,11 +274,11 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
                 required
                 placeholder="Your first name"
                 autoFocus
-                className="w-full px-4 py-2.5 bg-[var(--navy-900)] border border-[var(--navy-600)] rounded-lg text-white placeholder:text-[var(--navy-500)] focus:outline-none focus:border-[var(--gold-500)] mb-4"
+                className="w-full px-4 py-2.5 bg-[#FAF8F5] border border-[#E8E6E3] rounded-lg text-[#1a1a1a] placeholder:text-[#bbb] focus:outline-none focus:border-[#E94E3C] mb-4"
               />
               <button
                 type="submit"
-                className="w-full px-4 py-2.5 bg-[var(--gold-500)] text-[var(--navy-900)] font-semibold rounded-lg hover:bg-[var(--gold-400)] transition"
+                className="w-full px-4 py-2.5 bg-[#E94E3C] text-white font-semibold rounded-lg hover:bg-[#d4443a] transition"
               >
                 Continue
               </button>
@@ -300,11 +300,11 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
       )}
 
       {/* Header */}
-      <header className="border-b border-[var(--navy-600)] px-4 py-3 flex items-center justify-between shrink-0">
+      <header className="border-b border-[#E8E6E3] px-4 py-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
           <a
             href="/"
-            className="text-[var(--navy-500)] hover:text-white transition"
+            className="text-[#999] hover:text-[#1a1a1a] transition"
           >
             &larr;
           </a>
@@ -313,13 +313,13 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
             onClick={() => setShowEditTrip(true)}
             title="Click to edit trip details"
           >
-            <h1 className="text-lg font-bold text-white group-hover:text-[var(--gold-400)] transition">
+            <h1 className="font-heading text-lg font-bold text-[#1a1a1a] group-hover:text-[#E94E3C] transition">
               {trip.name}
-              <span className="ml-1.5 text-xs text-[var(--navy-500)] group-hover:text-[var(--gold-400)] opacity-0 group-hover:opacity-100 transition-all">
+              <span className="ml-1.5 text-xs text-[#999] group-hover:text-[#E94E3C] opacity-0 group-hover:opacity-100 transition-all">
                 &#9998;
               </span>
             </h1>
-            <p className="text-xs text-[var(--navy-500)]">
+            <p className="text-xs text-[#999]">
               {trip.destination} &middot; {trip.adults} adults
               {trip.kids > 0 ? ` + ${trip.kids} kids` : ""}
               {trip.nights ? ` &middot; ${trip.nights} nights` : ""}
@@ -330,13 +330,13 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowImportModal(true)}
-            className="px-3 py-1.5 text-sm bg-[var(--navy-700)] border border-[var(--navy-600)] text-[var(--navy-500)] rounded-lg hover:border-[var(--gold-500)] hover:text-[var(--gold-400)] transition"
+            className="px-3 py-1.5 text-sm bg-[#f5f3ef] border border-[#E8E6E3] text-[#999] rounded-lg hover:border-[#E94E3C] hover:text-[#E94E3C] transition"
           >
             Import
           </button>
           <button
             onClick={() => setShowAddModal(true)}
-            className="px-3 py-1.5 text-sm bg-[var(--gold-500)] text-[var(--navy-900)] font-semibold rounded-lg hover:bg-[var(--gold-400)] transition"
+            className="px-3 py-1.5 text-sm bg-[#E94E3C] text-white font-semibold rounded-lg hover:bg-[#d4443a] transition"
           >
             + Add
           </button>
@@ -365,10 +365,10 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
         </div>
 
         {/* Listing cards */}
-        <div className="flex-1 lg:w-[420px] lg:flex-none overflow-y-auto border-l border-[var(--navy-600)]">
+        <div className="flex-1 lg:w-[420px] lg:flex-none overflow-y-auto border-l border-[#E8E6E3]">
           {filteredListings.length === 0 ? (
             <div className="p-8 text-center">
-              <p className="text-[var(--navy-500)] mb-4">
+              <p className="text-[#999] mb-4">
                 {trip.listings.length === 0
                   ? "No listings yet. Add your first one!"
                   : "No listings match your filters."}
@@ -376,7 +376,7 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
               {trip.listings.length === 0 && (
                 <button
                   onClick={() => setShowAddModal(true)}
-                  className="px-4 py-2 bg-[var(--gold-500)] text-[var(--navy-900)] font-semibold rounded-lg hover:bg-[var(--gold-400)] transition"
+                  className="px-4 py-2 bg-[#E94E3C] text-white font-semibold rounded-lg hover:bg-[#d4443a] transition"
                 >
                   + Add Listing
                 </button>
@@ -391,7 +391,7 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
                   adults={trip.adults}
                   isSelected={selectedId === listing.id}
                   userName={userName}
-                  onSelect={() => setSelectedId(listing.id)}
+                  onSelect={() => { setSelectedId(listing.id); setDetailId(listing.id); }}
                   onViewDetail={() => setDetailId(listing.id)}
                   onVote={async (value) => {
                     if (!userName) {
@@ -547,12 +547,12 @@ function EditTripModal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="bg-[var(--navy-800)] border border-[var(--navy-600)] rounded-xl p-6 max-w-lg w-full mx-4 shadow-2xl">
+      <div className="bg-white border border-[#E8E6E3] rounded-xl p-6 max-w-lg w-full mx-4 shadow-2xl">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-bold text-white">Edit Trip</h2>
+          <h2 className="text-lg font-bold text-[#1a1a1a]">Edit Trip</h2>
           <button
             onClick={onClose}
-            className="text-[var(--navy-400)] hover:text-white transition"
+            className="text-[#777] hover:text-[#1a1a1a] transition"
           >
             &#10005;
           </button>
@@ -561,7 +561,7 @@ function EditTripModal({
         <form onSubmit={handleSave} className="space-y-4">
           {/* Trip name */}
           <div>
-            <label className="text-[10px] uppercase tracking-wider text-[var(--navy-500)] mb-1.5 block">
+            <label className="text-[10px] uppercase tracking-wider text-[#999] mb-1.5 block">
               Trip Name
             </label>
             <input
@@ -570,13 +570,13 @@ function EditTripModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Barbados 2026"
-              className="w-full px-4 py-2.5 bg-[var(--navy-900)] border border-[var(--navy-600)] rounded-lg text-white placeholder:text-[var(--navy-500)] focus:outline-none focus:border-[var(--gold-500)] text-sm"
+              className="w-full px-4 py-2.5 bg-[#FAF8F5] border border-[#E8E6E3] rounded-lg text-[#1a1a1a] placeholder:text-[#bbb] focus:outline-none focus:border-[#E94E3C] text-sm"
             />
           </div>
 
           {/* Destination */}
           <div>
-            <label className="text-[10px] uppercase tracking-wider text-[var(--navy-500)] mb-1.5 block">
+            <label className="text-[10px] uppercase tracking-wider text-[#999] mb-1.5 block">
               Destination
             </label>
             <input
@@ -585,14 +585,14 @@ function EditTripModal({
               value={destination}
               onChange={(e) => setDestination(e.target.value)}
               placeholder="e.g. Barbados"
-              className="w-full px-4 py-2.5 bg-[var(--navy-900)] border border-[var(--navy-600)] rounded-lg text-white placeholder:text-[var(--navy-500)] focus:outline-none focus:border-[var(--gold-500)] text-sm"
+              className="w-full px-4 py-2.5 bg-[#FAF8F5] border border-[#E8E6E3] rounded-lg text-[#1a1a1a] placeholder:text-[#bbb] focus:outline-none focus:border-[#E94E3C] text-sm"
             />
           </div>
 
           {/* Group size */}
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="text-[10px] uppercase tracking-wider text-[var(--navy-500)] mb-1.5 block">
+              <label className="text-[10px] uppercase tracking-wider text-[#999] mb-1.5 block">
                 Adults
               </label>
               <input
@@ -600,11 +600,11 @@ function EditTripModal({
                 min="1"
                 value={adults}
                 onChange={(e) => setAdults(e.target.value)}
-                className="w-full px-3 py-2.5 bg-[var(--navy-900)] border border-[var(--navy-600)] rounded-lg text-white focus:outline-none focus:border-[var(--gold-500)] text-sm"
+                className="w-full px-3 py-2.5 bg-[#FAF8F5] border border-[#E8E6E3] rounded-lg text-[#1a1a1a] focus:outline-none focus:border-[#E94E3C] text-sm"
               />
             </div>
             <div>
-              <label className="text-[10px] uppercase tracking-wider text-[var(--navy-500)] mb-1.5 block">
+              <label className="text-[10px] uppercase tracking-wider text-[#999] mb-1.5 block">
                 Kids
               </label>
               <input
@@ -612,11 +612,11 @@ function EditTripModal({
                 min="0"
                 value={kids}
                 onChange={(e) => setKids(e.target.value)}
-                className="w-full px-3 py-2.5 bg-[var(--navy-900)] border border-[var(--navy-600)] rounded-lg text-white focus:outline-none focus:border-[var(--gold-500)] text-sm"
+                className="w-full px-3 py-2.5 bg-[#FAF8F5] border border-[#E8E6E3] rounded-lg text-[#1a1a1a] focus:outline-none focus:border-[#E94E3C] text-sm"
               />
             </div>
             <div>
-              <label className="text-[10px] uppercase tracking-wider text-[var(--navy-500)] mb-1.5 block">
+              <label className="text-[10px] uppercase tracking-wider text-[#999] mb-1.5 block">
                 Nights
               </label>
               <input
@@ -625,7 +625,7 @@ function EditTripModal({
                 value={nights}
                 onChange={(e) => setNights(e.target.value)}
                 placeholder="—"
-                className="w-full px-3 py-2.5 bg-[var(--navy-900)] border border-[var(--navy-600)] rounded-lg text-white placeholder:text-[var(--navy-500)] focus:outline-none focus:border-[var(--gold-500)] text-sm"
+                className="w-full px-3 py-2.5 bg-[#FAF8F5] border border-[#E8E6E3] rounded-lg text-[#1a1a1a] placeholder:text-[#bbb] focus:outline-none focus:border-[#E94E3C] text-sm"
               />
             </div>
           </div>
@@ -633,25 +633,25 @@ function EditTripModal({
           {/* Map center */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[10px] uppercase tracking-wider text-[var(--navy-500)] mb-1.5 block">
+              <label className="text-[10px] uppercase tracking-wider text-[#999] mb-1.5 block">
                 Center Latitude
               </label>
               <input
                 type="text"
                 value={centerLat}
                 onChange={(e) => setCenterLat(e.target.value)}
-                className="w-full px-3 py-2.5 bg-[var(--navy-900)] border border-[var(--navy-600)] rounded-lg text-white focus:outline-none focus:border-[var(--gold-500)] text-sm"
+                className="w-full px-3 py-2.5 bg-[#FAF8F5] border border-[#E8E6E3] rounded-lg text-[#1a1a1a] focus:outline-none focus:border-[#E94E3C] text-sm"
               />
             </div>
             <div>
-              <label className="text-[10px] uppercase tracking-wider text-[var(--navy-500)] mb-1.5 block">
+              <label className="text-[10px] uppercase tracking-wider text-[#999] mb-1.5 block">
                 Center Longitude
               </label>
               <input
                 type="text"
                 value={centerLng}
                 onChange={(e) => setCenterLng(e.target.value)}
-                className="w-full px-3 py-2.5 bg-[var(--navy-900)] border border-[var(--navy-600)] rounded-lg text-white focus:outline-none focus:border-[var(--gold-500)] text-sm"
+                className="w-full px-3 py-2.5 bg-[#FAF8F5] border border-[#E8E6E3] rounded-lg text-[#1a1a1a] focus:outline-none focus:border-[#E94E3C] text-sm"
               />
             </div>
           </div>
@@ -664,14 +664,14 @@ function EditTripModal({
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 px-4 py-2.5 bg-[var(--gold-500)] text-[var(--navy-900)] font-semibold rounded-lg hover:bg-[var(--gold-400)] transition disabled:opacity-50"
+              className="flex-1 px-4 py-2.5 bg-[#E94E3C] text-white font-semibold rounded-lg hover:bg-[#d4443a] transition disabled:opacity-50"
             >
               {saving ? "Saving..." : "Save Changes"}
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 bg-[var(--navy-700)] border border-[var(--navy-600)] text-[var(--navy-400)] rounded-lg hover:border-[var(--navy-500)] transition"
+              className="px-4 py-2.5 bg-[#f5f3ef] border border-[#E8E6E3] text-[#777] rounded-lg hover:border-[#bbb] transition"
             >
               Cancel
             </button>

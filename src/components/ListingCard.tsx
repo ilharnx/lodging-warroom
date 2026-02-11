@@ -24,6 +24,7 @@ interface Listing {
   currency: string;
   bedrooms: number | null;
   bathrooms: number | null;
+  bathroomNotes: string | null;
   kitchen: string | null;
   rating: number | null;
   reviewCount: number | null;
@@ -36,6 +37,7 @@ interface Listing {
   address: string | null;
   neighborhood: string | null;
   addedBy: string | null;
+  description: string | null;
   photos: Photo[];
   votes: Vote[];
   amenities: unknown;
@@ -61,34 +63,35 @@ function formatPrice(amount: number | null, currency: string = "USD"): string {
   }).format(amount);
 }
 
-function sourceLabel(source: string): string {
+function Badge({ source }: { source: string }) {
+  const colors: Record<string, string> = {
+    airbnb: "#FF5A5F",
+    vrbo: "#3D67FF",
+    booking: "#003B95",
+    other: "#999",
+  };
   const labels: Record<string, string> = {
     airbnb: "Airbnb",
     vrbo: "VRBO",
     booking: "Booking",
     other: "Other",
   };
-  return labels[source] || source;
-}
-
-function sourceColor(source: string): string {
-  const colors: Record<string, string> = {
-    airbnb: "bg-rose-500/20 text-rose-400 border-rose-500/30",
-    vrbo: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-    booking: "bg-indigo-500/20 text-indigo-400 border-indigo-500/30",
-    other: "bg-gray-500/20 text-gray-400 border-gray-500/30",
-  };
-  return colors[source] || colors.other;
-}
-
-function sourceBgGradient(source: string): string {
-  const gradients: Record<string, string> = {
-    airbnb: "from-rose-900/40 to-rose-950/60",
-    vrbo: "from-blue-900/40 to-blue-950/60",
-    booking: "from-indigo-900/40 to-indigo-950/60",
-    other: "from-gray-800/40 to-gray-900/60",
-  };
-  return gradients[source] || gradients.other;
+  return (
+    <span
+      style={{
+        background: colors[source] || colors.other,
+        color: "#fff",
+        padding: "2px 8px",
+        borderRadius: 4,
+        fontSize: 10,
+        fontWeight: 700,
+        letterSpacing: 0.6,
+        textTransform: "uppercase",
+      }}
+    >
+      {labels[source] || source}
+    </span>
+  );
 }
 
 function getDomain(url: string): string {
@@ -105,23 +108,15 @@ export function ListingCard({
   isSelected,
   userName,
   onSelect,
-  onViewDetail,
   onVote,
   onRescrape,
 }: ListingCardProps) {
   const voteTotal = listing.votes.reduce((sum, v) => sum + v.value, 0);
   const userVote = listing.votes.find((v) => v.userName === userName);
-  const perPerson = listing.totalCost
-    ? Math.round(listing.totalCost / adults)
-    : null;
-
-  const hasPool = Array.isArray(listing.amenities)
-    ? listing.amenities.some(
-        (a: string) =>
-          a.toLowerCase().includes("pool") ||
-          a.toLowerCase().includes("swimming")
-      )
-    : false;
+  const perPerson =
+    listing.totalCost && adults > 0
+      ? Math.round(listing.totalCost / adults)
+      : null;
 
   const isScraping =
     listing.scrapeStatus === "pending" || listing.scrapeStatus === "scraping";
@@ -132,93 +127,71 @@ export function ListingCard({
     listing.name === "Loading..." ||
     listing.name.startsWith("VRBO ") ||
     listing.name.startsWith("Airbnb Listing");
-  const hasBig4 =
-    listing.bedrooms != null ||
-    listing.bathrooms != null ||
-    listing.kitchen ||
-    listing.beachDistance ||
-    listing.beachType;
 
   return (
     <div
       id={`listing-${listing.id}`}
       onClick={onSelect}
-      className={`rounded-xl border transition-all cursor-pointer overflow-hidden ${
-        isSelected
-          ? "border-[var(--gold-500)] bg-[var(--navy-700)] shadow-lg shadow-[var(--gold-500)]/10"
-          : "border-[var(--navy-600)] bg-[var(--navy-800)] hover:border-[var(--navy-500)] hover:shadow-md hover:shadow-black/20"
-      }`}
+      style={{
+        background: "#fff",
+        border: isSelected ? "2px solid #E94E3C" : "1px solid #E8E6E3",
+        borderRadius: 14,
+        overflow: "hidden",
+        cursor: "pointer",
+        transition: "all 0.2s ease",
+        boxShadow: isSelected
+          ? "0 8px 30px rgba(233,78,60,0.12)"
+          : "0 1px 6px rgba(0,0,0,0.04)",
+      }}
     >
-      {/* Photo strip or placeholder */}
+      {/* Photo or placeholder */}
       {listing.photos.length > 0 ? (
-        <div className="flex gap-0.5 overflow-hidden h-32">
-          {listing.photos.slice(0, 3).map((photo, i) => (
-            <div
-              key={photo.id}
-              className={`relative overflow-hidden ${
-                i === 0 ? "flex-[2]" : "flex-1"
-              }`}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={photo.url}
-                alt=""
-                className="w-full h-full object-cover"
-                loading="lazy"
-              />
-            </div>
-          ))}
-          {listing.photos.length > 3 && (
-            <div className="flex-1 bg-[var(--navy-700)] flex items-center justify-center text-xs text-[var(--navy-400)]">
-              +{listing.photos.length - 3}
-            </div>
-          )}
+        <div style={{ height: 160, overflow: "hidden" }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={listing.photos[0].url}
+            alt=""
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            loading="lazy"
+          />
         </div>
       ) : (
         <div
-          className={`h-24 bg-gradient-to-br ${sourceBgGradient(
-            listing.source
-          )} flex items-center justify-center gap-2`}
+          style={{
+            height: 80,
+            background: "linear-gradient(135deg, #FAF8F5 0%, #f0ede8 100%)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            borderBottom: "1px solid #E8E6E3",
+          }}
         >
           {isScraping ? (
-            <div className="flex items-center gap-2 scraping-pulse">
-              <div className="w-5 h-5 border-2 border-[var(--gold-400)]/40 border-t-[var(--gold-400)] rounded-full animate-spin" />
-              <span className="text-sm text-[var(--navy-400)]">
-                Scraping listing...
-              </span>
-            </div>
+            <span className="scraping-pulse" style={{ fontSize: 13, color: "#999" }}>
+              Scraping...
+            </span>
           ) : (
-            <>
-              <span className="text-2xl opacity-30">
-                {listing.source === "airbnb"
-                  ? "\u2302"
-                  : listing.source === "vrbo"
-                    ? "\u2616"
-                    : "\u2302"}
-              </span>
-              <span className="text-sm text-[var(--navy-500)]">
-                {getDomain(listing.url)}
-              </span>
-            </>
+            <span style={{ fontSize: 32, opacity: 0.25 }}>&#127968;</span>
           )}
         </div>
       )}
 
-      <div className="p-3.5">
-        {/* Status badges */}
-        {isScraping && listing.photos.length > 0 && (
-          <div className="mb-2 px-2.5 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs rounded-md inline-flex items-center gap-1.5 scraping-pulse">
-            <div className="w-3 h-3 border-2 border-amber-400/40 border-t-amber-400 rounded-full animate-spin" />
-            Scraping details...
-          </div>
-        )}
+      <div style={{ padding: "14px 16px 16px" }}>
+        {/* Status banners */}
         {isFailed && (
-          <div className="mb-2 px-2.5 py-1 bg-red-500/10 border border-red-500/20 text-red-400 text-xs rounded-md flex items-center justify-between">
+          <div
+            style={{
+              marginBottom: 8, padding: "5px 10px",
+              background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)",
+              borderRadius: 6, fontSize: 12, color: "#dc2626",
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+            }}
+          >
             <span>Scrape failed</span>
             {onRescrape && (
               <button
                 onClick={(e) => { e.stopPropagation(); onRescrape(); }}
-                className="ml-2 text-[10px] font-semibold underline hover:text-red-300 transition"
+                style={{ fontSize: 10, fontWeight: 600, textDecoration: "underline", cursor: "pointer", background: "none", border: "none", color: "#dc2626", fontFamily: "inherit" }}
               >
                 Retry
               </button>
@@ -226,12 +199,19 @@ export function ListingCard({
           </div>
         )}
         {isPartial && (
-          <div className="mb-2 px-2.5 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs rounded-md flex items-center justify-between">
-            <span>Limited data scraped</span>
+          <div
+            style={{
+              marginBottom: 8, padding: "5px 10px",
+              background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.15)",
+              borderRadius: 6, fontSize: 12, color: "#d97706",
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+            }}
+          >
+            <span>Limited data</span>
             {onRescrape && (
               <button
                 onClick={(e) => { e.stopPropagation(); onRescrape(); }}
-                className="ml-2 text-[10px] font-semibold underline hover:text-amber-300 transition"
+                style={{ fontSize: 10, fontWeight: 600, textDecoration: "underline", cursor: "pointer", background: "none", border: "none", color: "#d97706", fontFamily: "inherit" }}
               >
                 Retry
               </button>
@@ -239,188 +219,152 @@ export function ListingCard({
           </div>
         )}
 
-        {/* Source + Rating row */}
-        <div className="flex items-center gap-2 mb-2">
-          <span
-            className={`shrink-0 px-2 py-0.5 rounded-md border text-[10px] font-semibold uppercase tracking-wide ${sourceColor(
-              listing.source
-            )}`}
-          >
-            {sourceLabel(listing.source)}
-          </span>
+        {/* Source + Rating + Neighborhood */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+          <Badge source={listing.source} />
           {listing.rating != null && listing.rating > 0 && (
-            <span className="text-xs text-[var(--navy-400)] flex items-center gap-1">
-              <span className="text-yellow-400">&#9733;</span>
-              <span className="text-white font-medium">{listing.rating}</span>
-              {listing.reviewCount ? (
-                <span className="text-[var(--navy-500)]">({listing.reviewCount})</span>
-              ) : null}
+            <span style={{ fontSize: 12, color: "#888", display: "flex", alignItems: "center", gap: 3 }}>
+              <span style={{ color: "#E94E3C" }}>&#9733;</span> {listing.rating}
+              {listing.reviewCount ? <span style={{ color: "#bbb" }}>({listing.reviewCount})</span> : null}
             </span>
           )}
           {listing.neighborhood && (
-            <span className="text-[11px] text-[var(--navy-500)] ml-auto truncate max-w-[120px]">
-              {listing.neighborhood}
-            </span>
+            <span style={{ fontSize: 11, color: "#bbb", marginLeft: "auto" }}>{listing.neighborhood}</span>
           )}
         </div>
 
-        {/* Title + Price side by side */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <h3 className="font-semibold text-white text-sm leading-snug">
-              {isGenericName ? (
-                <span className="text-[var(--navy-400)]">
-                  {listing.name}
-                </span>
-              ) : (
-                <span className="line-clamp-2">{listing.name}</span>
-              )}
-            </h3>
-            {isGenericName && (
-              <p className="text-[10px] text-[var(--navy-500)] mt-0.5 truncate">
-                {getDomain(listing.url)}
-              </p>
-            )}
-          </div>
-          <div className="text-right shrink-0">
+        {/* Title + Price */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+          <h3
+            className="font-heading"
+            style={{
+              margin: 0, fontSize: 17, fontWeight: 600,
+              color: isGenericName ? "#999" : "#1a1a1a",
+              lineHeight: 1.3, flex: 1,
+              overflow: "hidden", textOverflow: "ellipsis",
+              display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const,
+            }}
+          >
+            {listing.name || "Untitled Listing"}
+          </h3>
+          <div style={{ textAlign: "right", flexShrink: 0 }}>
             {listing.totalCost ? (
               <>
-                <div className="text-lg font-bold text-[var(--gold-400)]">
+                <div style={{ fontSize: 22, fontWeight: 800, color: "#E94E3C" }}>
                   {formatPrice(listing.totalCost, listing.currency)}
                 </div>
-                <div className="text-[10px] text-[var(--navy-400)]">
-                  {perPerson ? `${formatPrice(perPerson)}/pp` : "total"}
+                <div style={{ fontSize: 11, color: "#999" }}>
+                  {perPerson ? `$${perPerson}/person` : "total"}
                 </div>
               </>
             ) : listing.perNight ? (
               <>
-                <div className="text-lg font-bold text-[var(--gold-400)]">
+                <div style={{ fontSize: 22, fontWeight: 800, color: "#E94E3C" }}>
                   {formatPrice(listing.perNight, listing.currency)}
                 </div>
-                <div className="text-[10px] text-[var(--navy-400)]">/night</div>
+                <div style={{ fontSize: 11, color: "#999" }}>/night</div>
               </>
             ) : (
-              <span className="text-xs text-[var(--navy-500)] italic">
+              <span style={{ fontSize: 12, color: "#bbb", fontStyle: "italic" }}>
                 {isScraping ? "..." : "—"}
               </span>
             )}
           </div>
         </div>
 
-        {/* The Big 4 grid - barbados style */}
-        {hasBig4 && (
-          <div className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-1 px-2.5 py-2 bg-[var(--navy-900)]/60 rounded-lg border border-[var(--navy-600)]/30">
+        {/* The Big 4 */}
+        {(listing.bedrooms != null || listing.bathrooms != null || listing.kitchen || listing.beachType || listing.beachDistance) && (
+          <div style={{
+            display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 16px", marginTop: 12,
+            padding: "10px 12px", background: "#FAF8F5", borderRadius: 10, border: "1px solid #f0ede8",
+          }}>
             {listing.bedrooms != null && (
-              <div className="flex items-center gap-1.5 text-[12px] text-[var(--navy-400)]">
-                <span className="text-[14px] w-5 text-center opacity-60">&#x1F6CF;&#xFE0F;</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 13, color: "#555" }}>
+                <span style={{ fontSize: 16, width: 22, textAlign: "center" }}>&#128716;</span>
                 {listing.bedrooms} bed{listing.bedrooms !== 1 ? "s" : ""}
               </div>
             )}
             {listing.bathrooms != null && (
-              <div className="flex items-center gap-1.5 text-[12px] text-[var(--navy-400)]">
-                <span className="text-[14px] w-5 text-center opacity-60">&#x1F6BF;</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 13, color: "#555" }}>
+                <span style={{ fontSize: 16, width: 22, textAlign: "center" }}>&#128703;</span>
                 {listing.bathrooms} bath{listing.bathrooms !== 1 ? "s" : ""}
               </div>
             )}
             {listing.kitchen && (
-              <div className="flex items-center gap-1.5 text-[12px] text-[var(--navy-400)]">
-                <span className="text-[14px] w-5 text-center opacity-60">&#x1F373;</span>
-                <span className="capitalize truncate">{listing.kitchen}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 13, color: "#555" }}>
+                <span style={{ fontSize: 16, width: 22, textAlign: "center" }}>&#127859;</span>
+                <span style={{ textTransform: "capitalize" }}>{listing.kitchen}</span>
               </div>
             )}
             {(listing.beachDistance || listing.beachType) && (
-              <div className="flex items-center gap-1.5 text-[12px] text-[var(--navy-400)]">
-                <span className="text-[14px] w-5 text-center opacity-60">&#x1F3D6;&#xFE0F;</span>
-                <span className="truncate">{listing.beachDistance || listing.beachType}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 13, color: "#555" }}>
+                <span style={{ fontSize: 16, width: 22, textAlign: "center" }}>&#127958;</span>
+                {listing.beachDistance || listing.beachType}
               </div>
             )}
           </div>
         )}
 
-        {/* Amenity highlights */}
-        {(hasPool || listing.kidFriendly) && (
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {hasPool && (
-              <span className="px-2 py-0.5 bg-blue-500/10 text-blue-400 text-[11px] rounded-md">
-                Pool
-              </span>
-            )}
-            {listing.kidFriendly && (
-              <span className="px-2 py-0.5 bg-green-500/10 text-green-400 text-[11px] rounded-md">
-                {listing.kidNotes
-                  ? `Kid-friendly: ${listing.kidNotes}`
-                  : "Kid-friendly"}
-              </span>
-            )}
+        {/* Bathroom notes */}
+        {listing.bathroomNotes && (
+          <div style={{ marginTop: 6, fontSize: 12, color: "#999", fontStyle: "italic" }}>
+            {listing.bathroomNotes}
+          </div>
+        )}
+
+        {/* Kid badge */}
+        {listing.kidFriendly && (
+          <div style={{
+            marginTop: 8, display: "inline-flex", alignItems: "center", gap: 4,
+            fontSize: 12, color: "#2d8a4e", background: "rgba(45,138,78,0.06)",
+            border: "1px solid rgba(45,138,78,0.15)", padding: "3px 10px", borderRadius: 6,
+          }}>
+            &#128118; {listing.kidNotes || "Kid-friendly"}
           </div>
         )}
 
         {/* Actions */}
-        <div className="mt-3 pt-3 border-t border-[var(--navy-600)]/50 flex items-center justify-between">
-          {/* Voting */}
-          <div className="flex items-center gap-1.5">
+        <div style={{
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+          marginTop: 14, paddingTop: 12, borderTop: "1px solid #f0ede8",
+        }}>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onVote(1);
+              onClick={(e) => { e.stopPropagation(); onVote(1); }}
+              style={{
+                background: userVote?.value === 1 ? "rgba(233,78,60,0.08)" : "#fff",
+                border: userVote?.value === 1 ? "1px solid #E94E3C" : "1px solid #ddd",
+                borderRadius: 8, padding: "5px 12px", cursor: "pointer",
+                fontSize: 13, color: voteTotal > 0 ? "#E94E3C" : "#999", fontWeight: 700, fontFamily: "inherit",
               }}
-              className={`p-1.5 rounded-md transition-all ${
-                userVote?.value === 1
-                  ? "text-green-400 bg-green-400/15"
-                  : "text-[var(--navy-400)] hover:text-green-400 hover:bg-green-400/10"
-              }`}
-              title="Upvote"
             >
-              &#9650;
+              &#128293; {voteTotal}
             </button>
-            <span
-              className={`text-sm font-bold min-w-[24px] text-center ${
-                voteTotal > 0
-                  ? "text-green-400"
-                  : voteTotal < 0
-                    ? "text-red-400"
-                    : "text-[var(--navy-500)]"
-              }`}
-            >
-              {voteTotal}
-            </span>
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onVote(-1);
+              onClick={(e) => { e.stopPropagation(); onVote(-1); }}
+              style={{
+                background: userVote?.value === -1 ? "rgba(239,68,68,0.08)" : "#fff",
+                border: userVote?.value === -1 ? "1px solid #ef4444" : "1px solid #ddd",
+                borderRadius: 8, padding: "5px 10px", cursor: "pointer",
+                fontSize: 13, color: userVote?.value === -1 ? "#ef4444" : "#ccc", fontFamily: "inherit",
               }}
-              className={`p-1.5 rounded-md transition-all ${
-                userVote?.value === -1
-                  ? "text-red-400 bg-red-400/15"
-                  : "text-[var(--navy-400)] hover:text-red-400 hover:bg-red-400/10"
-              }`}
-              title="Downvote"
             >
-              &#9660;
+              &#128078;
             </button>
             {listing.addedBy && (
-              <span className="text-[10px] text-[var(--navy-500)] ml-1.5">
-                by {listing.addedBy}
-              </span>
+              <span style={{ fontSize: 11, color: "#ccc", marginLeft: 4 }}>by {listing.addedBy}</span>
             )}
           </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onViewDetail();
-              }}
-              className="px-3 py-1.5 text-xs font-medium bg-[var(--gold-500)]/10 border border-[var(--gold-500)]/30 text-[var(--gold-400)] rounded-lg hover:bg-[var(--gold-500)]/20 hover:border-[var(--gold-500)]/50 transition-all"
-            >
-              Details
-            </button>
+          <div style={{ display: "flex", gap: 6 }}>
             <a
               href={listing.url}
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="px-3 py-1.5 text-xs font-medium bg-[var(--navy-700)] border border-[var(--navy-600)] text-[var(--navy-400)] rounded-lg hover:border-[var(--navy-500)] hover:text-white transition-all"
+              style={{
+                fontSize: 12, color: "#E94E3C", fontWeight: 600, textDecoration: "none",
+                padding: "5px 12px", border: "1px solid #E94E3C", borderRadius: 8,
+              }}
             >
               View &#8599;
             </a>

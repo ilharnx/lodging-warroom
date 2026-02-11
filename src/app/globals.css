@@ -1,98 +1,116 @@
 @import "tailwindcss";
 
 :root {
-  --navy-900: #0a1628;
-  --navy-800: #111d35;
-  --navy-700: #1a2942;
-  --navy-600: #2d3f5e;
-  --navy-500: #64748b;
-  --navy-400: #94a3b8;
-  --gold-400: #f0c040;
-  --gold-500: #d4a017;
-  --gold-600: #b8860b;
+  /* Barbados warm light palette */
+  --bg: #FAF8F5;
+  --card: #fff;
+  --panel: #f5f3ef;
+  --panel-border: #f0ede8;
+  --border: #E8E6E3;
+  --accent: #E94E3C;
+  --accent-hover: #d4443a;
+  --accent-light: rgba(233, 78, 60, 0.06);
+  --accent-border: rgba(233, 78, 60, 0.15);
+  --text: #1a1a1a;
+  --text-secondary: #555;
+  --text-muted: #999;
+  --text-faint: #bbb;
+  --text-ghost: #ddd;
 }
 
 body {
-  background: var(--navy-900);
-  color: #e2e8f0;
-  font-family: system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
 /* Mapbox overrides */
 .mapboxgl-popup-content {
-  background: var(--navy-700) !important;
-  color: #e2e8f0 !important;
-  border: 1px solid var(--navy-500) !important;
+  background: var(--card) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
   border-radius: 8px !important;
   padding: 8px 12px !important;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.08) !important;
 }
 
 .mapboxgl-popup-tip {
-  border-top-color: var(--navy-700) !important;
+  border-top-color: var(--card) !important;
 }
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 5px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--navy-900);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--navy-600);
+  background: var(--text-ghost);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--navy-500);
+  background: var(--text-faint);
 }
 
 /* Price marker on map */
 .price-marker {
-  background: var(--navy-700);
-  border: 2px solid var(--gold-500);
-  border-radius: 8px;
-  padding: 2px 8px;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 12px;
   font-weight: 700;
-  color: var(--gold-400);
+  padding: 5px 12px;
+  border-radius: 24px;
   white-space: nowrap;
   cursor: pointer;
   transition: all 0.15s;
+  background: var(--card);
+  color: var(--text);
+  border: 2px solid var(--text-ghost);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
 
-.price-marker:hover,
+.price-marker:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: scale(1.08);
+}
+
 .price-marker.active {
-  background: var(--gold-500);
-  color: var(--navy-900);
-  transform: scale(1.1);
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  box-shadow: 0 2px 10px rgba(233,78,60,0.25);
+  transform: scale(1.15);
 }
 
-/* No-photo placeholder */
-.photo-placeholder {
-  background: linear-gradient(135deg, var(--navy-700) 0%, var(--navy-800) 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  color: var(--navy-500);
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.photo-placeholder .icon {
-  font-size: 24px;
-  opacity: 0.5;
+/* Heading serif font */
+.font-heading {
+  font-family: Georgia, 'Times New Roman', serif;
 }
 
 /* Scrape status pulse */
-@keyframes pulse-gold {
+@keyframes pulse-accent {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
 }
 
 .scraping-pulse {
-  animation: pulse-gold 2s ease-in-out infinite;
+  animation: pulse-accent 2s ease-in-out infinite;
+}
+
+/* Focus styles */
+input:focus, select:focus, textarea:focus {
+  border-color: var(--accent) !important;
+  outline: none;
+}
+
+button:hover {
+  opacity: 0.92;
+}
+
+.leaflet-control-attribution {
+  display: none !important;
 }

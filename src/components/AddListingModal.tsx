@@ -99,26 +99,26 @@ export function AddListingModal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="bg-[var(--navy-800)] border border-[var(--navy-600)] rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
+      <div className="bg-white border border-[#E8E6E3] rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-white">Add Listings</h2>
+          <h2 className="text-lg font-bold text-[#1a1a1a]">Add Listings</h2>
           <button
             onClick={onClose}
-            className="text-[var(--navy-400)] hover:text-white transition"
+            className="text-[#777] hover:text-[#1a1a1a] transition"
           >
             &#10005;
           </button>
         </div>
 
         {/* Mode toggle */}
-        <div className="flex gap-1 mb-4 p-1 bg-[var(--navy-900)] rounded-lg">
+        <div className="flex gap-1 mb-4 p-1 bg-[#FAF8F5] rounded-lg">
           <button
             type="button"
             onClick={() => { setMode("single"); setInput(""); setError(""); setStatus(""); }}
             className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition ${
               mode === "single"
-                ? "bg-[var(--navy-700)] text-white"
-                : "text-[var(--navy-400)] hover:text-white"
+                ? "bg-[#f5f3ef] text-[#1a1a1a]"
+                : "text-[#777] hover:text-[#1a1a1a]"
             }`}
           >
             Single URL
@@ -128,15 +128,15 @@ export function AddListingModal({
             onClick={() => { setMode("multi"); setInput(""); setError(""); setStatus(""); }}
             className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition ${
               mode === "multi"
-                ? "bg-[var(--navy-700)] text-white"
-                : "text-[var(--navy-400)] hover:text-white"
+                ? "bg-[#f5f3ef] text-[#1a1a1a]"
+                : "text-[#777] hover:text-[#1a1a1a]"
             }`}
           >
             Multiple URLs
           </button>
         </div>
 
-        <p className="text-sm text-[var(--navy-400)] mb-4">
+        <p className="text-sm text-[#777] mb-4">
           {mode === "single"
             ? "Paste a listing URL from Airbnb, VRBO, Booking.com, or any vacation rental site."
             : "Paste multiple URLs, one per line. They'll all be scraped in parallel."}
@@ -151,7 +151,7 @@ export function AddListingModal({
               value={input}
               onChange={(e) => setInput(e.target.value)}
               autoFocus
-              className="w-full px-4 py-3 bg-[var(--navy-900)] border border-[var(--navy-600)] rounded-lg text-white placeholder:text-[var(--navy-500)] focus:outline-none focus:border-[var(--gold-500)] text-sm"
+              className="w-full px-4 py-3 bg-[#FAF8F5] border border-[#E8E6E3] rounded-lg text-[#1a1a1a] placeholder:text-[#bbb] focus:outline-none focus:border-[#E94E3C] text-sm"
             />
           ) : (
             <div className="relative">
@@ -162,10 +162,10 @@ export function AddListingModal({
                 onChange={(e) => setInput(e.target.value)}
                 autoFocus
                 rows={5}
-                className="w-full px-4 py-3 bg-[var(--navy-900)] border border-[var(--navy-600)] rounded-lg text-white placeholder:text-[var(--navy-500)] focus:outline-none focus:border-[var(--gold-500)] text-sm resize-none"
+                className="w-full px-4 py-3 bg-[#FAF8F5] border border-[#E8E6E3] rounded-lg text-[#1a1a1a] placeholder:text-[#bbb] focus:outline-none focus:border-[#E94E3C] text-sm resize-none"
               />
               {urls.length > 0 && (
-                <div className="absolute top-2 right-2 px-2 py-0.5 bg-[var(--gold-500)]/20 text-[var(--gold-400)] text-[10px] font-semibold rounded">
+                <div className="absolute top-2 right-2 px-2 py-0.5 bg-[#E94E3C]/20 text-[#E94E3C] text-[10px] font-semibold rounded">
                   {urls.length} URL{urls.length !== 1 ? "s" : ""}
                 </div>
               )}
@@ -184,7 +184,7 @@ export function AddListingModal({
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 px-4 py-2.5 bg-[var(--gold-500)] text-[var(--navy-900)] font-semibold rounded-lg hover:bg-[var(--gold-400)] transition disabled:opacity-50"
+              className="flex-1 px-4 py-2.5 bg-[#E94E3C] text-white font-semibold rounded-lg hover:bg-[#d4443a] transition disabled:opacity-50"
             >
               {loading
                 ? "Adding..."
@@ -195,14 +195,14 @@ export function AddListingModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 bg-[var(--navy-700)] border border-[var(--navy-600)] text-[var(--navy-400)] rounded-lg hover:border-[var(--navy-500)] transition"
+              className="px-4 py-2.5 bg-[#f5f3ef] border border-[#E8E6E3] text-[#777] rounded-lg hover:border-[#bbb] transition"
             >
               Cancel
             </button>
           </div>
         </form>
 
-        <div className="mt-4 text-xs text-[var(--navy-500)]">
+        <div className="mt-4 text-xs text-[#999]">
           Supported: Airbnb, VRBO, Booking.com, and most vacation rental sites.
           Data will be auto-extracted. You can edit anything after scraping.
         </div>

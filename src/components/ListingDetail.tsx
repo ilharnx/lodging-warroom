@@ -249,11 +249,11 @@ export function ListingDetail({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="bg-[var(--navy-800)] border border-[var(--navy-600)] rounded-2xl max-w-2xl w-full relative shadow-2xl">
+      <div className="bg-white border border-[#E8E6E3] rounded-2xl max-w-2xl w-full relative shadow-2xl">
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-[var(--navy-700)] border border-[var(--navy-600)] text-[var(--navy-400)] hover:text-white hover:border-[var(--navy-500)] transition"
+          className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-[#f5f3ef] border border-[#E8E6E3] text-[#777] hover:text-[#1a1a1a] hover:border-[#bbb] transition"
         >
           &#10005;
         </button>
@@ -274,30 +274,30 @@ export function ListingDetail({
                   type="text"
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
-                  className="w-full text-xl font-bold bg-[var(--navy-900)] border border-[var(--navy-600)] rounded-lg px-3 py-1.5 text-white focus:outline-none focus:border-[var(--gold-500)]"
+                  className="w-full text-xl font-bold bg-[#FAF8F5] border border-[#E8E6E3] rounded-lg px-3 py-1.5 text-[#1a1a1a] focus:outline-none focus:border-[#E94E3C]"
                   placeholder="Listing name"
                 />
               ) : (
-                <h2 className="text-xl font-bold text-white leading-tight">
+                <h2 className="text-xl font-bold text-[#1a1a1a] leading-tight">
                   {isGenericName ? (
-                    <span className="text-[var(--navy-400)]">{listing.name}</span>
+                    <span className="text-[#777]">{listing.name}</span>
                   ) : (
                     listing.name
                   )}
                 </h2>
               )}
-              <p className="text-sm text-[var(--navy-400)] mt-1">
+              <p className="text-sm text-[#777] mt-1">
                 {listing.neighborhood || listing.address || getDomain(listing.url)}
               </p>
             </div>
             {listing.rating != null && listing.rating > 0 && (
               <div className="text-right shrink-0">
-                <div className="text-sm text-white font-semibold">
+                <div className="text-sm text-[#1a1a1a] font-semibold">
                   <span className="text-yellow-400">&#9733;</span>{" "}
                   {listing.rating}
                 </div>
                 {listing.reviewCount != null && listing.reviewCount > 0 && (
-                  <div className="text-xs text-[var(--navy-400)]">
+                  <div className="text-xs text-[#777]">
                     {listing.reviewCount.toLocaleString()} reviews
                   </div>
                 )}
@@ -345,48 +345,48 @@ export function ListingDetail({
           )}
 
           {/* Price block */}
-          <div className="mt-4 p-4 bg-[var(--navy-900)] rounded-xl border border-[var(--navy-600)]/50">
+          <div className="mt-4 p-4 bg-[#FAF8F5] rounded-xl border border-[#E8E6E3]">
             {editing ? (
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[10px] uppercase tracking-wider text-[var(--navy-500)] mb-1 block">
+                    <label className="text-[10px] uppercase tracking-wider text-[#999] mb-1 block">
                       Per Night ($)
                     </label>
                     <input
                       type="number"
                       value={editPerNight}
                       onChange={(e) => setEditPerNight(e.target.value)}
-                      className="w-full px-3 py-1.5 text-sm bg-[var(--navy-800)] border border-[var(--navy-600)] rounded-lg text-white focus:outline-none focus:border-[var(--gold-500)]"
+                      className="w-full px-3 py-1.5 text-sm bg-white border border-[#E8E6E3] rounded-lg text-[#1a1a1a] focus:outline-none focus:border-[#E94E3C]"
                       placeholder="e.g. 250"
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] uppercase tracking-wider text-[var(--navy-500)] mb-1 block">
+                    <label className="text-[10px] uppercase tracking-wider text-[#999] mb-1 block">
                       Total Cost ($)
                     </label>
                     <input
                       type="number"
                       value={editTotalCost}
                       onChange={(e) => setEditTotalCost(e.target.value)}
-                      className="w-full px-3 py-1.5 text-sm bg-[var(--navy-800)] border border-[var(--navy-600)] rounded-lg text-white focus:outline-none focus:border-[var(--gold-500)]"
+                      className="w-full px-3 py-1.5 text-sm bg-white border border-[#E8E6E3] rounded-lg text-[#1a1a1a] focus:outline-none focus:border-[#E94E3C]"
                       placeholder="e.g. 2500"
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] uppercase tracking-wider text-[var(--navy-500)] mb-1 block">
+                    <label className="text-[10px] uppercase tracking-wider text-[#999] mb-1 block">
                       Bedrooms
                     </label>
                     <input
                       type="number"
                       value={editBedrooms}
                       onChange={(e) => setEditBedrooms(e.target.value)}
-                      className="w-full px-3 py-1.5 text-sm bg-[var(--navy-800)] border border-[var(--navy-600)] rounded-lg text-white focus:outline-none focus:border-[var(--gold-500)]"
+                      className="w-full px-3 py-1.5 text-sm bg-white border border-[#E8E6E3] rounded-lg text-[#1a1a1a] focus:outline-none focus:border-[#E94E3C]"
                       placeholder="e.g. 3"
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] uppercase tracking-wider text-[var(--navy-500)] mb-1 block">
+                    <label className="text-[10px] uppercase tracking-wider text-[#999] mb-1 block">
                       Bathrooms
                     </label>
                     <input
@@ -394,7 +394,7 @@ export function ListingDetail({
                       step="0.5"
                       value={editBathrooms}
                       onChange={(e) => setEditBathrooms(e.target.value)}
-                      className="w-full px-3 py-1.5 text-sm bg-[var(--navy-800)] border border-[var(--navy-600)] rounded-lg text-white focus:outline-none focus:border-[var(--gold-500)]"
+                      className="w-full px-3 py-1.5 text-sm bg-white border border-[#E8E6E3] rounded-lg text-[#1a1a1a] focus:outline-none focus:border-[#E94E3C]"
                       placeholder="e.g. 2"
                     />
                   </div>
@@ -403,16 +403,16 @@ export function ListingDetail({
             ) : listing.totalCost || listing.perNight ? (
               <>
                 <div className="flex items-baseline gap-3">
-                  <span className="text-2xl font-bold text-[var(--gold-400)]">
+                  <span className="text-2xl font-bold text-[#E94E3C]">
                     {listing.totalCost
                       ? formatPrice(listing.totalCost, listing.currency)
                       : formatPrice(listing.perNight, listing.currency)}
                   </span>
-                  <span className="text-sm text-[var(--navy-400)]">
+                  <span className="text-sm text-[#777]">
                     {listing.totalCost ? "total" : "/night"}
                   </span>
                   {perPerson && (
-                    <span className="text-sm font-medium text-[var(--gold-400)] opacity-70">
+                    <span className="text-sm font-medium text-[#E94E3C] opacity-70">
                       {formatPrice(perPerson)}/person
                     </span>
                   )}
@@ -420,35 +420,35 @@ export function ListingDetail({
 
                 {/* Cost breakdown */}
                 {(listing.cleaningFee || listing.serviceFee || listing.taxes) && (
-                  <div className="mt-3 pt-3 border-t border-[var(--navy-600)]/50 space-y-1.5 text-xs">
+                  <div className="mt-3 pt-3 border-t border-[#E8E6E3] space-y-1.5 text-xs">
                     {listing.perNight && (
-                      <div className="flex justify-between text-[var(--navy-400)]">
+                      <div className="flex justify-between text-[#777]">
                         <span>Nightly rate</span>
-                        <span className="text-white">
+                        <span className="text-[#1a1a1a]">
                           {formatPrice(listing.perNight)}/night
                         </span>
                       </div>
                     )}
                     {listing.cleaningFee && (
-                      <div className="flex justify-between text-[var(--navy-400)]">
+                      <div className="flex justify-between text-[#777]">
                         <span>Cleaning fee</span>
-                        <span className="text-white">
+                        <span className="text-[#1a1a1a]">
                           {formatPrice(listing.cleaningFee)}
                         </span>
                       </div>
                     )}
                     {listing.serviceFee && (
-                      <div className="flex justify-between text-[var(--navy-400)]">
+                      <div className="flex justify-between text-[#777]">
                         <span>Service fee</span>
-                        <span className="text-white">
+                        <span className="text-[#1a1a1a]">
                           {formatPrice(listing.serviceFee)}
                         </span>
                       </div>
                     )}
                     {listing.taxes && (
-                      <div className="flex justify-between text-[var(--navy-400)]">
+                      <div className="flex justify-between text-[#777]">
                         <span>Taxes</span>
-                        <span className="text-white">
+                        <span className="text-[#1a1a1a]">
                           {formatPrice(listing.taxes)}
                         </span>
                       </div>
@@ -464,12 +464,12 @@ export function ListingDetail({
               </>
             ) : (
               <div className="text-center py-2">
-                <span className="text-[var(--navy-400)] text-sm">
+                <span className="text-[#777] text-sm">
                   {isScraping
                     ? "Fetching price..."
                     : "Price not available from scrape"}
                 </span>
-                <p className="text-xs text-[var(--navy-500)] mt-1">
+                <p className="text-xs text-[#999] mt-1">
                   {isScraping
                     ? ""
                     : "Click Edit to add pricing manually"}
@@ -486,13 +486,13 @@ export function ListingDetail({
                   <button
                     onClick={saveEdits}
                     disabled={saving}
-                    className="px-3 py-1.5 text-xs font-medium bg-[var(--gold-500)] text-[var(--navy-900)] rounded-lg hover:bg-[var(--gold-400)] transition disabled:opacity-40"
+                    className="px-3 py-1.5 text-xs font-medium bg-[#E94E3C] text-white rounded-lg hover:bg-[#d4443a] transition disabled:opacity-40"
                   >
                     {saving ? "Saving..." : "Save"}
                   </button>
                   <button
                     onClick={() => setEditing(false)}
-                    className="px-3 py-1.5 text-xs text-[var(--navy-400)] hover:text-white transition"
+                    className="px-3 py-1.5 text-xs text-[#777] hover:text-[#1a1a1a] transition"
                   >
                     Cancel
                   </button>
@@ -500,7 +500,7 @@ export function ListingDetail({
               ) : (
                 <button
                   onClick={() => setEditing(true)}
-                  className="px-3 py-1.5 text-xs font-medium bg-[var(--navy-700)] border border-[var(--navy-600)] text-[var(--navy-400)] rounded-lg hover:border-[var(--navy-500)] hover:text-white transition"
+                  className="px-3 py-1.5 text-xs font-medium bg-[#f5f3ef] border border-[#E8E6E3] text-[#777] rounded-lg hover:border-[#bbb] hover:text-[#1a1a1a] transition"
                 >
                   Edit
                 </button>
@@ -517,7 +517,7 @@ export function ListingDetail({
                 className={`p-1.5 rounded-md transition-all ${
                   userVote?.value === 1
                     ? "text-green-400 bg-green-400/15"
-                    : "text-[var(--navy-400)] hover:text-green-400 hover:bg-green-400/10"
+                    : "text-[#777] hover:text-green-400 hover:bg-green-400/10"
                 }`}
                 title={userVote?.value === 1 ? "Remove upvote" : "Upvote"}
               >
@@ -529,7 +529,7 @@ export function ListingDetail({
                     ? "text-green-400"
                     : voteTotal < 0
                       ? "text-red-400"
-                      : "text-[var(--navy-500)]"
+                      : "text-[#999]"
                 }`}
               >
                 {voteTotal}
@@ -542,7 +542,7 @@ export function ListingDetail({
                 className={`p-1.5 rounded-md transition-all ${
                   userVote?.value === -1
                     ? "text-red-400 bg-red-400/15"
-                    : "text-[var(--navy-400)] hover:text-red-400 hover:bg-red-400/10"
+                    : "text-[#777] hover:text-red-400 hover:bg-red-400/10"
                 }`}
                 title={userVote?.value === -1 ? "Remove downvote" : "Downvote"}
               >
@@ -570,8 +570,8 @@ export function ListingDetail({
                     onClick={() => setPhotoFilter(cat.key)}
                     className={`px-3 py-1 text-xs rounded-full whitespace-nowrap transition ${
                       photoFilter === cat.key
-                        ? "bg-[var(--gold-500)] text-[var(--navy-900)] font-semibold"
-                        : "bg-[var(--navy-700)] text-[var(--navy-400)] hover:text-white"
+                        ? "bg-[#E94E3C] text-white font-semibold"
+                        : "bg-[#f5f3ef] text-[#777] hover:text-[#1a1a1a]"
                     }`}
                   >
                     {cat.label} ({count})
@@ -663,15 +663,15 @@ export function ListingDetail({
               listing.beachDistance) && (
               <div className="grid grid-cols-2 gap-3">
                 {listing.bedrooms != null && (
-                  <div className="p-3 bg-[var(--navy-900)] rounded-lg border border-[var(--navy-600)]/30">
-                    <div className="text-[10px] uppercase tracking-wider text-[var(--navy-500)] mb-1">
+                  <div className="p-3 bg-[#FAF8F5] rounded-lg border border-[#E8E6E3]">
+                    <div className="text-[10px] uppercase tracking-wider text-[#999] mb-1">
                       Bedrooms
                     </div>
-                    <div className="text-lg font-bold text-white">
+                    <div className="text-lg font-bold text-[#1a1a1a]">
                       {listing.bedrooms}
                     </div>
                     {beds.length > 0 && (
-                      <div className="mt-1 text-xs text-[var(--navy-400)]">
+                      <div className="mt-1 text-xs text-[#777]">
                         {beds.map(
                           (bed: { type: string; count: number }, i: number) => (
                             <span key={i}>
@@ -686,15 +686,15 @@ export function ListingDetail({
                 )}
 
                 {listing.bathrooms != null && (
-                  <div className="p-3 bg-[var(--navy-900)] rounded-lg border border-[var(--navy-600)]/30">
-                    <div className="text-[10px] uppercase tracking-wider text-[var(--navy-500)] mb-1">
+                  <div className="p-3 bg-[#FAF8F5] rounded-lg border border-[#E8E6E3]">
+                    <div className="text-[10px] uppercase tracking-wider text-[#999] mb-1">
                       Bathrooms
                     </div>
-                    <div className="text-lg font-bold text-white">
+                    <div className="text-lg font-bold text-[#1a1a1a]">
                       {listing.bathrooms}
                     </div>
                     {listing.bathroomNotes && (
-                      <div className="mt-1 text-xs text-[var(--navy-400)]">
+                      <div className="mt-1 text-xs text-[#777]">
                         {listing.bathroomNotes}
                       </div>
                     )}
@@ -702,15 +702,15 @@ export function ListingDetail({
                 )}
 
                 {listing.kitchen && (
-                  <div className="p-3 bg-[var(--navy-900)] rounded-lg border border-[var(--navy-600)]/30">
-                    <div className="text-[10px] uppercase tracking-wider text-[var(--navy-500)] mb-1">
+                  <div className="p-3 bg-[#FAF8F5] rounded-lg border border-[#E8E6E3]">
+                    <div className="text-[10px] uppercase tracking-wider text-[#999] mb-1">
                       Kitchen
                     </div>
-                    <div className="text-lg font-bold text-white capitalize">
+                    <div className="text-lg font-bold text-[#1a1a1a] capitalize">
                       {listing.kitchen}
                     </div>
                     {listing.kitchenDetails && (
-                      <div className="mt-1 text-xs text-[var(--navy-400)]">
+                      <div className="mt-1 text-xs text-[#777]">
                         {listing.kitchenDetails}
                       </div>
                     )}
@@ -718,15 +718,15 @@ export function ListingDetail({
                 )}
 
                 {listing.beachDistance && (
-                  <div className="p-3 bg-[var(--navy-900)] rounded-lg border border-[var(--navy-600)]/30">
-                    <div className="text-[10px] uppercase tracking-wider text-[var(--navy-500)] mb-1">
+                  <div className="p-3 bg-[#FAF8F5] rounded-lg border border-[#E8E6E3]">
+                    <div className="text-[10px] uppercase tracking-wider text-[#999] mb-1">
                       Beach
                     </div>
-                    <div className="text-sm font-semibold text-white">
+                    <div className="text-sm font-semibold text-[#1a1a1a]">
                       {listing.beachDistance}
                     </div>
                     {listing.beachType && (
-                      <div className="mt-1 text-xs text-[var(--navy-400)]">
+                      <div className="mt-1 text-xs text-[#777]">
                         {listing.beachType} water
                       </div>
                     )}
@@ -741,7 +741,7 @@ export function ListingDetail({
                 <div className="text-sm font-semibold text-green-400 mb-0.5">
                   Kid-Friendly
                 </div>
-                <p className="text-sm text-[var(--navy-400)]">
+                <p className="text-sm text-[#777]">
                   {listing.kidNotes || "This property is marked as kid-friendly"}
                 </p>
               </div>
@@ -750,14 +750,14 @@ export function ListingDetail({
             {/* Amenities */}
             {amenities.length > 0 && (
               <div>
-                <h3 className="text-[10px] uppercase tracking-wider text-[var(--navy-500)] mb-2">
+                <h3 className="text-[10px] uppercase tracking-wider text-[#999] mb-2">
                   Amenities
                 </h3>
                 <div className="flex flex-wrap gap-1.5">
                   {amenities.map((a: string, i: number) => (
                     <span
                       key={i}
-                      className="px-2.5 py-1 bg-[var(--navy-700)] text-[var(--navy-400)] text-xs rounded-md"
+                      className="px-2.5 py-1 bg-[#f5f3ef] text-[#777] text-xs rounded-md"
                     >
                       {a}
                     </span>
@@ -769,10 +769,10 @@ export function ListingDetail({
             {/* Description */}
             {listing.description && (
               <div>
-                <h3 className="text-[10px] uppercase tracking-wider text-[var(--navy-500)] mb-2">
+                <h3 className="text-[10px] uppercase tracking-wider text-[#999] mb-2">
                   Description
                 </h3>
-                <p className="text-sm text-[var(--navy-400)] leading-relaxed line-clamp-6">
+                <p className="text-sm text-[#777] leading-relaxed line-clamp-6">
                   {listing.description}
                 </p>
               </div>
@@ -781,16 +781,16 @@ export function ListingDetail({
         ) : !editing ? (
           /* Empty state when no details were scraped */
           <div className="p-6">
-            <div className="text-center py-6 px-4 bg-[var(--navy-900)] rounded-xl border border-[var(--navy-600)]/30">
+            <div className="text-center py-6 px-4 bg-[#FAF8F5] rounded-xl border border-[#E8E6E3]">
               <div className="text-3xl mb-2 opacity-30">
                 {isScraping ? "\u23F3" : "\u270F"}
               </div>
-              <p className="text-sm text-[var(--navy-400)]">
+              <p className="text-sm text-[#777]">
                 {isScraping
                   ? "Scraping property details..."
                   : "No property details available from scrape."}
               </p>
-              <p className="text-xs text-[var(--navy-500)] mt-1">
+              <p className="text-xs text-[#999] mt-1">
                 {isScraping
                   ? "This should take a few seconds."
                   : "Click Edit above to add details manually."}
@@ -800,8 +800,8 @@ export function ListingDetail({
         ) : null}
 
         {/* Comments section */}
-        <div className="border-t border-[var(--navy-600)] p-6">
-          <h3 className="text-[10px] uppercase tracking-wider text-[var(--navy-500)] mb-4">
+        <div className="border-t border-[#E8E6E3] p-6">
+          <h3 className="text-[10px] uppercase tracking-wider text-[#999] mb-4">
             Comments ({listing.comments.length})
           </h3>
 
@@ -810,28 +810,28 @@ export function ListingDetail({
               {listing.comments.map((comment) => (
                 <div
                   key={comment.id}
-                  className="p-3 bg-[var(--navy-900)] rounded-lg group"
+                  className="p-3 bg-[#FAF8F5] rounded-lg group"
                 >
                   <div className="flex items-baseline justify-between gap-2">
                     <div className="flex items-baseline gap-2">
-                      <span className="text-sm font-medium text-white">
+                      <span className="text-sm font-medium text-[#1a1a1a]">
                         {comment.userName}
                       </span>
-                      <span className="text-[10px] text-[var(--navy-500)]">
+                      <span className="text-[10px] text-[#999]">
                         {new Date(comment.createdAt).toLocaleDateString()}
                       </span>
                     </div>
                     {comment.userName === userName && (
                       <button
                         onClick={() => deleteComment(comment.id)}
-                        className="text-[10px] text-[var(--navy-500)] hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
+                        className="text-[10px] text-[#999] hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
                         title="Delete comment"
                       >
                         delete
                       </button>
                     )}
                   </div>
-                  <p className="text-sm text-[var(--navy-400)] mt-1">
+                  <p className="text-sm text-[#777] mt-1">
                     {comment.text}
                   </p>
                 </div>
@@ -845,12 +845,12 @@ export function ListingDetail({
               placeholder="Add a comment..."
               value={commentText}
               onChange={(e) => setCommentText(e.target.value)}
-              className="flex-1 px-3 py-2 text-sm bg-[var(--navy-900)] border border-[var(--navy-600)] rounded-lg text-white placeholder:text-[var(--navy-500)] focus:outline-none focus:border-[var(--gold-500)] transition"
+              className="flex-1 px-3 py-2 text-sm bg-[#FAF8F5] border border-[#E8E6E3] rounded-lg text-[#1a1a1a] placeholder:text-[#999] focus:outline-none focus:border-[#E94E3C] transition"
             />
             <button
               type="submit"
               disabled={submitting || !commentText.trim()}
-              className="px-4 py-2 text-sm bg-[var(--gold-500)] text-[var(--navy-900)] font-semibold rounded-lg hover:bg-[var(--gold-400)] transition disabled:opacity-40"
+              className="px-4 py-2 text-sm bg-[#E94E3C] text-white font-semibold rounded-lg hover:bg-[#d4443a] transition disabled:opacity-40"
             >
               Post
             </button>
@@ -858,12 +858,12 @@ export function ListingDetail({
         </div>
 
         {/* Footer actions */}
-        <div className="border-t border-[var(--navy-600)] p-4 flex items-center justify-between">
+        <div className="border-t border-[#E8E6E3] p-4 flex items-center justify-between">
           <a
             href={listing.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="px-4 py-2 text-sm font-medium bg-[var(--navy-700)] border border-[var(--navy-600)] text-white rounded-lg hover:border-[var(--navy-500)] transition"
+            className="px-4 py-2 text-sm font-medium bg-[#f5f3ef] border border-[#E8E6E3] text-[#1a1a1a] rounded-lg hover:border-[#bbb] transition"
           >
             View on {sourceLabel(listing.source)} &#8599;
           </a>
