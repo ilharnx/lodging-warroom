@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import type { Platform, ScrapedListing } from "@/types";
 import { scrapeAirbnb } from "./airbnb";
+import { scrapeVrbo } from "./vrbo";
 import { scrapeGeneric } from "./generic";
 
 export async function scrapeUrl(
@@ -23,6 +24,8 @@ export async function scrapeUrl(
         data = await scrapeAirbnb(url);
         break;
       case "vrbo":
+        data = await scrapeVrbo(url);
+        break;
       case "booking":
       case "other":
       default:

@@ -33,6 +33,39 @@ export async function POST(
   }
 }
 
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ listingId: string }> }
+) {
+  try {
+    const { listingId } = await params;
+    const { searchParams } = new URL(request.url);
+    const commentId = searchParams.get("commentId");
+
+    if (!commentId) {
+      return NextResponse.json(
+        { error: "commentId is required" },
+        { status: 400 }
+      );
+    }
+
+    // Verify the comment belongs to this listing
+    const comment = await prisma.comment.findFirst({
+      where: { id: commentId, listingId },
+    });
+
+    if (!comment) {
+      return NextResponse.json({ error: "Comment not found" }, { status: 404 });
+    }
+
+    await prisma.comment.delete({ where: { id: commentId } });
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error deleting comment:", error);
+    return NextResponse.json({ error: "Failed to delete comment" }, { status: 500 });
+  }
+}
+
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ listingId: string }> }

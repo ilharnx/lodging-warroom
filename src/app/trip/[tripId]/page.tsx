@@ -375,11 +375,19 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
                       setShowNamePrompt(true);
                       return;
                     }
-                    await fetch(`/api/listings/${listing.id}/vote`, {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ userName, value }),
-                    });
+                    const existingVote = listing.votes.find((v) => v.userName === userName);
+                    if (existingVote?.value === value) {
+                      // Toggle off: remove vote
+                      await fetch(`/api/listings/${listing.id}/vote?userName=${encodeURIComponent(userName)}`, {
+                        method: "DELETE",
+                      });
+                    } else {
+                      await fetch(`/api/listings/${listing.id}/vote`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ userName, value }),
+                      });
+                    }
                     fetchTrip();
                   }}
                 />
@@ -421,6 +429,25 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
           onClose={() => setDetailId(null)}
           onRefresh={fetchTrip}
           onNeedName={() => setShowNamePrompt(true)}
+          onVote={async (value) => {
+            if (!userName) {
+              setShowNamePrompt(true);
+              return;
+            }
+            await fetch(`/api/listings/${detailListing.id}/vote`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ userName, value }),
+            });
+            fetchTrip();
+          }}
+          onRemoveVote={async () => {
+            if (!userName) return;
+            await fetch(`/api/listings/${detailListing.id}/vote?userName=${encodeURIComponent(userName)}`, {
+              method: "DELETE",
+            });
+            fetchTrip();
+          }}
         />
       )}
     </div>

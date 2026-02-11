@@ -39,3 +39,33 @@ export async function POST(
     return NextResponse.json({ error: "Failed to vote" }, { status: 500 });
   }
 }
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ listingId: string }> }
+) {
+  try {
+    const { listingId } = await params;
+    const { searchParams } = new URL(request.url);
+    const userName = searchParams.get("userName");
+
+    if (!userName) {
+      return NextResponse.json(
+        { error: "userName is required" },
+        { status: 400 }
+      );
+    }
+
+    await prisma.vote.deleteMany({
+      where: { listingId, userName },
+    });
+
+    const votes = await prisma.vote.findMany({ where: { listingId } });
+    const tally = votes.reduce((sum, v) => sum + v.value, 0);
+
+    return NextResponse.json({ tally, votes });
+  } catch (error) {
+    console.error("Error removing vote:", error);
+    return NextResponse.json({ error: "Failed to remove vote" }, { status: 500 });
+  }
+}
