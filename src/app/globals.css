@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+:root {
+  --navy-900: #0a1628;
+  --navy-800: #111d35;
+  --navy-700: #1a2942;
+  --navy-600: #243554;
+  --navy-500: #2e4166;
+  --gold-400: #f0c040;
+  --gold-500: #d4a017;
+  --gold-600: #b8860b;
+}
+
+body {
+  background: var(--navy-900);
+  color: #e2e8f0;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+/* Mapbox overrides */
+.mapboxgl-popup-content {
+  background: var(--navy-700) !important;
+  color: #e2e8f0 !important;
+  border: 1px solid var(--navy-500) !important;
+  border-radius: 8px !important;
+  padding: 8px 12px !important;
+}
+
+.mapboxgl-popup-tip {
+  border-top-color: var(--navy-700) !important;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--navy-900);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--navy-600);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--navy-500);
+}
+
+/* Price marker on map */
+.price-marker {
+  background: var(--navy-700);
+  border: 2px solid var(--gold-500);
+  border-radius: 8px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gold-400);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.price-marker:hover,
+.price-marker.active {
+  background: var(--gold-500);
+  color: var(--navy-900);
+  transform: scale(1.1);
+}
