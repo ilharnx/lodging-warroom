@@ -85,6 +85,7 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
   const [userName, setUserName] = useState("");
   const [showNamePrompt, setShowNamePrompt] = useState(false);
+  const [showEditTrip, setShowEditTrip] = useState(false);
 
   const fetchTrip = useCallback(async () => {
     try {
@@ -286,6 +287,18 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
         </div>
       )}
 
+      {/* Edit trip modal */}
+      {showEditTrip && (
+        <EditTripModal
+          trip={trip}
+          onClose={() => setShowEditTrip(false)}
+          onSaved={() => {
+            setShowEditTrip(false);
+            fetchTrip();
+          }}
+        />
+      )}
+
       {/* Header */}
       <header className="border-b border-[var(--navy-600)] px-4 py-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
@@ -295,12 +308,22 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
           >
             &larr;
           </a>
-          <div>
-            <h1 className="text-lg font-bold text-white">{trip.name}</h1>
+          <div
+            className="cursor-pointer group"
+            onClick={() => setShowEditTrip(true)}
+            title="Click to edit trip details"
+          >
+            <h1 className="text-lg font-bold text-white group-hover:text-[var(--gold-400)] transition">
+              {trip.name}
+              <span className="ml-1.5 text-xs text-[var(--navy-500)] group-hover:text-[var(--gold-400)] opacity-0 group-hover:opacity-100 transition-all">
+                &#9998;
+              </span>
+            </h1>
             <p className="text-xs text-[var(--navy-500)]">
               {trip.destination} &middot; {trip.adults} adults
-              {trip.kids > 0 ? ` + ${trip.kids} kids` : ""} &middot;{" "}
-              {trip.listings.length} listings
+              {trip.kids > 0 ? ` + ${trip.kids} kids` : ""}
+              {trip.nights ? ` &middot; ${trip.nights} nights` : ""}
+              {" "}&middot; {trip.listings.length} listings
             </p>
           </div>
         </div>
@@ -450,6 +473,203 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
           }}
         />
       )}
+    </div>
+  );
+}
+
+/* ── Edit Trip Modal ────────────────────────────────────────── */
+
+function EditTripModal({
+  trip,
+  onClose,
+  onSaved,
+}: {
+  trip: Trip;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [name, setName] = useState(trip.name);
+  const [destination, setDestination] = useState(trip.destination);
+  const [adults, setAdults] = useState(String(trip.adults));
+  const [kids, setKids] = useState(String(trip.kids));
+  const [nights, setNights] = useState(trip.nights != null ? String(trip.nights) : "");
+  const [centerLat, setCenterLat] = useState(String(trip.centerLat));
+  const [centerLng, setCenterLng] = useState(String(trip.centerLng));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim() || !destination.trim()) return;
+
+    setSaving(true);
+    setError("");
+
+    try {
+      const res = await fetch(`/api/trips/${trip.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(),
+          destination: destination.trim(),
+          adults: parseInt(adults) || 1,
+          kids: parseInt(kids) || 0,
+          nights: nights ? parseInt(nights) : null,
+          centerLat: parseFloat(centerLat) || trip.centerLat,
+          centerLng: parseFloat(centerLng) || trip.centerLng,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to update trip");
+      }
+
+      onSaved();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="bg-[var(--navy-800)] border border-[var(--navy-600)] rounded-xl p-6 max-w-lg w-full mx-4 shadow-2xl">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold text-white">Edit Trip</h2>
+          <button
+            onClick={onClose}
+            className="text-[var(--navy-400)] hover:text-white transition"
+          >
+            &#10005;
+          </button>
+        </div>
+
+        <form onSubmit={handleSave} className="space-y-4">
+          {/* Trip name */}
+          <div>
+            <label className="text-[10px] uppercase tracking-wider text-[var(--navy-500)] mb-1.5 block">
+              Trip Name
+            </label>
+            <input
+              type="text"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Barbados 2026"
+              className="w-full px-4 py-2.5 bg-[var(--navy-900)] border border-[var(--navy-600)] rounded-lg text-white placeholder:text-[var(--navy-500)] focus:outline-none focus:border-[var(--gold-500)] text-sm"
+            />
+          </div>
+
+          {/* Destination */}
+          <div>
+            <label className="text-[10px] uppercase tracking-wider text-[var(--navy-500)] mb-1.5 block">
+              Destination
+            </label>
+            <input
+              type="text"
+              required
+              value={destination}
+              onChange={(e) => setDestination(e.target.value)}
+              placeholder="e.g. Barbados"
+              className="w-full px-4 py-2.5 bg-[var(--navy-900)] border border-[var(--navy-600)] rounded-lg text-white placeholder:text-[var(--navy-500)] focus:outline-none focus:border-[var(--gold-500)] text-sm"
+            />
+          </div>
+
+          {/* Group size */}
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="text-[10px] uppercase tracking-wider text-[var(--navy-500)] mb-1.5 block">
+                Adults
+              </label>
+              <input
+                type="number"
+                min="1"
+                value={adults}
+                onChange={(e) => setAdults(e.target.value)}
+                className="w-full px-3 py-2.5 bg-[var(--navy-900)] border border-[var(--navy-600)] rounded-lg text-white focus:outline-none focus:border-[var(--gold-500)] text-sm"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] uppercase tracking-wider text-[var(--navy-500)] mb-1.5 block">
+                Kids
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={kids}
+                onChange={(e) => setKids(e.target.value)}
+                className="w-full px-3 py-2.5 bg-[var(--navy-900)] border border-[var(--navy-600)] rounded-lg text-white focus:outline-none focus:border-[var(--gold-500)] text-sm"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] uppercase tracking-wider text-[var(--navy-500)] mb-1.5 block">
+                Nights
+              </label>
+              <input
+                type="number"
+                min="1"
+                value={nights}
+                onChange={(e) => setNights(e.target.value)}
+                placeholder="—"
+                className="w-full px-3 py-2.5 bg-[var(--navy-900)] border border-[var(--navy-600)] rounded-lg text-white placeholder:text-[var(--navy-500)] focus:outline-none focus:border-[var(--gold-500)] text-sm"
+              />
+            </div>
+          </div>
+
+          {/* Map center */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[10px] uppercase tracking-wider text-[var(--navy-500)] mb-1.5 block">
+                Center Latitude
+              </label>
+              <input
+                type="text"
+                value={centerLat}
+                onChange={(e) => setCenterLat(e.target.value)}
+                className="w-full px-3 py-2.5 bg-[var(--navy-900)] border border-[var(--navy-600)] rounded-lg text-white focus:outline-none focus:border-[var(--gold-500)] text-sm"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] uppercase tracking-wider text-[var(--navy-500)] mb-1.5 block">
+                Center Longitude
+              </label>
+              <input
+                type="text"
+                value={centerLng}
+                onChange={(e) => setCenterLng(e.target.value)}
+                className="w-full px-3 py-2.5 bg-[var(--navy-900)] border border-[var(--navy-600)] rounded-lg text-white focus:outline-none focus:border-[var(--gold-500)] text-sm"
+              />
+            </div>
+          </div>
+
+          {error && (
+            <p className="text-sm text-red-400">{error}</p>
+          )}
+
+          <div className="flex gap-3 pt-1">
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex-1 px-4 py-2.5 bg-[var(--gold-500)] text-[var(--navy-900)] font-semibold rounded-lg hover:bg-[var(--gold-400)] transition disabled:opacity-50"
+            >
+              {saving ? "Saving..." : "Save Changes"}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2.5 bg-[var(--navy-700)] border border-[var(--navy-600)] text-[var(--navy-400)] rounded-lg hover:border-[var(--navy-500)] transition"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
