@@ -1,0 +1,26 @@
+name: Deploy VRBO Scraper to Apify
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/vrbo-apify-actor-ZHsqV
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install and deploy
+        working-directory: vrbo-scraper-actor
+        run: |
+          npm install
+          npm install -g apify-cli
+          apify login --token "$APIFY_TOKEN"
+          apify push
+        env:
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
