@@ -77,9 +77,12 @@ export default function Home() {
 
   useEffect(() => {
     fetch("/api/trips")
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed to fetch");
+        return r.json();
+      })
       .then((data) => {
-        setTrips(data);
+        setTrips(Array.isArray(data) ? data : []);
         setLoading(false);
       })
       .catch(() => setLoading(false));
