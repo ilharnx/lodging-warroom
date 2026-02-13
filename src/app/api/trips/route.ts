@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   try {
     const trips = await prisma.trip.findMany({
-      include: { listings: { select: { id: true, name: true, scrapeStatus: true } } },
+      include: { listings: { select: { id: true, name: true, scrapeStatus: true, perNight: true, totalCost: true } } },
       orderBy: { createdAt: "desc" },
     });
     return NextResponse.json(trips);

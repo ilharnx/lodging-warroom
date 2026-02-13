@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useModal } from "@/hooks/useModal";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 interface Photo {
   id: string;
@@ -50,11 +49,27 @@ interface Listing {
   reviewCount: number | null;
   address: string | null;
   neighborhood: string | null;
+  aiFitAssessment: AIFitAssessmentData | null;
   scrapeStatus: string;
   scrapeError: string | null;
   photos: Photo[];
   votes: Vote[];
   comments: Comment[];
+}
+
+interface AIFitAssessmentData {
+  score: "good" | "okay" | "poor";
+  checks: string[];
+  warnings: string[];
+  highlights: string[];
+  summary: string;
+}
+
+interface BudgetRange {
+  min: number;
+  max: number;
+  p20: number;
+  p80: number;
 }
 
 interface ListingDetailProps {
@@ -67,10 +82,12 @@ interface ListingDetailProps {
   onVote: (value: 1 | -1) => void;
   onRemoveVote: () => void;
   onRescrape?: () => void;
+  budgetRange?: BudgetRange | null;
+  hasPreferences?: boolean;
 }
 
 function formatPrice(amount: number | null, currency: string = "USD"): string {
-  if (amount == null) return "—";
+  if (amount == null) return "\u2014";
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency,
@@ -106,6 +123,111 @@ function getDomain(url: string): string {
   }
 }
 
+function FitBadge({ score }: { score: "good" | "okay" | "poor" }) {
+  const config = {
+    good: { label: "Strong fit", bg: "rgba(74,158,107,0.1)", border: "rgba(74,158,107,0.2)", color: "#4A9E6B" },
+    okay: { label: "Decent fit", bg: "rgba(212,168,67,0.1)", border: "rgba(212,168,67,0.2)", color: "#D4A843" },
+    poor: { label: "Some concerns", bg: "rgba(185,28,28,0.06)", border: "rgba(185,28,28,0.15)", color: "#b91c1c" },
+  };
+  const c = config[score];
+  return (
+    <span style={{ padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600, background: c.bg, border: `1px solid ${c.border}`, color: c.color }}>
+      {c.label}
+    </span>
+  );
+}
+
+function FitSection({ assessment, listingId, hasPreferences }: { assessment: AIFitAssessmentData | null; listingId: string; hasPreferences: boolean }) {
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<AIFitAssessmentData | null>(assessment);
+
+  async function runAssessment() {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/listings/${listingId}/assess`, { method: "POST" });
+      if (res.ok) {
+        const result = await res.json();
+        setData(result);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (!hasPreferences) return null;
+
+  if (!data && !loading) {
+    return (
+      <div style={{ padding: "0 20px 16px" }}>
+        <button
+          onClick={runAssessment}
+          style={{
+            width: "100%", padding: "10px 16px", fontSize: 13, fontWeight: 500,
+            background: "var(--color-panel)", border: "1px solid var(--color-border-dark)",
+            borderRadius: 8, cursor: "pointer", fontFamily: "inherit", color: "var(--color-text-mid)",
+            transition: "all 0.15s",
+          }}
+        >
+          Assess fit for your group
+        </button>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div style={{ padding: "0 20px 16px" }}>
+        <div className="scraping-pulse" style={{
+          padding: 16, background: "var(--color-bg)", borderRadius: 10,
+          border: "1px solid var(--color-border-dark)", textAlign: "center" as const,
+          color: "var(--color-text-mid)", fontSize: 13,
+        }}>
+          Assessing fit...
+        </div>
+      </div>
+    );
+  }
+
+  if (!data) return null;
+
+  return (
+    <div style={{ padding: "0 20px 16px" }}>
+      <div style={{ padding: 16, background: "var(--color-bg)", borderRadius: 10, border: "1px solid var(--color-border-dark)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+          <h3 style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", margin: 0 }}>
+            Group Fit
+          </h3>
+          <FitBadge score={data.score} />
+        </div>
+        <p style={{ fontSize: 13, color: "var(--color-text)", lineHeight: 1.5, margin: "0 0 10px" }}>
+          {data.summary}
+        </p>
+        {data.checks.length > 0 && (
+          <div style={{ marginBottom: 6 }}>
+            {data.checks.map((c, i) => (
+              <div key={i} style={{ fontSize: 12, color: "#4A9E6B", marginBottom: 2 }}>&#10003; {c}</div>
+            ))}
+          </div>
+        )}
+        {data.warnings.length > 0 && (
+          <div style={{ marginBottom: 6 }}>
+            {data.warnings.map((w, i) => (
+              <div key={i} style={{ fontSize: 12, color: "#D4A843", marginBottom: 2 }}>&#9888; {w}</div>
+            ))}
+          </div>
+        )}
+        {data.highlights.length > 0 && (
+          <div>
+            {data.highlights.map((h, i) => (
+              <div key={i} style={{ fontSize: 12, color: "var(--color-text-mid)", marginBottom: 2 }}>&#9733; {h}</div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 const photoCategories = [
   { key: "all", label: "All" },
   { key: "exterior", label: "Exterior" },
@@ -128,6 +250,8 @@ export function ListingDetail({
   onVote,
   onRemoveVote,
   onRescrape,
+  budgetRange,
+  hasPreferences,
 }: ListingDetailProps) {
   const [photoFilter, setPhotoFilter] = useState("all");
   const [commentText, setCommentText] = useState("");
@@ -148,8 +272,22 @@ export function ListingDetail({
     listing.bathrooms != null ? String(listing.bathrooms) : ""
   );
   const [saving, setSaving] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
 
-  const modalRef = useModal(onClose);
+  // Close on Escape
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        if (selectedPhotoIdx !== null) {
+          setSelectedPhotoIdx(null);
+        } else {
+          onClose();
+        }
+      }
+    }
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [onClose, selectedPhotoIdx]);
 
   const filteredPhotos =
     photoFilter === "all"
@@ -162,8 +300,6 @@ export function ListingDetail({
       setSelectedPhotoIdx(selectedPhotoIdx - 1);
     } else if (e.key === "ArrowRight" && selectedPhotoIdx < filteredPhotos.length - 1) {
       setSelectedPhotoIdx(selectedPhotoIdx + 1);
-    } else if (e.key === "Escape") {
-      setSelectedPhotoIdx(null);
     }
   }, [selectedPhotoIdx, filteredPhotos.length]);
 
@@ -201,10 +337,11 @@ export function ListingDetail({
     amenities.length > 0 ||
     listing.description;
 
-  // Check for "hidden costs"
   const nightlyTotal = listing.perNight ? listing.perNight * 7 : 0;
   const fees = (listing.cleaningFee || 0) + (listing.serviceFee || 0);
   const hiddenCostWarning = nightlyTotal > 0 && fees > nightlyTotal * 0.15;
+
+  const listingPrice = listing.perNight || listing.totalCost;
 
   async function submitComment(e: React.FormEvent) {
     e.preventDefault();
@@ -264,151 +401,233 @@ export function ListingDetail({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-40 flex items-start justify-center bg-black/70 backdrop-blur-sm overflow-y-auto py-8 px-4"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div ref={modalRef} role="dialog" aria-modal="true" aria-label={listing.name} className="bg-white border border-[#DDD8D0] rounded-2xl max-w-2xl w-full relative shadow-2xl">
-        {/* Close button */}
-        <button
-          onClick={onClose}
-          aria-label="Close"
-          className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-[#EFEAE4] border border-[#DDD8D0] text-[#636058] hover:text-[#1a1a1a] hover:border-[#bbb] transition"
-        >
-          &#10005;
-        </button>
+    <>
+      {/* Overlay */}
+      <div
+        className="fixed inset-0 z-40 animate-fade-in"
+        style={{ background: "rgba(0,0,0,0.4)", backdropFilter: "blur(2px)" }}
+        onClick={onClose}
+      />
 
-        {/* Header */}
-        <div className="p-6 pb-4">
-          <div className="flex items-start gap-3 pr-10">
-            <span
-              className={`shrink-0 mt-1 px-2.5 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wide ${sourceColor(
-                listing.source
-              )}`}
-            >
-              {sourceLabel(listing.source)}
-            </span>
-            <div className="min-w-0 flex-1">
-              {editing ? (
-                <input
-                  type="text"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  className="w-full text-xl font-bold bg-[#F3F0EB] border border-[#DDD8D0] rounded-lg px-3 py-1.5 text-[#1a1a1a] focus:border-[#E94E3C]"
-                  placeholder="Listing name"
-                />
-              ) : (
-                <h2 className="text-xl font-bold text-[#1a1a1a] leading-tight">
-                  {isGenericName ? (
-                    <span className="text-[#636058]">{listing.name}</span>
-                  ) : (
-                    listing.name
-                  )}
-                </h2>
-              )}
-              <p className="text-sm text-[#636058] mt-1">
-                {listing.neighborhood || listing.address || getDomain(listing.url)}
-              </p>
-            </div>
-            {listing.rating != null && listing.rating > 0 && (
-              <div className="text-right shrink-0">
-                <div className="text-sm text-[#1a1a1a] font-semibold">
-                  <span className="text-[#D4A017]">&#9733;</span>{" "}
-                  {listing.rating}
-                </div>
-                {listing.reviewCount != null && listing.reviewCount > 0 && (
-                  <div className="text-xs text-[#636058]">
-                    {listing.reviewCount.toLocaleString()} reviews
+      {/* Slide-in Panel */}
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={listing.name}
+        className="fixed top-0 right-0 bottom-0 z-50 animate-slide-in-right"
+        style={{
+          width: "min(420px, 100vw)",
+          background: "var(--color-card)",
+          borderLeft: "1px solid var(--color-border-dark)",
+          boxShadow: "-8px 0 30px rgba(0,0,0,0.1)",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        {/* Panel header */}
+        <div style={{
+          padding: "14px 20px",
+          borderBottom: "1px solid var(--color-border)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexShrink: 0,
+        }}>
+          <button
+            onClick={onClose}
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              fontFamily: "inherit",
+              fontSize: 14,
+              fontWeight: 600,
+              color: "var(--color-text-mid)",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "4px 8px",
+              borderRadius: 6,
+              transition: "all 0.15s",
+            }}
+            onMouseOver={(e) => (e.currentTarget.style.color = "var(--color-coral)")}
+            onMouseOut={(e) => (e.currentTarget.style.color = "var(--color-text-mid)")}
+          >
+            &larr; Back to list
+          </button>
+          <a
+            href={listing.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              fontSize: 12,
+              fontWeight: 600,
+              color: "var(--color-coral)",
+              textDecoration: "none",
+              padding: "4px 10px",
+              border: "1px solid var(--color-coral-border)",
+              borderRadius: 6,
+            }}
+          >
+            View on {sourceLabel(listing.source)} &#8599;
+          </a>
+        </div>
+
+        {/* Scrollable content */}
+        <div style={{ flex: 1, overflowY: "auto" }}>
+          {/* Header info */}
+          <div style={{ padding: "20px 20px 16px" }}>
+            <div style={{ display: "flex", alignItems: "start", gap: 10 }}>
+              <span
+                className={`shrink-0 mt-1 px-2.5 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wide ${sourceColor(
+                  listing.source
+                )}`}
+              >
+                {sourceLabel(listing.source)}
+              </span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {editing ? (
+                  <input
+                    type="text"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    style={{
+                      width: "100%",
+                      fontSize: 18,
+                      fontWeight: 700,
+                      background: "var(--color-bg)",
+                      border: "1px solid var(--color-border-dark)",
+                      borderRadius: 8,
+                      padding: "6px 12px",
+                      color: "var(--color-text)",
+                      fontFamily: "inherit",
+                    }}
+                    placeholder="Listing name"
+                  />
+                ) : (
+                  <h2 style={{
+                    fontSize: 18,
+                    fontWeight: 700,
+                    color: isGenericName ? "var(--color-text-mid)" : "var(--color-text)",
+                    lineHeight: 1.3,
+                    margin: 0,
+                  }}>
+                    {listing.name || "Untitled Listing"}
+                  </h2>
+                )}
+                <p style={{ fontSize: 13, color: "var(--color-text-mid)", marginTop: 4, margin: 0 }}>
+                  {listing.neighborhood || listing.address || getDomain(listing.url)}
+                </p>
+              </div>
+              {listing.rating != null && listing.rating > 0 && (
+                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)" }}>
+                    <span style={{ color: "#D4A017" }}>&#9733;</span>{" "}
+                    {listing.rating}
                   </div>
+                  {listing.reviewCount != null && listing.reviewCount > 0 && (
+                    <div style={{ fontSize: 11, color: "var(--color-text-mid)" }}>
+                      {listing.reviewCount.toLocaleString()} reviews
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Scrape status */}
+            {isScraping && (
+              <div className="scraping-pulse" style={{
+                marginTop: 12, padding: "8px 12px",
+                background: "rgba(139,105,20,0.06)", border: "1px solid rgba(139,105,20,0.15)",
+                color: "#8B6914", fontSize: 13, borderRadius: 8,
+                display: "flex", alignItems: "center", gap: 8,
+              }}>
+                <div style={{ width: 14, height: 14, border: "2px solid rgba(139,105,20,0.3)", borderTopColor: "#8B6914", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+                Scraping in progress...
+              </div>
+            )}
+            {isFailed && (
+              <div style={{
+                marginTop: 12, padding: "8px 12px",
+                background: "rgba(185,28,28,0.06)", border: "1px solid rgba(185,28,28,0.15)",
+                color: "#b91c1c", fontSize: 13, borderRadius: 8,
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+              }}>
+                <span>Scrape failed{listing.scrapeError ? `: ${listing.scrapeError}` : ""}.</span>
+                {onRescrape && (
+                  <button
+                    onClick={onRescrape}
+                    style={{ fontSize: 11, fontWeight: 600, padding: "4px 10px", background: "rgba(185,28,28,0.1)", border: "1px solid rgba(185,28,28,0.2)", borderRadius: 6, cursor: "pointer", fontFamily: "inherit", color: "#b91c1c" }}
+                  >
+                    Retry
+                  </button>
+                )}
+              </div>
+            )}
+            {isPartial && (
+              <div style={{
+                marginTop: 12, padding: "8px 12px",
+                background: "rgba(139,105,20,0.06)", border: "1px solid rgba(139,105,20,0.15)",
+                color: "#7a5c12", fontSize: 13, borderRadius: 8,
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+              }}>
+                <span>Limited data extracted.</span>
+                {onRescrape && (
+                  <button
+                    onClick={onRescrape}
+                    style={{ fontSize: 11, fontWeight: 600, padding: "4px 10px", background: "rgba(139,105,20,0.1)", border: "1px solid rgba(139,105,20,0.2)", borderRadius: 6, cursor: "pointer", fontFamily: "inherit", color: "#7a5c12" }}
+                  >
+                    Retry
+                  </button>
                 )}
               </div>
             )}
           </div>
 
-          {/* Scrape status banner */}
-          {isScraping && (
-            <div className="mt-3 px-3 py-2 bg-[#8B6914]/8 border border-[#8B6914]/15 text-[#8B6914] text-sm rounded-lg flex items-center gap-2 scraping-pulse">
-              <div className="w-4 h-4 border-2 border-[#8B6914]/30 border-t-[#8B6914] rounded-full animate-spin" />
-              Scraping in progress... details will update automatically.
-            </div>
-          )}
-          {isFailed && (
-            <div className="mt-3 px-3 py-2 bg-[#b91c1c]/8 border border-[#b91c1c]/15 text-[#b91c1c] text-sm rounded-lg flex items-center justify-between">
-              <span>
-                Scrape failed{listing.scrapeError ? `: ${listing.scrapeError}` : ""}.
-                Edit manually or view the original.
-              </span>
-              {onRescrape && (
-                <button
-                  onClick={onRescrape}
-                  className="ml-3 shrink-0 px-3 py-1 text-xs font-semibold bg-[#b91c1c]/15 border border-[#b91c1c]/20 rounded-md hover:bg-[#b91c1c]/20 transition"
-                >
-                  Retry Scrape
-                </button>
-              )}
-            </div>
-          )}
-          {isPartial && (
-            <div className="mt-3 px-3 py-2 bg-[#8B6914]/8 border border-[#8B6914]/15 text-[#8B6914] text-sm rounded-lg flex items-center justify-between">
-              <span>
-                Limited data extracted. Edit manually for best results.
-              </span>
-              {onRescrape && (
-                <button
-                  onClick={onRescrape}
-                  className="ml-3 shrink-0 px-3 py-1 text-xs font-semibold bg-[#8B6914]/15 border border-[#8B6914]/20 rounded-md hover:bg-[#8B6914]/20 transition"
-                >
-                  Retry Scrape
-                </button>
-              )}
-            </div>
-          )}
-
           {/* Price block */}
-          <div className="mt-4 p-4 bg-[#F3F0EB] rounded-xl border border-[#DDD8D0]">
-            {editing ? (
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
+          <div style={{ padding: "0 20px 16px" }}>
+            <div style={{ padding: 16, background: "var(--color-bg)", borderRadius: 12, border: "1px solid var(--color-border-dark)" }}>
+              {editing ? (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                   <div>
-                    <label className="text-[10px] uppercase tracking-wider text-[#706B65] mb-1 block">
+                    <label style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", display: "block", marginBottom: 4 }}>
                       Per Night ($)
                     </label>
                     <input
                       type="number"
                       value={editPerNight}
                       onChange={(e) => setEditPerNight(e.target.value)}
-                      className="w-full px-3 py-1.5 text-sm bg-white border border-[#DDD8D0] rounded-lg text-[#1a1a1a] focus:border-[#E94E3C]"
-                      placeholder="e.g. 250"
+                      style={{ width: "100%", padding: "6px 10px", fontSize: 13, background: "#fff", border: "1px solid var(--color-border-dark)", borderRadius: 6, color: "var(--color-text)", fontFamily: "var(--font-mono)" }}
+                      placeholder="250"
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] uppercase tracking-wider text-[#706B65] mb-1 block">
-                      Total Cost ($)
+                    <label style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", display: "block", marginBottom: 4 }}>
+                      Total ($)
                     </label>
                     <input
                       type="number"
                       value={editTotalCost}
                       onChange={(e) => setEditTotalCost(e.target.value)}
-                      className="w-full px-3 py-1.5 text-sm bg-white border border-[#DDD8D0] rounded-lg text-[#1a1a1a] focus:border-[#E94E3C]"
-                      placeholder="e.g. 2500"
+                      style={{ width: "100%", padding: "6px 10px", fontSize: 13, background: "#fff", border: "1px solid var(--color-border-dark)", borderRadius: 6, color: "var(--color-text)", fontFamily: "var(--font-mono)" }}
+                      placeholder="2500"
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] uppercase tracking-wider text-[#706B65] mb-1 block">
+                    <label style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", display: "block", marginBottom: 4 }}>
                       Bedrooms
                     </label>
                     <input
                       type="number"
                       value={editBedrooms}
                       onChange={(e) => setEditBedrooms(e.target.value)}
-                      className="w-full px-3 py-1.5 text-sm bg-white border border-[#DDD8D0] rounded-lg text-[#1a1a1a] focus:border-[#E94E3C]"
-                      placeholder="e.g. 3"
+                      style={{ width: "100%", padding: "6px 10px", fontSize: 13, background: "#fff", border: "1px solid var(--color-border-dark)", borderRadius: 6, color: "var(--color-text)", fontFamily: "var(--font-mono)" }}
+                      placeholder="3"
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] uppercase tracking-wider text-[#706B65] mb-1 block">
+                    <label style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", display: "block", marginBottom: 4 }}>
                       Bathrooms
                     </label>
                     <input
@@ -416,497 +635,475 @@ export function ListingDetail({
                       step="0.5"
                       value={editBathrooms}
                       onChange={(e) => setEditBathrooms(e.target.value)}
-                      className="w-full px-3 py-1.5 text-sm bg-white border border-[#DDD8D0] rounded-lg text-[#1a1a1a] focus:border-[#E94E3C]"
-                      placeholder="e.g. 2"
+                      style={{ width: "100%", padding: "6px 10px", fontSize: 13, background: "#fff", border: "1px solid var(--color-border-dark)", borderRadius: 6, color: "var(--color-text)", fontFamily: "var(--font-mono)" }}
+                      placeholder="2"
                     />
                   </div>
                 </div>
-              </div>
-            ) : listing.totalCost || listing.perNight ? (
-              <>
-                <div className="flex items-baseline gap-3">
-                  <span className="text-2xl font-bold text-[#E94E3C]">
-                    {listing.totalCost
-                      ? formatPrice(listing.totalCost, listing.currency)
-                      : formatPrice(listing.perNight, listing.currency)}
-                  </span>
-                  <span className="text-sm text-[#636058]">
-                    {listing.totalCost ? "total" : "/night"}
-                  </span>
-                  {perPerson && (
-                    <span className="text-sm font-medium text-[#E94E3C] opacity-70">
-                      {formatPrice(perPerson)}/person
-                    </span>
-                  )}
-                </div>
-
-                {/* Cost breakdown */}
-                {(listing.cleaningFee || listing.serviceFee || listing.taxes) && (
-                  <div className="mt-3 pt-3 border-t border-[#DDD8D0] space-y-1.5 text-xs">
-                    {listing.perNight && (
-                      <div className="flex justify-between text-[#636058]">
-                        <span>Nightly rate</span>
-                        <span className="text-[#1a1a1a]">
-                          {formatPrice(listing.perNight)}/night
-                        </span>
-                      </div>
-                    )}
-                    {listing.cleaningFee && (
-                      <div className="flex justify-between text-[#636058]">
-                        <span>Cleaning fee</span>
-                        <span className="text-[#1a1a1a]">
-                          {formatPrice(listing.cleaningFee)}
-                        </span>
-                      </div>
-                    )}
-                    {listing.serviceFee && (
-                      <div className="flex justify-between text-[#636058]">
-                        <span>Service fee</span>
-                        <span className="text-[#1a1a1a]">
-                          {formatPrice(listing.serviceFee)}
-                        </span>
-                      </div>
-                    )}
-                    {listing.taxes && (
-                      <div className="flex justify-between text-[#636058]">
-                        <span>Taxes</span>
-                        <span className="text-[#1a1a1a]">
-                          {formatPrice(listing.taxes)}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {hiddenCostWarning && (
-                  <div className="mt-2 px-2.5 py-1.5 bg-[#8B6914]/8 border border-[#8B6914]/15 text-[#8B6914] text-xs rounded-lg">
-                    Heads up: fees are &gt;15% of the nightly total
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="text-center py-2">
-                <span className="text-[#636058] text-sm">
-                  {isScraping
-                    ? "Fetching price..."
-                    : "Price not available from scrape"}
-                </span>
-                <p className="text-xs text-[#706B65] mt-1">
-                  {isScraping
-                    ? ""
-                    : "Click Edit to add pricing manually"}
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Edit / Save buttons + Vote controls */}
-          <div className="mt-3 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {editing ? (
+              ) : listing.totalCost || listing.perNight ? (
                 <>
-                  <button
-                    onClick={saveEdits}
-                    disabled={saving}
-                    className="px-3 py-1.5 text-xs font-medium bg-[#E94E3C] text-white rounded-lg hover:bg-[#d4443a] transition disabled:opacity-40"
-                  >
-                    {saving ? "Saving..." : "Save"}
-                  </button>
-                  <button
-                    onClick={() => setEditing(false)}
-                    className="px-3 py-1.5 text-xs text-[#636058] hover:text-[#1a1a1a] transition"
-                  >
-                    Cancel
-                  </button>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                    <span className="font-mono" style={{ fontSize: 24, fontWeight: 700, color: "var(--color-coral)" }}>
+                      {listing.totalCost
+                        ? formatPrice(listing.totalCost, listing.currency)
+                        : formatPrice(listing.perNight, listing.currency)}
+                    </span>
+                    <span style={{ fontSize: 13, color: "var(--color-text-mid)" }}>
+                      {listing.totalCost ? "total" : "/night"}
+                    </span>
+                    {perPerson && (
+                      <span className="font-mono" style={{ fontSize: 13, fontWeight: 500, color: "var(--color-coral)", opacity: 0.7 }}>
+                        {formatPrice(perPerson)}/person
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Budget range bar in detail */}
+                  {budgetRange && listingPrice && budgetRange.max > budgetRange.min && (
+                    <div style={{ marginTop: 12 }}>
+                      <div style={{ position: "relative", height: 6, background: "var(--color-border)", borderRadius: 3 }}>
+                        {/* Sweet spot */}
+                        <div style={{
+                          position: "absolute",
+                          left: `${((budgetRange.p20 - budgetRange.min) / (budgetRange.max - budgetRange.min)) * 100}%`,
+                          width: `${((budgetRange.p80 - budgetRange.p20) / (budgetRange.max - budgetRange.min)) * 100}%`,
+                          top: 0,
+                          bottom: 0,
+                          background: "var(--color-coral-light)",
+                          border: "1px solid var(--color-coral-border)",
+                          borderRadius: 3,
+                        }} />
+                        {/* This listing's dot */}
+                        <div style={{
+                          position: "absolute",
+                          left: `${Math.min(Math.max(((listingPrice - budgetRange.min) / (budgetRange.max - budgetRange.min)) * 100, 0), 100)}%`,
+                          top: "50%",
+                          transform: "translate(-50%, -50%)",
+                          width: 12,
+                          height: 12,
+                          borderRadius: "50%",
+                          background: "var(--color-coral)",
+                          border: "2px solid #fff",
+                          boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
+                        }} />
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontSize: 10, color: "var(--color-text-light)" }} className="font-mono">
+                        <span>{formatPrice(budgetRange.min)}</span>
+                        <span>{formatPrice(budgetRange.max)}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Cost breakdown */}
+                  {(listing.cleaningFee || listing.serviceFee || listing.taxes) && (
+                    <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--color-border-dark)" }}>
+                      {listing.perNight && (
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--color-text-mid)", marginBottom: 4 }}>
+                          <span>Nightly rate</span>
+                          <span className="font-mono" style={{ color: "var(--color-text)" }}>{formatPrice(listing.perNight)}/night</span>
+                        </div>
+                      )}
+                      {listing.cleaningFee && (
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--color-text-mid)", marginBottom: 4 }}>
+                          <span>Cleaning fee</span>
+                          <span className="font-mono" style={{ color: "var(--color-text)" }}>{formatPrice(listing.cleaningFee)}</span>
+                        </div>
+                      )}
+                      {listing.serviceFee && (
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--color-text-mid)", marginBottom: 4 }}>
+                          <span>Service fee</span>
+                          <span className="font-mono" style={{ color: "var(--color-text)" }}>{formatPrice(listing.serviceFee)}</span>
+                        </div>
+                      )}
+                      {listing.taxes && (
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--color-text-mid)", marginBottom: 4 }}>
+                          <span>Taxes</span>
+                          <span className="font-mono" style={{ color: "var(--color-text)" }}>{formatPrice(listing.taxes)}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {hiddenCostWarning && (
+                    <div style={{ marginTop: 8, padding: "6px 10px", background: "rgba(139,105,20,0.06)", border: "1px solid rgba(139,105,20,0.15)", color: "#8B6914", fontSize: 12, borderRadius: 6 }}>
+                      Heads up: fees are &gt;15% of the nightly total
+                    </div>
+                  )}
                 </>
               ) : (
-                <button
-                  onClick={() => setEditing(true)}
-                  className="px-3 py-1.5 text-xs font-medium bg-[#EFEAE4] border border-[#DDD8D0] text-[#636058] rounded-lg hover:border-[#bbb] hover:text-[#1a1a1a] transition"
-                >
-                  Edit
-                </button>
+                <div style={{ textAlign: "center", padding: 8 }}>
+                  <span style={{ color: "var(--color-text-mid)", fontSize: 13 }}>
+                    {isScraping ? "Fetching price..." : "Price not available"}
+                  </span>
+                  {!isScraping && (
+                    <p style={{ fontSize: 12, color: "var(--color-text-muted)", marginTop: 4 }}>
+                      Click Edit to add pricing manually
+                    </p>
+                  )}
+                </div>
               )}
             </div>
 
-            {/* Voting in detail view */}
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => {
-                  if (!userName) { onNeedName(); return; }
-                  if (userVote?.value === 1) { onRemoveVote(); } else { onVote(1); }
-                }}
-                className={`p-1.5 rounded-md transition-all ${
-                  userVote?.value === 1
-                    ? "text-[#15803d] bg-[#15803d]/10"
-                    : "text-[#636058] hover:text-[#15803d] hover:bg-[#15803d]/8"
-                }`}
-                title={userVote?.value === 1 ? "Remove upvote" : "Upvote"}
-              >
-                &#9650;
-              </button>
-              <span
-                className={`text-sm font-bold min-w-[24px] text-center ${
-                  voteTotal > 0
-                    ? "text-[#15803d]"
-                    : voteTotal < 0
-                      ? "text-[#b91c1c]"
-                      : "text-[#706B65]"
-                }`}
-              >
-                {voteTotal}
-              </span>
-              <button
-                onClick={() => {
-                  if (!userName) { onNeedName(); return; }
-                  if (userVote?.value === -1) { onRemoveVote(); } else { onVote(-1); }
-                }}
-                className={`p-1.5 rounded-md transition-all ${
-                  userVote?.value === -1
-                    ? "text-[#b91c1c] bg-[#b91c1c]/10"
-                    : "text-[#636058] hover:text-[#b91c1c] hover:bg-[#b91c1c]/8"
-                }`}
-                title={userVote?.value === -1 ? "Remove downvote" : "Downvote"}
-              >
-                &#9660;
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Photo gallery */}
-        {listing.photos.length > 0 && (
-          <div className="px-6">
-            {/* Category tabs */}
-            <div className="flex gap-1 overflow-x-auto pb-2 mb-2">
-              {photoCategories.map((cat) => {
-                const count =
-                  cat.key === "all"
-                    ? listing.photos.length
-                    : listing.photos.filter((p) => p.category === cat.key)
-                        .length;
-                if (cat.key !== "all" && count === 0) return null;
-                return (
-                  <button
-                    key={cat.key}
-                    onClick={() => setPhotoFilter(cat.key)}
-                    className={`px-3 py-1 text-xs rounded-full whitespace-nowrap transition ${
-                      photoFilter === cat.key
-                        ? "bg-[#E94E3C] text-white font-semibold"
-                        : "bg-[#EFEAE4] text-[#636058] hover:text-[#1a1a1a]"
-                    }`}
-                  >
-                    {cat.label} ({count})
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Photos grid */}
-            <div className="grid grid-cols-3 gap-1 rounded-lg overflow-hidden max-h-72 overflow-y-auto">
-              {filteredPhotos.map((photo, idx) => (
-                <div
-                  key={photo.id}
-                  role="button"
-                  tabIndex={0}
-                  className="aspect-video relative cursor-pointer hover:opacity-90 transition"
-                  onClick={() => setSelectedPhotoIdx(idx)}
-                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedPhotoIdx(idx); } }}
-                  aria-label={`View photo ${idx + 1}`}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={photo.url}
-                    alt={photo.caption || listing.name}
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                  />
-                  {photo.caption && (
-                    <div className="absolute bottom-0 left-0 right-0 bg-black/60 px-2 py-0.5 text-[10px] text-white truncate">
-                      {photo.caption}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Photo lightbox */}
-        {selectedPhotoIdx !== null && filteredPhotos[selectedPhotoIdx] && (
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Photo lightbox"
-            className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
-            onClick={() => setSelectedPhotoIdx(null)}
-          >
-            <button
-              onClick={() => setSelectedPhotoIdx(null)}
-              aria-label="Close lightbox"
-              className="absolute top-4 right-4 text-white/70 hover:text-white text-2xl"
-            >
-              &#10005;
-            </button>
-            {selectedPhotoIdx > 0 && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedPhotoIdx(selectedPhotoIdx - 1);
-                }}
-                aria-label="Previous photo"
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-white/70 hover:text-white text-3xl"
-              >
-                &#8249;
-              </button>
-            )}
-            {selectedPhotoIdx < filteredPhotos.length - 1 && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedPhotoIdx(selectedPhotoIdx + 1);
-                }}
-                aria-label="Next photo"
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-white/70 hover:text-white text-3xl"
-              >
-                &#8250;
-              </button>
-            )}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={filteredPhotos[selectedPhotoIdx].url}
-              alt={filteredPhotos[selectedPhotoIdx].caption || listing.name}
-              className="max-w-full max-h-[85vh] object-contain rounded-lg"
-              onClick={(e) => e.stopPropagation()}
-            />
-            <div className="absolute bottom-4 text-center text-white/50 text-sm">
-              {selectedPhotoIdx + 1} / {filteredPhotos.length}
-            </div>
-          </div>
-        )}
-
-        {/* Property details */}
-        {hasAnyDetail && !editing ? (
-          <div className="p-6 space-y-4">
-            {/* The Big 4 - grid layout */}
-            {(listing.bedrooms != null ||
-              listing.bathrooms != null ||
-              listing.kitchen ||
-              listing.beachDistance) && (
-              <div className="grid grid-cols-2 gap-3">
-                {listing.bedrooms != null && (
-                  <div className="p-3 bg-[#F3F0EB] rounded-lg border border-[#DDD8D0]">
-                    <div className="text-[10px] uppercase tracking-wider text-[#706B65] mb-1">
-                      Bedrooms
-                    </div>
-                    <div className="text-lg font-bold text-[#1a1a1a]">
-                      {listing.bedrooms}
-                    </div>
-                    {beds.length > 0 && (
-                      <div className="mt-1 text-xs text-[#636058]">
-                        {beds.map(
-                          (bed: { type: string; count: number }, i: number) => (
-                            <span key={i}>
-                              {i > 0 ? ", " : ""}
-                              {bed.count}x {bed.type}
-                            </span>
-                          )
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {listing.bathrooms != null && (
-                  <div className="p-3 bg-[#F3F0EB] rounded-lg border border-[#DDD8D0]">
-                    <div className="text-[10px] uppercase tracking-wider text-[#706B65] mb-1">
-                      Bathrooms
-                    </div>
-                    <div className="text-lg font-bold text-[#1a1a1a]">
-                      {listing.bathrooms}
-                    </div>
-                    {listing.bathroomNotes && (
-                      <div className="mt-1 text-xs text-[#636058]">
-                        {listing.bathroomNotes}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {listing.kitchen && (
-                  <div className="p-3 bg-[#F3F0EB] rounded-lg border border-[#DDD8D0]">
-                    <div className="text-[10px] uppercase tracking-wider text-[#706B65] mb-1">
-                      Kitchen
-                    </div>
-                    <div className="text-lg font-bold text-[#1a1a1a] capitalize">
-                      {listing.kitchen}
-                    </div>
-                    {listing.kitchenDetails && (
-                      <div className="mt-1 text-xs text-[#636058]">
-                        {listing.kitchenDetails}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {listing.beachDistance && (
-                  <div className="p-3 bg-[#F3F0EB] rounded-lg border border-[#DDD8D0]">
-                    <div className="text-[10px] uppercase tracking-wider text-[#706B65] mb-1">
-                      Beach
-                    </div>
-                    <div className="text-sm font-semibold text-[#1a1a1a]">
-                      {listing.beachDistance}
-                    </div>
-                    {listing.beachType && (
-                      <div className="mt-1 text-xs text-[#636058]">
-                        {listing.beachType} water
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Kid stuff */}
-            {listing.kidFriendly && (
-              <div className="p-3 bg-[#15803d]/5 border border-[#15803d]/15 rounded-lg">
-                <div className="text-sm font-semibold text-[#15803d] mb-0.5">
-                  Kid-Friendly
-                </div>
-                <p className="text-sm text-[#636058]">
-                  {listing.kidNotes || "This property is marked as kid-friendly"}
-                </p>
-              </div>
-            )}
-
-            {/* Amenities */}
-            {amenities.length > 0 && (
-              <div>
-                <h3 className="text-[10px] uppercase tracking-wider text-[#706B65] mb-2">
-                  Amenities
-                </h3>
-                <div className="flex flex-wrap gap-1.5">
-                  {amenities.map((a: string, i: number) => (
-                    <span
-                      key={i}
-                      className="px-2.5 py-1 bg-[#EFEAE4] text-[#636058] text-xs rounded-md"
+            {/* Edit / Vote controls */}
+            <div style={{ marginTop: 10, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                {editing ? (
+                  <>
+                    <button
+                      onClick={saveEdits}
+                      disabled={saving}
+                      style={{ padding: "5px 12px", fontSize: 12, fontWeight: 600, background: "var(--color-coral)", color: "#fff", borderRadius: 6, border: "none", cursor: "pointer", fontFamily: "inherit", opacity: saving ? 0.5 : 1 }}
                     >
-                      {a}
-                    </span>
-                  ))}
-                </div>
+                      {saving ? "Saving..." : "Save"}
+                    </button>
+                    <button
+                      onClick={() => setEditing(false)}
+                      style={{ padding: "5px 12px", fontSize: 12, color: "var(--color-text-mid)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}
+                    >
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => setEditing(true)}
+                    style={{ padding: "5px 12px", fontSize: 12, fontWeight: 500, background: "var(--color-panel)", border: "1px solid var(--color-border-dark)", color: "var(--color-text-mid)", borderRadius: 6, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}
+                  >
+                    Edit
+                  </button>
+                )}
               </div>
-            )}
 
-            {/* Description */}
-            {listing.description && (
-              <div>
-                <h3 className="text-[10px] uppercase tracking-wider text-[#706B65] mb-2">
-                  Description
-                </h3>
-                <p className="text-sm text-[#636058] leading-relaxed line-clamp-6">
-                  {listing.description}
-                </p>
+              <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+                <button
+                  onClick={() => {
+                    if (!userName) { onNeedName(); return; }
+                    if (userVote?.value === 1) { onRemoveVote(); } else { onVote(1); }
+                  }}
+                  title={userVote?.value === 1 ? "Remove upvote" : "Upvote"}
+                  style={{
+                    padding: "4px 8px", borderRadius: 4, cursor: "pointer", fontFamily: "inherit", fontSize: 12, border: "none",
+                    background: userVote?.value === 1 ? "rgba(74,158,107,0.1)" : "transparent",
+                    color: userVote?.value === 1 ? "var(--color-green)" : "var(--color-text-mid)",
+                    transition: "all 0.15s",
+                  }}
+                >
+                  &#9650;
+                </button>
+                <span
+                  className="font-mono"
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 700,
+                    minWidth: 24,
+                    textAlign: "center" as const,
+                    color: voteTotal > 0 ? "var(--color-green)" : voteTotal < 0 ? "var(--color-red)" : "var(--color-text-mid)",
+                  }}
+                >
+                  {voteTotal}
+                </span>
+                <button
+                  onClick={() => {
+                    if (!userName) { onNeedName(); return; }
+                    if (userVote?.value === -1) { onRemoveVote(); } else { onVote(-1); }
+                  }}
+                  title={userVote?.value === -1 ? "Remove downvote" : "Downvote"}
+                  style={{
+                    padding: "4px 8px", borderRadius: 4, cursor: "pointer", fontFamily: "inherit", fontSize: 12, border: "none",
+                    background: userVote?.value === -1 ? "rgba(185,28,28,0.1)" : "transparent",
+                    color: userVote?.value === -1 ? "var(--color-red)" : "var(--color-text-mid)",
+                    transition: "all 0.15s",
+                  }}
+                >
+                  &#9660;
+                </button>
               </div>
-            )}
-          </div>
-        ) : !editing ? (
-          /* Empty state when no details were scraped */
-          <div className="p-6">
-            <div className="text-center py-6 px-4 bg-[#F3F0EB] rounded-xl border border-[#DDD8D0]">
-              <div className="text-3xl mb-2 opacity-30">
-                {isScraping ? "\u23F3" : "\u270F"}
-              </div>
-              <p className="text-sm text-[#636058]">
-                {isScraping
-                  ? "Scraping property details..."
-                  : "No property details available from scrape."}
-              </p>
-              <p className="text-xs text-[#706B65] mt-1">
-                {isScraping
-                  ? "This should take a few seconds."
-                  : "Click Edit above to add details manually."}
-              </p>
             </div>
           </div>
-        ) : null}
 
-        {/* Comments section */}
-        <div className="border-t border-[#DDD8D0] p-6">
-          <h3 className="text-[10px] uppercase tracking-wider text-[#706B65] mb-4">
-            Comments ({listing.comments.length})
-          </h3>
+          {/* AI Fit Assessment */}
+          <FitSection
+            assessment={listing.aiFitAssessment}
+            listingId={listing.id}
+            hasPreferences={!!hasPreferences}
+          />
 
-          {listing.comments.length > 0 && (
-            <div className="space-y-3 mb-4">
-              {listing.comments.map((comment) => (
-                <div
-                  key={comment.id}
-                  className="p-3 bg-[#F3F0EB] rounded-lg group"
-                >
-                  <div className="flex items-baseline justify-between gap-2">
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-sm font-medium text-[#1a1a1a]">
-                        {comment.userName}
-                      </span>
-                      <span className="text-[10px] text-[#706B65]">
-                        {new Date(comment.createdAt).toLocaleDateString()}
-                      </span>
-                    </div>
-                    {comment.userName === userName && (
-                      <button
-                        onClick={() => deleteComment(comment.id)}
-                        className="text-[10px] text-[#706B65] hover:text-[#b91c1c] opacity-0 group-hover:opacity-100 transition-all"
-                        title="Delete comment"
-                      >
-                        delete
-                      </button>
-                    )}
+          {/* Photo gallery */}
+          {listing.photos.length > 0 && (
+            <div style={{ padding: "0 20px 16px" }}>
+              {/* Category tabs */}
+              <div style={{ display: "flex", gap: 4, overflowX: "auto", paddingBottom: 8, marginBottom: 8 }}>
+                {photoCategories.map((cat) => {
+                  const count =
+                    cat.key === "all"
+                      ? listing.photos.length
+                      : listing.photos.filter((p) => p.category === cat.key).length;
+                  if (cat.key !== "all" && count === 0) return null;
+                  return (
+                    <button
+                      key={cat.key}
+                      onClick={() => setPhotoFilter(cat.key)}
+                      style={{
+                        padding: "4px 12px", fontSize: 11, borderRadius: 20, whiteSpace: "nowrap" as const, cursor: "pointer", fontFamily: "inherit", fontWeight: 600, border: "none",
+                        transition: "all 0.15s",
+                        background: photoFilter === cat.key ? "var(--color-coral)" : "var(--color-panel)",
+                        color: photoFilter === cat.key ? "#fff" : "var(--color-text-mid)",
+                      }}
+                    >
+                      {cat.label} ({count})
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Photo grid */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 2, borderRadius: 8, overflow: "hidden", maxHeight: 200, overflowY: "auto" }}>
+                {filteredPhotos.map((photo, idx) => (
+                  <div
+                    key={photo.id}
+                    role="button"
+                    tabIndex={0}
+                    style={{ aspectRatio: "16/10", position: "relative", cursor: "pointer", overflow: "hidden" }}
+                    onClick={() => setSelectedPhotoIdx(idx)}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedPhotoIdx(idx); } }}
+                    aria-label={`View photo ${idx + 1}`}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={photo.url}
+                      alt={photo.caption || listing.name}
+                      style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.2s" }}
+                      loading="lazy"
+                    />
                   </div>
-                  <p className="text-sm text-[#636058] mt-1">
-                    {comment.text}
-                  </p>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
 
-          <form onSubmit={submitComment} className="flex gap-2">
-            <input
-              type="text"
-              placeholder="Add a comment..."
-              value={commentText}
-              onChange={(e) => setCommentText(e.target.value)}
-              className="flex-1 px-3 py-2 text-sm bg-[#F3F0EB] border border-[#DDD8D0] rounded-lg text-[#1a1a1a] placeholder:text-[#8a8480] focus:border-[#E94E3C] transition"
-            />
-            <button
-              type="submit"
-              disabled={submitting || !commentText.trim()}
-              className="px-4 py-2 text-sm bg-[#E94E3C] text-white font-semibold rounded-lg hover:bg-[#d4443a] transition disabled:opacity-40"
-            >
-              Post
-            </button>
-          </form>
-        </div>
+          {/* Property details */}
+          {hasAnyDetail && !editing ? (
+            <div style={{ padding: "0 20px 16px" }}>
+              {/* The Big 4 */}
+              {(listing.bedrooms != null || listing.bathrooms != null || listing.kitchen || listing.beachDistance) && (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
+                  {listing.bedrooms != null && (
+                    <div style={{ padding: 12, background: "var(--color-bg)", borderRadius: 8, border: "1px solid var(--color-border-dark)" }}>
+                      <div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", marginBottom: 4 }}>Bedrooms</div>
+                      <div style={{ fontSize: 18, fontWeight: 700, color: "var(--color-text)" }}>{listing.bedrooms}</div>
+                      {beds.length > 0 && (
+                        <div style={{ marginTop: 4, fontSize: 11, color: "var(--color-text-mid)" }}>
+                          {beds.map((bed: { type: string; count: number }, i: number) => (
+                            <span key={i}>{i > 0 ? ", " : ""}{bed.count}x {bed.type}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {listing.bathrooms != null && (
+                    <div style={{ padding: 12, background: "var(--color-bg)", borderRadius: 8, border: "1px solid var(--color-border-dark)" }}>
+                      <div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", marginBottom: 4 }}>Bathrooms</div>
+                      <div style={{ fontSize: 18, fontWeight: 700, color: "var(--color-text)" }}>{listing.bathrooms}</div>
+                      {listing.bathroomNotes && <div style={{ marginTop: 4, fontSize: 11, color: "var(--color-text-mid)" }}>{listing.bathroomNotes}</div>}
+                    </div>
+                  )}
+                  {listing.kitchen && (
+                    <div style={{ padding: 12, background: "var(--color-bg)", borderRadius: 8, border: "1px solid var(--color-border-dark)" }}>
+                      <div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", marginBottom: 4 }}>Kitchen</div>
+                      <div style={{ fontSize: 16, fontWeight: 700, color: "var(--color-text)", textTransform: "capitalize" as const }}>{listing.kitchen}</div>
+                      {listing.kitchenDetails && <div style={{ marginTop: 4, fontSize: 11, color: "var(--color-text-mid)" }}>{listing.kitchenDetails}</div>}
+                    </div>
+                  )}
+                  {listing.beachDistance && (
+                    <div style={{ padding: 12, background: "var(--color-bg)", borderRadius: 8, border: "1px solid var(--color-border-dark)" }}>
+                      <div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", marginBottom: 4 }}>Beach</div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)" }}>{listing.beachDistance}</div>
+                      {listing.beachType && <div style={{ marginTop: 4, fontSize: 11, color: "var(--color-text-mid)" }}>{listing.beachType} water</div>}
+                    </div>
+                  )}
+                </div>
+              )}
 
-        {/* Footer actions */}
-        <div className="border-t border-[#DDD8D0] p-4 flex items-center justify-between">
-          <a
-            href={listing.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-4 py-2 text-sm font-medium bg-[#EFEAE4] border border-[#DDD8D0] text-[#1a1a1a] rounded-lg hover:border-[#bbb] transition"
-          >
-            View on {sourceLabel(listing.source)} &#8599;
-          </a>
-          <button
-            onClick={deleteListing}
-            className="px-4 py-2 text-sm text-[#b91c1c] hover:text-[#b91c1c] hover:bg-[#b91c1c]/8 rounded-lg transition"
-          >
-            Remove
-          </button>
+              {listing.kidFriendly && (
+                <div style={{ padding: 12, background: "rgba(74,158,107,0.05)", border: "1px solid rgba(74,158,107,0.15)", borderRadius: 8, marginBottom: 16 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-green)", marginBottom: 2 }}>Kid-Friendly</div>
+                  <p style={{ fontSize: 13, color: "var(--color-text-mid)", margin: 0 }}>
+                    {listing.kidNotes || "This property is marked as kid-friendly"}
+                  </p>
+                </div>
+              )}
+
+              {/* Amenities */}
+              {amenities.length > 0 && (
+                <div style={{ marginBottom: 16 }}>
+                  <h3 style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", marginBottom: 8 }}>
+                    Amenities
+                  </h3>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                    {amenities.map((a: string, i: number) => (
+                      <span key={i} style={{ padding: "4px 10px", background: "var(--color-panel)", color: "var(--color-text-mid)", fontSize: 12, borderRadius: 6 }}>
+                        {a}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Description */}
+              {listing.description && (
+                <div>
+                  <h3 style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", marginBottom: 8 }}>
+                    Description
+                  </h3>
+                  <p style={{ fontSize: 13, color: "var(--color-text-mid)", lineHeight: 1.6, margin: 0 }}>
+                    {listing.description}
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : !editing ? (
+            <div style={{ padding: "0 20px 16px" }}>
+              <div style={{ textAlign: "center", padding: 24, background: "var(--color-bg)", borderRadius: 12, border: "1px solid var(--color-border-dark)" }}>
+                <div style={{ fontSize: 28, marginBottom: 8, opacity: 0.3 }}>
+                  {isScraping ? "\u23F3" : "\u270F"}
+                </div>
+                <p style={{ fontSize: 13, color: "var(--color-text-mid)" }}>
+                  {isScraping ? "Scraping property details..." : "No details available."}
+                </p>
+                {!isScraping && (
+                  <p style={{ fontSize: 12, color: "var(--color-text-muted)", marginTop: 4 }}>
+                    Click Edit to add details manually.
+                  </p>
+                )}
+              </div>
+            </div>
+          ) : null}
+
+          {/* Comments */}
+          <div style={{ borderTop: "1px solid var(--color-border-dark)", padding: 20 }}>
+            <h3 style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", marginBottom: 12 }}>
+              Comments ({listing.comments.length})
+            </h3>
+
+            {listing.comments.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
+                {listing.comments.map((comment) => (
+                  <div
+                    key={comment.id}
+                    className="group"
+                    style={{ padding: 10, background: "var(--color-bg)", borderRadius: 8 }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+                      <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>{comment.userName}</span>
+                        <span style={{ fontSize: 10, color: "var(--color-text-muted)" }}>
+                          {new Date(comment.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                      {comment.userName === userName && (
+                        <button
+                          onClick={() => deleteComment(comment.id)}
+                          className="opacity-0 group-hover:opacity-100"
+                          style={{ fontSize: 10, color: "var(--color-text-muted)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}
+                          title="Delete comment"
+                        >
+                          delete
+                        </button>
+                      )}
+                    </div>
+                    <p style={{ fontSize: 13, color: "var(--color-text-mid)", marginTop: 4, margin: 0 }}>{comment.text}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <form onSubmit={submitComment} style={{ display: "flex", gap: 8 }}>
+              <input
+                type="text"
+                placeholder="Add a comment..."
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                style={{
+                  flex: 1, padding: "8px 12px", fontSize: 13,
+                  background: "var(--color-bg)", border: "1px solid var(--color-border-dark)",
+                  borderRadius: 8, color: "var(--color-text)", fontFamily: "inherit",
+                }}
+              />
+              <button
+                type="submit"
+                disabled={submitting || !commentText.trim()}
+                style={{
+                  padding: "8px 14px", fontSize: 13, fontWeight: 600,
+                  background: "var(--color-coral)", color: "#fff", borderRadius: 8,
+                  border: "none", cursor: "pointer", fontFamily: "inherit",
+                  opacity: submitting || !commentText.trim() ? 0.5 : 1,
+                }}
+              >
+                Post
+              </button>
+            </form>
+          </div>
+
+          {/* Footer */}
+          <div style={{ borderTop: "1px solid var(--color-border-dark)", padding: "12px 20px", display: "flex", justifyContent: "flex-end" }}>
+            <button
+              onClick={deleteListing}
+              style={{ padding: "6px 14px", fontSize: 13, color: "var(--color-red)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", borderRadius: 6, transition: "all 0.15s" }}
+              onMouseOver={(e) => (e.currentTarget.style.background = "rgba(185,28,28,0.06)")}
+              onMouseOut={(e) => (e.currentTarget.style.background = "none")}
+            >
+              Remove listing
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Photo lightbox */}
+      {selectedPhotoIdx !== null && filteredPhotos[selectedPhotoIdx] && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Photo lightbox"
+          className="fixed inset-0 z-[60]"
+          style={{ background: "rgba(0,0,0,0.9)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+          onClick={() => setSelectedPhotoIdx(null)}
+        >
+          <button
+            onClick={() => setSelectedPhotoIdx(null)}
+            aria-label="Close lightbox"
+            style={{ position: "absolute", top: 16, right: 16, color: "rgba(255,255,255,0.7)", fontSize: 24, background: "none", border: "none", cursor: "pointer" }}
+          >
+            &#10005;
+          </button>
+          {selectedPhotoIdx > 0 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setSelectedPhotoIdx(selectedPhotoIdx - 1); }}
+              aria-label="Previous photo"
+              style={{ position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.7)", fontSize: 32, background: "none", border: "none", cursor: "pointer" }}
+            >
+              &#8249;
+            </button>
+          )}
+          {selectedPhotoIdx < filteredPhotos.length - 1 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setSelectedPhotoIdx(selectedPhotoIdx + 1); }}
+              aria-label="Next photo"
+              style={{ position: "absolute", right: 16, top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.7)", fontSize: 32, background: "none", border: "none", cursor: "pointer" }}
+            >
+              &#8250;
+            </button>
+          )}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={filteredPhotos[selectedPhotoIdx].url}
+            alt={filteredPhotos[selectedPhotoIdx].caption || listing.name}
+            style={{ maxWidth: "100%", maxHeight: "85vh", objectFit: "contain", borderRadius: 8 }}
+            onClick={(e) => e.stopPropagation()}
+          />
+          <div style={{ position: "absolute", bottom: 16, textAlign: "center", color: "rgba(255,255,255,0.5)", fontSize: 13, width: "100%" }}>
+            {selectedPhotoIdx + 1} / {filteredPhotos.length}
+          </div>
+        </div>
+      )}
+    </>
   );
 }

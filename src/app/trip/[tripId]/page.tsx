@@ -5,60 +5,28 @@ import dynamic from "next/dynamic";
 import { ListingCard } from "@/components/ListingCard";
 import { ListingDetail } from "@/components/ListingDetail";
 import { AddListingModal } from "@/components/AddListingModal";
-import { ImportModal } from "@/components/ImportModal";
 import { FilterBar } from "@/components/FilterBar";
-import type { FilterState, Platform, KitchenType } from "@/types";
-import { useModal } from "@/hooks/useModal";
+import { BudgetRangeBar } from "@/components/BudgetRangeBar";
+import { TripPreferences } from "@/components/TripPreferences";
+import { computeBudgetRange } from "@/lib/budget";
+import type { FilterState, KitchenType, TripPreferences as TripPreferencesType } from "@/types";
 
 const MapView = dynamic(() => import("@/components/MapView"), { ssr: false });
 
-interface Trip {
-  id: string;
-  name: string;
-  destination: string;
-  centerLat: number;
-  centerLng: number;
-  adults: number;
-  kids: number;
-  nights: number | null;
-  listings: Listing[];
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Trip = any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Listing = any;
+
+const POLL_INTERVAL = 4000;
+
+function getStoredName(): string {
+  if (typeof window === "undefined") return "";
+  return localStorage.getItem("stay_username") || "";
 }
 
-interface Listing {
-  id: string;
-  url: string;
-  source: string;
-  name: string;
-  description: string | null;
-  totalCost: number | null;
-  perNight: number | null;
-  cleaningFee: number | null;
-  serviceFee: number | null;
-  taxes: number | null;
-  currency: string;
-  lat: number;
-  lng: number;
-  bedrooms: number | null;
-  beds: unknown;
-  bathrooms: number | null;
-  bathroomNotes: string | null;
-  kitchen: string | null;
-  kitchenDetails: string | null;
-  amenities: unknown;
-  kidFriendly: boolean;
-  kidNotes: string | null;
-  beachType: string | null;
-  beachDistance: string | null;
-  rating: number | null;
-  reviewCount: number | null;
-  addedBy: string | null;
-  scrapeStatus: string;
-  scrapeError: string | null;
-  address: string | null;
-  neighborhood: string | null;
-  photos: { id: string; url: string; category: string | null; caption: string | null }[];
-  votes: { id: string; userName: string; value: number }[];
-  comments: { id: string; userName: string; text: string; createdAt: string }[];
+function setStoredName(name: string) {
+  localStorage.setItem("stay_username", name);
 }
 
 const defaultFilters: FilterState = {
@@ -75,52 +43,166 @@ const defaultFilters: FilterState = {
   sortBy: "recent",
 };
 
-export default function TripPage({ params }: { params: Promise<{ tripId: string }> }) {
-  const { tripId } = use(params);
-  const [trip, setTrip] = useState<Trip | null>(null);
+function applyFilters(listings: Listing[], filters: FilterState): Listing[] {
+  let result = [...listings];
+
+  if (filters.sources.length > 0) {
+    result = result.filter((l) => filters.sources.includes(l.source));
+  }
+
+  if (filters.priceMin > 0) {
+    result = result.filter((l) => {
+      const price = l.totalCost || l.perNight || 0;
+      return price >= filters.priceMin;
+    });
+  }
+
+  if (filters.priceMax < Infinity) {
+    result = result.filter((l) => {
+      const price = l.totalCost || l.perNight || Infinity;
+      return price <= filters.priceMax;
+    });
+  }
+
+  if (filters.bedroomsMin > 0) {
+    result = result.filter(
+      (l) => l.bedrooms != null && l.bedrooms >= filters.bedroomsMin
+    );
+  }
+
+  if (filters.bathroomsMin > 0) {
+    result = result.filter(
+      (l) => l.bathrooms != null && l.bathrooms >= filters.bathroomsMin
+    );
+  }
+
+  if (filters.kitchen.length > 0) {
+    result = result.filter((l) =>
+      filters.kitchen.includes(l.kitchen as KitchenType)
+    );
+  }
+
+  if (filters.kidFriendlyOnly) {
+    result = result.filter((l) => l.kidFriendly);
+  }
+
+  if (filters.hasPool) {
+    result = result.filter((l) => {
+      const amenities: string[] = Array.isArray(l.amenities)
+        ? l.amenities
+        : [];
+      return amenities.some(
+        (a) =>
+          a.toLowerCase().includes("pool") &&
+          !a.toLowerCase().includes("pool table")
+      );
+    });
+  }
+
+  if (filters.ratingMin > 0) {
+    result = result.filter(
+      (l) => l.rating != null && l.rating >= filters.ratingMin
+    );
+  }
+
+  switch (filters.sortBy) {
+    case "price_asc":
+      result.sort((a, b) => {
+        const pa = a.totalCost || a.perNight || Infinity;
+        const pb = b.totalCost || b.perNight || Infinity;
+        return pa - pb;
+      });
+      break;
+    case "votes_desc":
+      result.sort((a, b) => {
+        const va = (a.votes || []).reduce(
+          (s: number, v: { value: number }) => s + v.value,
+          0
+        );
+        const vb = (b.votes || []).reduce(
+          (s: number, v: { value: number }) => s + v.value,
+          0
+        );
+        return vb - va;
+      });
+      break;
+    case "rating":
+      result.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+      break;
+    case "recent":
+    default:
+      result.sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      break;
+  }
+
+  return result;
+}
+
+export default function TripPage({
+  params: paramsPromise,
+}: {
+  params: Promise<{ tripId: string }>;
+}) {
+  const params = use(paramsPromise);
+  const { tripId } = params;
+
+  const [trip, setTrip] = useState<Trip>(null);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [detailId, setDetailId] = useState<string | null>(null);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [detailListing, setDetailListing] = useState<Listing | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [showImportModal, setShowImportModal] = useState(false);
-  const [filters, setFilters] = useState<FilterState>(defaultFilters);
   const [userName, setUserName] = useState("");
   const [showNamePrompt, setShowNamePrompt] = useState(false);
-  const [showEditTrip, setShowEditTrip] = useState(false);
+  const [nameInput, setNameInput] = useState("");
+  const [filters, setFilters] = useState<FilterState>(defaultFilters);
+  const [showPreferences, setShowPreferences] = useState(false);
 
+  // Load trip data
   const fetchTrip = useCallback(async () => {
     try {
       const res = await fetch(`/api/trips/${tripId}`);
       if (res.ok) {
         const data = await res.json();
         setTrip(data);
+
+        // If detail panel is open, refresh the listing data
+        if (detailListing) {
+          const updated = data.listings.find(
+            (l: Listing) => l.id === detailListing.id
+          );
+          if (updated) setDetailListing(updated);
+        }
       }
-    } catch (err) {
-      console.error("Failed to fetch trip:", err);
+    } catch {
+      // ignore
     } finally {
       setLoading(false);
     }
-  }, [tripId]);
+  }, [tripId, detailListing]);
 
+  // Initial load + polling
   useEffect(() => {
     fetchTrip();
   }, [fetchTrip]);
 
-  // Poll for pending scrapes
   useEffect(() => {
-    if (!trip) return;
-    const hasPending = trip.listings.some(
-      (l) => l.scrapeStatus === "pending" || l.scrapeStatus === "scraping"
+    const hasPending = trip?.listings?.some(
+      (l: Listing) =>
+        l.scrapeStatus === "pending" || l.scrapeStatus === "scraping"
     );
     if (!hasPending) return;
 
-    const interval = setInterval(fetchTrip, 3000);
+    const interval = setInterval(fetchTrip, POLL_INTERVAL);
     return () => clearInterval(interval);
   }, [trip, fetchTrip]);
 
-  // Load userName from localStorage
+  // Username
   useEffect(() => {
-    const stored = localStorage.getItem("lodging-warroom-username");
+    const stored = getStoredName();
     if (stored) {
       setUserName(stored);
     } else {
@@ -128,222 +210,209 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
     }
   }, []);
 
-  function saveUserName(name: string) {
-    setUserName(name);
-    localStorage.setItem("lodging-warroom-username", name);
+  function submitName(e: React.FormEvent) {
+    e.preventDefault();
+    if (!nameInput.trim()) return;
+    setUserName(nameInput.trim());
+    setStoredName(nameInput.trim());
     setShowNamePrompt(false);
   }
 
-  function getFilteredListings(): Listing[] {
-    if (!trip) return [];
-
-    let listings = [...trip.listings];
-
-    // Filter by source
-    if (filters.sources.length > 0) {
-      listings = listings.filter((l) =>
-        filters.sources.includes(l.source as Platform)
-      );
+  // Voting
+  async function handleVote(listingId: string, value: 1 | -1) {
+    if (!userName) {
+      setShowNamePrompt(true);
+      return;
     }
-
-    // Filter by price
-    if (filters.priceMax < Infinity) {
-      listings = listings.filter((l) => {
-        const cost = l.totalCost || l.perNight || 0;
-        return cost >= filters.priceMin && cost <= filters.priceMax;
-      });
-    }
-
-    // Filter by bedrooms
-    if (filters.bedroomsMin > 0) {
-      listings = listings.filter(
-        (l) => (l.bedrooms || 0) >= filters.bedroomsMin
-      );
-    }
-
-    // Filter by bathrooms
-    if (filters.bathroomsMin > 0) {
-      listings = listings.filter(
-        (l) => (l.bathrooms || 0) >= filters.bathroomsMin
-      );
-    }
-
-    // Filter by kitchen
-    if (filters.kitchen.length > 0) {
-      listings = listings.filter((l) =>
-        filters.kitchen.includes(l.kitchen as KitchenType)
-      );
-    }
-
-    // Filter by kid-friendly
-    if (filters.kidFriendlyOnly) {
-      listings = listings.filter((l) => l.kidFriendly);
-    }
-
-    // Filter by pool
-    if (filters.hasPool) {
-      listings = listings.filter((l) => {
-        const amenities = Array.isArray(l.amenities) ? l.amenities : [];
-        return amenities.some(
-          (a: string) =>
-            a.toLowerCase().includes("pool") ||
-            a.toLowerCase().includes("swimming")
-        );
-      });
-    }
-
-    // Filter by rating
-    if (filters.ratingMin > 0) {
-      listings = listings.filter(
-        (l) => (l.rating || 0) >= filters.ratingMin
-      );
-    }
-
-    // Sort
-    switch (filters.sortBy) {
-      case "price_asc":
-        listings.sort(
-          (a, b) => (a.totalCost || a.perNight || 0) - (b.totalCost || b.perNight || 0)
-        );
-        break;
-      case "votes_desc":
-        listings.sort((a, b) => {
-          const aVotes = a.votes.reduce((s, v) => s + v.value, 0);
-          const bVotes = b.votes.reduce((s, v) => s + v.value, 0);
-          return bVotes - aVotes;
-        });
-        break;
-      case "rating":
-        listings.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-        break;
-      case "recent":
-      default:
-        break; // Already sorted by createdAt desc from API
-    }
-
-    return listings;
+    await fetch(`/api/listings/${listingId}/vote`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userName, value }),
+    });
+    fetchTrip();
   }
 
-  const filteredListings = getFilteredListings();
-  const detailListing = trip?.listings.find((l) => l.id === detailId);
+  async function handleRemoveVote(listingId: string) {
+    await fetch(
+      `/api/listings/${listingId}/vote?userName=${encodeURIComponent(userName)}`,
+      { method: "DELETE" }
+    );
+    fetchTrip();
+  }
+
+  async function handleRescrape(listingId: string) {
+    await fetch(`/api/listings/${listingId}/rescrape`, { method: "POST" });
+    fetchTrip();
+  }
+
+  function openDetail(listing: Listing) {
+    setDetailListing(listing);
+    setSelectedId(listing.id);
+  }
+
+  function closeDetail() {
+    setDetailListing(null);
+  }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#F3F0EB] flex items-center justify-center">
-        <div className="text-[#706B65]">Loading trip...</div>
+      <div
+        style={{
+          height: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "var(--color-bg)",
+          color: "var(--color-text-mid)",
+        }}
+      >
+        Loading trip...
       </div>
     );
   }
 
   if (!trip) {
     return (
-      <div className="min-h-screen bg-[#F3F0EB] flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-xl font-bold text-[#1a1a1a] mb-2">Trip not found</h1>
-          <a href="/" className="text-[#E94E3C] hover:underline">
-            Back to trips
-          </a>
-        </div>
+      <div
+        style={{
+          height: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "var(--color-bg)",
+          color: "var(--color-text-mid)",
+        }}
+      >
+        Trip not found
       </div>
     );
   }
 
+  const listings: Listing[] = trip.listings || [];
+  const filtered = applyFilters(listings, filters);
+  const budgetRange = computeBudgetRange(listings);
+
+  const isDetailOpen = detailListing !== null;
+  const sidebarWidth = isDetailOpen ? 320 : 420;
+  const tripPrefs: TripPreferencesType | null = trip.preferences || null;
+
+  if (showPreferences) {
+    return (
+      <TripPreferences
+        tripId={tripId}
+        initial={tripPrefs}
+        hasKids={trip.kids > 0}
+        onSave={() => {
+          setShowPreferences(false);
+          fetchTrip();
+        }}
+        onClose={() => setShowPreferences(false)}
+      />
+    );
+  }
+
   return (
-    <div className="h-screen flex flex-col bg-[#F3F0EB]">
-      {/* Name prompt modal */}
-      {showNamePrompt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={(e) => { if (e.target === e.currentTarget) setShowNamePrompt(false); }}>
-          <div role="dialog" aria-modal="true" aria-labelledby="name-prompt-title" className="bg-white border border-[#DDD8D0] rounded-xl p-6 max-w-sm w-full mx-4">
-            <h2 id="name-prompt-title" className="text-lg font-bold text-[#1a1a1a] mb-2">
-              What&apos;s your name?
-            </h2>
-            <p className="text-sm text-[#706B65] mb-4">
-              Used for votes and comments. No signup needed.
-            </p>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const input = e.currentTarget.elements.namedItem(
-                  "name"
-                ) as HTMLInputElement;
-                if (input.value.trim()) saveUserName(input.value.trim());
-              }}
-            >
-              <input
-                name="name"
-                type="text"
-                required
-                placeholder="Your first name"
-                autoFocus
-                className="w-full px-4 py-2.5 bg-[#F3F0EB] border border-[#DDD8D0] rounded-lg text-[#1a1a1a] placeholder:text-[#8a8480] focus:border-[#E94E3C] mb-4"
-              />
-              <button
-                type="submit"
-                className="w-full px-4 py-2.5 bg-[#E94E3C] text-white font-semibold rounded-lg hover:bg-[#d4443a] transition"
-              >
-                Continue
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Edit trip modal */}
-      {showEditTrip && (
-        <EditTripModal
-          trip={trip}
-          onClose={() => setShowEditTrip(false)}
-          onSaved={() => {
-            setShowEditTrip(false);
-            fetchTrip();
-          }}
-        />
-      )}
-
-      {/* Header */}
-      <header className="border-b border-[#DDD8D0] px-4 py-3 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-3">
+    <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
+      {/* Trip header */}
+      <header
+        style={{
+          padding: "10px 20px",
+          background: "#fff",
+          borderBottom: "1px solid var(--color-border-dark)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexShrink: 0,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <a
             href="/"
-            aria-label="Back to trips"
-            className="text-[#706B65] hover:text-[#1a1a1a] transition"
+            style={{
+              fontSize: 16,
+              fontWeight: 700,
+              color: "var(--color-coral)",
+              textDecoration: "none",
+            }}
           >
-            &larr;
+            Stay
           </a>
-          <div
-            role="button"
-            tabIndex={0}
-            className="cursor-pointer group"
-            onClick={() => setShowEditTrip(true)}
-            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setShowEditTrip(true); } }}
-            title="Click to edit trip details"
+          <span
+            style={{ color: "var(--color-text-light)", fontSize: 13 }}
           >
-            <h1 className="font-heading text-lg font-bold text-[#1a1a1a] group-hover:text-[#E94E3C] transition">
-              {trip.name}
-              <span className="ml-1.5 text-xs text-[#706B65] group-hover:text-[#E94E3C] opacity-0 group-hover:opacity-100 transition-all">
-                &#9998;
-              </span>
-            </h1>
-            <p className="text-xs text-[#706B65]">
-              {trip.destination} {"\u00B7"} {trip.adults} adults
-              {trip.kids > 0 ? ` + ${trip.kids} kids` : ""}
-              {trip.nights ? ` \u00B7 ${trip.nights} nights` : ""}
-              {" \u00B7 "}{trip.listings.length} listings
-            </p>
-          </div>
+            /
+          </span>
+          <h1
+            style={{
+              fontSize: 16,
+              fontWeight: 600,
+              color: "var(--color-text)",
+              margin: 0,
+            }}
+          >
+            {trip.name}
+          </h1>
+          <span style={{ fontSize: 14, color: "var(--color-text-mid)" }}>
+            {trip.destination}
+          </span>
+          <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
+            {trip.adults} adults{trip.kids > 0 ? `, ${trip.kids} kids` : ""}
+          </span>
         </div>
-        <div className="flex items-center gap-2">
+
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {userName && (
+            <span
+              style={{
+                fontSize: 12,
+                color: "var(--color-text-mid)",
+                padding: "4px 10px",
+                background: "var(--color-panel)",
+                borderRadius: 20,
+              }}
+            >
+              {userName}
+            </span>
+          )}
           <button
-            onClick={() => setShowImportModal(true)}
-            className="px-3 py-1.5 text-sm bg-[#EFEAE4] border border-[#DDD8D0] text-[#706B65] rounded-lg hover:border-[#E94E3C] hover:text-[#E94E3C] transition"
+            onClick={() => setShowPreferences(true)}
+            style={{
+              padding: "7px 14px",
+              fontSize: 13,
+              fontWeight: 500,
+              background: "var(--color-panel)",
+              color: "var(--color-text-mid)",
+              borderRadius: 8,
+              border: "1px solid var(--color-border-dark)",
+              cursor: "pointer",
+              fontFamily: "inherit",
+              transition: "all 0.15s",
+            }}
           >
-            Import
+            Preferences
           </button>
           <button
             onClick={() => setShowAddModal(true)}
-            className="px-3 py-1.5 text-sm bg-[#E94E3C] text-white font-semibold rounded-lg hover:bg-[#d4443a] transition"
+            style={{
+              padding: "7px 16px",
+              fontSize: 13,
+              fontWeight: 600,
+              background: "var(--color-coral)",
+              color: "#fff",
+              borderRadius: 8,
+              border: "none",
+              cursor: "pointer",
+              fontFamily: "inherit",
+              transition: "background 0.15s",
+            }}
+            onMouseOver={(e) =>
+              (e.currentTarget.style.background = "var(--color-coral-hover)")
+            }
+            onMouseOut={(e) =>
+              (e.currentTarget.style.background = "var(--color-coral)")
+            }
           >
-            + Add
+            + Add Listing
           </button>
         </div>
       </header>
@@ -351,77 +420,128 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
       {/* Filter bar */}
       <FilterBar filters={filters} onChange={setFilters} />
 
-      {/* Main content */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+      {/* Budget range bar */}
+      {budgetRange && (
+        <BudgetRangeBar
+          range={budgetRange}
+          listings={listings}
+          hoveredId={hoveredId}
+          adults={trip.adults}
+          nights={trip.nights}
+        />
+      )}
+
+      {/* Main content: Map + Sidebar */}
+      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
         {/* Map */}
-        <div className="h-[40vh] lg:h-full lg:flex-1 shrink-0">
+        <div style={{ flex: 1, position: "relative" }}>
           <MapView
-            listings={filteredListings}
+            listings={filtered}
             center={[trip.centerLng, trip.centerLat]}
             selectedId={selectedId}
+            hoveredId={hoveredId}
             onSelect={(id) => {
               setSelectedId(id);
-              // Scroll card into view
-              const el = document.getElementById(`listing-${id}`);
-              el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+              const listing = listings.find((l: Listing) => l.id === id);
+              if (listing) openDetail(listing);
             }}
+            onHover={setHoveredId}
             adults={trip.adults}
+            budgetRange={budgetRange}
           />
         </div>
 
-        {/* Listing cards */}
-        <div className="flex-1 lg:w-[420px] lg:flex-none overflow-y-auto border-l border-[#DDD8D0]">
-          {filteredListings.length === 0 ? (
-            <div className="p-8 text-center">
-              <p className="text-[#706B65] mb-4">
-                {trip.listings.length === 0
-                  ? "No listings yet. Add your first one!"
-                  : "No listings match your filters."}
-              </p>
-              {trip.listings.length === 0 && (
-                <button
-                  onClick={() => setShowAddModal(true)}
-                  className="px-4 py-2 bg-[#E94E3C] text-white font-semibold rounded-lg hover:bg-[#d4443a] transition"
-                >
-                  + Add Listing
-                </button>
+        {/* Listing sidebar */}
+        <div
+          style={{
+            width: sidebarWidth,
+            flexShrink: 0,
+            borderLeft: "1px solid var(--color-border-dark)",
+            overflowY: "auto",
+            background: "var(--color-bg)",
+            transition: "width 0.25s var(--ease-spring)",
+          }}
+        >
+          {filtered.length === 0 ? (
+            <div
+              style={{
+                padding: 32,
+                textAlign: "center",
+                color: "var(--color-text-mid)",
+              }}
+            >
+              {listings.length === 0 ? (
+                <>
+                  <div
+                    style={{
+                      fontSize: 40,
+                      marginBottom: 12,
+                      opacity: 0.25,
+                    }}
+                  >
+                    &#127968;
+                  </div>
+                  <h3
+                    style={{
+                      fontSize: 16,
+                      fontWeight: 600,
+                      color: "var(--color-text)",
+                      marginBottom: 8,
+                    }}
+                  >
+                    No listings yet
+                  </h3>
+                  <p style={{ fontSize: 13, marginBottom: 16 }}>
+                    Add your first vacation rental listing to get started.
+                  </p>
+                  <button
+                    onClick={() => setShowAddModal(true)}
+                    style={{
+                      padding: "8px 16px",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      background: "var(--color-coral)",
+                      color: "#fff",
+                      borderRadius: 8,
+                      border: "none",
+                      cursor: "pointer",
+                      fontFamily: "inherit",
+                    }}
+                  >
+                    + Add Listing
+                  </button>
+                </>
+              ) : (
+                <p style={{ fontSize: 13 }}>
+                  No listings match your filters.
+                </p>
               )}
             </div>
           ) : (
-            <div className="p-3 space-y-3">
-              {filteredListings.map((listing) => (
+            <div
+              style={{
+                padding: 12,
+                display: "flex",
+                flexDirection: "column",
+                gap: 12,
+              }}
+            >
+              {filtered.map((listing: Listing, index: number) => (
                 <ListingCard
                   key={listing.id}
                   listing={listing}
                   adults={trip.adults}
                   isSelected={selectedId === listing.id}
+                  isHovered={hoveredId === listing.id}
                   userName={userName}
-                  onSelect={() => { setSelectedId(listing.id); setDetailId(listing.id); }}
-                  onViewDetail={() => setDetailId(listing.id)}
-                  onVote={async (value) => {
-                    if (!userName) {
-                      setShowNamePrompt(true);
-                      return;
-                    }
-                    const existingVote = listing.votes.find((v) => v.userName === userName);
-                    if (existingVote?.value === value) {
-                      // Toggle off: remove vote
-                      await fetch(`/api/listings/${listing.id}/vote?userName=${encodeURIComponent(userName)}`, {
-                        method: "DELETE",
-                      });
-                    } else {
-                      await fetch(`/api/listings/${listing.id}/vote`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ userName, value }),
-                      });
-                    }
-                    fetchTrip();
-                  }}
-                  onRescrape={async () => {
-                    await fetch(`/api/listings/${listing.id}/rescrape`, { method: "POST" });
-                    fetchTrip();
-                  }}
+                  index={index}
+                  onSelect={() => openDetail(listing)}
+                  onViewDetail={() => openDetail(listing)}
+                  onVote={(value) => handleVote(listing.id, value)}
+                  onRescrape={() => handleRescrape(listing.id)}
+                  onMouseEnter={() => setHoveredId(listing.id)}
+                  onMouseLeave={() => setHoveredId(null)}
+                  budgetRange={budgetRange}
                 />
               ))}
             </div>
@@ -429,10 +549,27 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
         </div>
       </div>
 
-      {/* Modals */}
+      {/* Detail panel */}
+      {detailListing && (
+        <ListingDetail
+          listing={detailListing}
+          adults={trip.adults}
+          userName={userName}
+          onClose={closeDetail}
+          onRefresh={fetchTrip}
+          onNeedName={() => setShowNamePrompt(true)}
+          onVote={(value) => handleVote(detailListing.id, value)}
+          onRemoveVote={() => handleRemoveVote(detailListing.id)}
+          onRescrape={() => handleRescrape(detailListing.id)}
+          budgetRange={budgetRange}
+          hasPreferences={!!tripPrefs}
+        />
+      )}
+
+      {/* Add listing modal */}
       {showAddModal && (
         <AddListingModal
-          tripId={trip.id}
+          tripId={tripId}
           onClose={() => setShowAddModal(false)}
           onAdded={() => {
             setShowAddModal(false);
@@ -442,249 +579,88 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
         />
       )}
 
-      {showImportModal && (
-        <ImportModal
-          tripId={trip.id}
-          onClose={() => setShowImportModal(false)}
-          onImported={() => {
-            setShowImportModal(false);
-            fetchTrip();
+      {/* Name prompt */}
+      {showNamePrompt && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{
+            background: "rgba(0,0,0,0.6)",
+            backdropFilter: "blur(4px)",
           }}
-        />
-      )}
-
-      {detailListing && (
-        <ListingDetail
-          listing={detailListing}
-          adults={trip.adults}
-          userName={userName}
-          onClose={() => setDetailId(null)}
-          onRefresh={fetchTrip}
-          onNeedName={() => setShowNamePrompt(true)}
-          onVote={async (value) => {
-            if (!userName) {
-              setShowNamePrompt(true);
-              return;
-            }
-            await fetch(`/api/listings/${detailListing.id}/vote`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ userName, value }),
-            });
-            fetchTrip();
-          }}
-          onRemoveVote={async () => {
-            if (!userName) return;
-            await fetch(`/api/listings/${detailListing.id}/vote?userName=${encodeURIComponent(userName)}`, {
-              method: "DELETE",
-            });
-            fetchTrip();
-          }}
-          onRescrape={async () => {
-            await fetch(`/api/listings/${detailListing.id}/rescrape`, { method: "POST" });
-            fetchTrip();
-          }}
-        />
-      )}
-    </div>
-  );
-}
-
-/* ── Edit Trip Modal ────────────────────────────────────────── */
-
-function EditTripModal({
-  trip,
-  onClose,
-  onSaved,
-}: {
-  trip: Trip;
-  onClose: () => void;
-  onSaved: () => void;
-}) {
-  const [name, setName] = useState(trip.name);
-  const [destination, setDestination] = useState(trip.destination);
-  const [adults, setAdults] = useState(String(trip.adults));
-  const [kids, setKids] = useState(String(trip.kids));
-  const [nights, setNights] = useState(trip.nights != null ? String(trip.nights) : "");
-  const [centerLat, setCenterLat] = useState(String(trip.centerLat));
-  const [centerLng, setCenterLng] = useState(String(trip.centerLng));
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const modalRef = useModal(onClose);
-
-  async function handleSave(e: React.FormEvent) {
-    e.preventDefault();
-    if (!name.trim() || !destination.trim()) return;
-
-    setSaving(true);
-    setError("");
-
-    try {
-      const res = await fetch(`/api/trips/${trip.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: name.trim(),
-          destination: destination.trim(),
-          adults: parseInt(adults) || 1,
-          kids: parseInt(kids) || 0,
-          nights: nights ? parseInt(nights) : null,
-          centerLat: parseFloat(centerLat) || trip.centerLat,
-          centerLng: parseFloat(centerLng) || trip.centerLng,
-        }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to update trip");
-      }
-
-      onSaved();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
-      setSaving(false);
-    }
-  }
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div ref={modalRef} role="dialog" aria-modal="true" aria-labelledby="edit-trip-title" className="bg-white border border-[#DDD8D0] rounded-xl p-6 max-w-lg w-full mx-4 shadow-2xl">
-        <div className="flex items-center justify-between mb-5">
-          <h2 id="edit-trip-title" className="text-lg font-bold text-[#1a1a1a]">Edit Trip</h2>
-          <button
-            onClick={onClose}
-            aria-label="Close"
-            className="text-[#636058] hover:text-[#1a1a1a] transition"
+        >
+          <div
+            className="animate-slide-up"
+            style={{
+              background: "#fff",
+              borderRadius: 14,
+              padding: 28,
+              maxWidth: 360,
+              width: "100%",
+              margin: 16,
+              boxShadow: "0 20px 60px rgba(0,0,0,0.15)",
+            }}
           >
-            &#10005;
-          </button>
+            <h2
+              style={{
+                fontSize: 18,
+                fontWeight: 700,
+                color: "var(--color-text)",
+                marginBottom: 4,
+              }}
+            >
+              What&apos;s your name?
+            </h2>
+            <p
+              style={{
+                fontSize: 13,
+                color: "var(--color-text-mid)",
+                marginBottom: 16,
+              }}
+            >
+              Used for votes and comments — no account needed.
+            </p>
+            <form onSubmit={submitName}>
+              <input
+                type="text"
+                autoFocus
+                placeholder="Your first name"
+                value={nameInput}
+                onChange={(e) => setNameInput(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "10px 16px",
+                  fontSize: 14,
+                  background: "var(--color-bg)",
+                  border: "1px solid var(--color-border-dark)",
+                  borderRadius: 8,
+                  color: "var(--color-text)",
+                  fontFamily: "inherit",
+                }}
+              />
+              <button
+                type="submit"
+                disabled={!nameInput.trim()}
+                style={{
+                  marginTop: 12,
+                  width: "100%",
+                  padding: "10px 16px",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  background: "var(--color-coral)",
+                  color: "#fff",
+                  borderRadius: 8,
+                  border: "none",
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  opacity: nameInput.trim() ? 1 : 0.5,
+                }}
+              >
+                Let&apos;s go
+              </button>
+            </form>
+          </div>
         </div>
-
-        <form onSubmit={handleSave} className="space-y-4">
-          {/* Trip name */}
-          <div>
-            <label className="text-[10px] uppercase tracking-wider text-[#706B65] mb-1.5 block">
-              Trip Name
-            </label>
-            <input
-              type="text"
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Barbados 2026"
-              className="w-full px-4 py-2.5 bg-[#F3F0EB] border border-[#DDD8D0] rounded-lg text-[#1a1a1a] placeholder:text-[#8a8480] focus:border-[#E94E3C] text-sm"
-            />
-          </div>
-
-          {/* Destination */}
-          <div>
-            <label className="text-[10px] uppercase tracking-wider text-[#706B65] mb-1.5 block">
-              Destination
-            </label>
-            <input
-              type="text"
-              required
-              value={destination}
-              onChange={(e) => setDestination(e.target.value)}
-              placeholder="e.g. Barbados"
-              className="w-full px-4 py-2.5 bg-[#F3F0EB] border border-[#DDD8D0] rounded-lg text-[#1a1a1a] placeholder:text-[#8a8480] focus:border-[#E94E3C] text-sm"
-            />
-          </div>
-
-          {/* Group size */}
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="text-[10px] uppercase tracking-wider text-[#706B65] mb-1.5 block">
-                Adults
-              </label>
-              <input
-                type="number"
-                min="1"
-                value={adults}
-                onChange={(e) => setAdults(e.target.value)}
-                className="w-full px-3 py-2.5 bg-[#F3F0EB] border border-[#DDD8D0] rounded-lg text-[#1a1a1a] focus:border-[#E94E3C] text-sm"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] uppercase tracking-wider text-[#706B65] mb-1.5 block">
-                Kids
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={kids}
-                onChange={(e) => setKids(e.target.value)}
-                className="w-full px-3 py-2.5 bg-[#F3F0EB] border border-[#DDD8D0] rounded-lg text-[#1a1a1a] focus:border-[#E94E3C] text-sm"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] uppercase tracking-wider text-[#706B65] mb-1.5 block">
-                Nights
-              </label>
-              <input
-                type="number"
-                min="1"
-                value={nights}
-                onChange={(e) => setNights(e.target.value)}
-                placeholder="—"
-                className="w-full px-3 py-2.5 bg-[#F3F0EB] border border-[#DDD8D0] rounded-lg text-[#1a1a1a] placeholder:text-[#8a8480] focus:border-[#E94E3C] text-sm"
-              />
-            </div>
-          </div>
-
-          {/* Map center */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-[10px] uppercase tracking-wider text-[#706B65] mb-1.5 block">
-                Center Latitude
-              </label>
-              <input
-                type="text"
-                value={centerLat}
-                onChange={(e) => setCenterLat(e.target.value)}
-                className="w-full px-3 py-2.5 bg-[#F3F0EB] border border-[#DDD8D0] rounded-lg text-[#1a1a1a] focus:border-[#E94E3C] text-sm"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] uppercase tracking-wider text-[#706B65] mb-1.5 block">
-                Center Longitude
-              </label>
-              <input
-                type="text"
-                value={centerLng}
-                onChange={(e) => setCenterLng(e.target.value)}
-                className="w-full px-3 py-2.5 bg-[#F3F0EB] border border-[#DDD8D0] rounded-lg text-[#1a1a1a] focus:border-[#E94E3C] text-sm"
-              />
-            </div>
-          </div>
-
-          {error && (
-            <p className="text-sm text-[#b91c1c]">{error}</p>
-          )}
-
-          <div className="flex gap-3 pt-1">
-            <button
-              type="submit"
-              disabled={saving}
-              className="flex-1 px-4 py-2.5 bg-[#E94E3C] text-white font-semibold rounded-lg hover:bg-[#d4443a] transition disabled:opacity-50"
-            >
-              {saving ? "Saving..." : "Save Changes"}
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2.5 bg-[#EFEAE4] border border-[#DDD8D0] text-[#636058] rounded-lg hover:border-[#bbb] transition"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      </div>
+      )}
     </div>
   );
 }

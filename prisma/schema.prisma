@@ -19,6 +19,7 @@ model Trip {
   nights      Int?
   checkIn     DateTime?
   checkOut    DateTime?
+  preferences Json?
   listings    Listing[]
   createdAt   DateTime  @default(now())
 }
@@ -67,6 +68,8 @@ model Listing {
   votes          Vote[]
   comments       Comment[]
   addedBy        String?
+
+  aiFitAssessment Json?
 
   scrapeStatus   String    @default("pending")
   scrapeError    String?   @db.Text

@@ -75,6 +75,39 @@ export interface ScrapedListing {
   reviewCount?: number;
 }
 
+// Trip Preferences
+export type Vibe = "chill" | "balanced" | "active";
+
+export interface TripPreferences {
+  vibe: Vibe | null;
+  mustHaves: string[];
+  niceToHaves: string[];
+  dealbreakers: string[];
+  kidNeeds: string[];
+  notes: string;
+}
+
+export const EMPTY_PREFERENCES: TripPreferences = {
+  vibe: null,
+  mustHaves: [],
+  niceToHaves: [],
+  dealbreakers: [],
+  kidNeeds: [],
+  notes: "",
+};
+
+// AI Fit Assessment
+export type FitScore = "good" | "okay" | "poor";
+
+export interface AIFitAssessment {
+  score: FitScore;
+  checks: string[];
+  warnings: string[];
+  highlights: string[];
+  summary: string;
+  assessedAt: string;
+}
+
 export interface FilterState {
   sources: Platform[];
   priceMin: number;

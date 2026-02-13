@@ -1,41 +1,70 @@
 @import "tailwindcss";
 
 :root {
-  /* Barbados warm palette — slightly muted to reduce glare */
-  --bg: #F3F0EB;
-  --card: #FDFCFA;
-  --panel: #EFEAE4;
-  --panel-border: #E8E3DC;
-  --border: #DDD8D0;
-  --accent: #E94E3C;
-  --accent-hover: #d4443a;
-  --accent-light: rgba(233, 78, 60, 0.06);
-  --accent-border: rgba(233, 78, 60, 0.15);
-  --text: #1a1a1a;
-  --text-secondary: #555;
-  --text-muted: #706B65;
-  --text-faint: #8a8480;
-  --text-ghost: #a09a94;
+  /* Colors — Stay design tokens */
+  --color-bg: #F5F0EB;
+  --color-bg-dark: #EDE7E0;
+  --color-card: #FFFFFF;
+  --color-coral: #E05A47;
+  --color-coral-hover: #cc4f3e;
+  --color-coral-light: rgba(224, 90, 71, 0.07);
+  --color-coral-border: rgba(224, 90, 71, 0.18);
+  --color-text: #2A2520;
+  --color-text-mid: #6B6560;
+  --color-text-muted: #8A8480;
+  --color-text-light: #B5B0AC;
+  --color-border: #E8E3DE;
+  --color-border-dark: #DDD8D0;
+  --color-panel: #EFEAE4;
+  --color-green: #4A9E6B;
+  --color-yellow: #D4A843;
+  --color-red: #b91c1c;
+
+  /* Typography */
+  --font-body: 'DM Sans', sans-serif;
+  --font-mono: 'DM Mono', monospace;
+
+  /* Transitions */
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast: 0.15s;
+  --duration-normal: 0.25s;
+  --duration-slow: 0.35s;
+
+  /* Legacy aliases — keep existing Tailwind classes working */
+  --bg: var(--color-bg);
+  --card: var(--color-card);
+  --panel: var(--color-panel);
+  --panel-border: var(--color-border);
+  --border: var(--color-border-dark);
+  --accent: var(--color-coral);
+  --accent-hover: var(--color-coral-hover);
+  --accent-light: var(--color-coral-light);
+  --accent-border: var(--color-coral-border);
+  --text: var(--color-text);
+  --text-secondary: var(--color-text-mid);
+  --text-muted: var(--color-text-muted);
+  --text-faint: var(--color-text-muted);
+  --text-ghost: var(--color-text-light);
 }
 
 body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
 }
 
 /* Mapbox overrides */
 .mapboxgl-popup-content {
-  background: var(--card) !important;
-  color: var(--text) !important;
-  border: 1px solid var(--border) !important;
+  background: var(--color-card) !important;
+  color: var(--color-text) !important;
+  border: 1px solid var(--color-border) !important;
   border-radius: 8px !important;
   padding: 8px 12px !important;
   box-shadow: 0 2px 10px rgba(0,0,0,0.08) !important;
 }
 
 .mapboxgl-popup-tip {
-  border-top-color: var(--card) !important;
+  border-top-color: var(--color-card) !important;
 }
 
 /* Custom scrollbar */
@@ -48,47 +77,74 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--text-ghost);
+  background: var(--color-text-light);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-faint);
+  background: var(--color-text-muted);
 }
 
 /* Price marker on map */
 .price-marker {
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: var(--font-mono);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 500;
   padding: 5px 12px;
   border-radius: 24px;
   white-space: nowrap;
   cursor: pointer;
-  transition: all 0.15s;
-  background: var(--card);
-  color: var(--text);
-  border: 2px solid var(--text-ghost);
+  transition: all var(--duration-fast) ease;
+  background: var(--color-card);
+  color: var(--color-text);
+  border: 2px solid var(--color-text-light);
   box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
 
-.price-marker:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-  transform: scale(1.08);
+.price-marker:hover,
+.price-marker.hovered {
+  border-color: var(--color-coral);
+  color: var(--color-coral);
+  transform: scale(1.1);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+  z-index: 10 !important;
 }
 
 .price-marker.active {
-  background: var(--accent);
+  background: var(--color-coral);
   color: #fff;
-  border-color: var(--accent);
-  box-shadow: 0 2px 10px rgba(233,78,60,0.25);
+  border-color: var(--color-coral);
+  box-shadow: 0 2px 10px rgba(224,90,71,0.25);
   transform: scale(1.15);
+  z-index: 20 !important;
 }
 
-/* Heading serif font */
+/* Budget-context pin variants */
+.price-marker.budget-low {
+  border-color: #7BAFD4;
+}
+.price-marker.budget-low:hover,
+.price-marker.budget-low.hovered {
+  border-color: var(--color-coral);
+}
+
+.price-marker.budget-high {
+  border-color: var(--color-yellow);
+}
+.price-marker.budget-high:hover,
+.price-marker.budget-high.hovered {
+  border-color: var(--color-coral);
+}
+
+/* Heading font — DM Sans bold */
 .font-heading {
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: var(--font-body);
+  font-weight: 700;
+}
+
+/* Mono font utility */
+.font-mono {
+  font-family: var(--font-mono);
 }
 
 /* Scrape status pulse */
@@ -101,15 +157,66 @@ body {
   animation: pulse-accent 2s ease-in-out infinite;
 }
 
+/* Staggered fade-in for listing cards */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp var(--duration-normal) var(--ease-spring) both;
+}
+
+/* Slide-up animation for modals */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-slide-up {
+  animation: slideUp var(--duration-slow) var(--ease-spring) both;
+}
+
+/* Slide-in from right for detail panel */
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-slide-in-right {
+  animation: slideInRight var(--duration-slow) var(--ease-spring) both;
+}
+
+.animate-fade-in {
+  animation: fadeIn var(--duration-normal) ease both;
+}
+
 /* Focus styles — visible focus ring for keyboard users */
 input:focus-visible, select:focus-visible, textarea:focus-visible {
-  border-color: var(--accent) !important;
-  outline: 2px solid var(--accent);
+  border-color: var(--color-coral) !important;
+  outline: 2px solid var(--color-coral);
   outline-offset: -2px;
 }
 
 button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--color-coral);
   outline-offset: 2px;
   border-radius: 4px;
 }

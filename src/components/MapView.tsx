@@ -3,6 +3,8 @@
 import { useRef, useEffect, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
+import type { BudgetRange } from "@/lib/budget";
+import { getPriceTier } from "@/lib/budget";
 
 interface Listing {
   id: string;
@@ -19,16 +21,22 @@ interface MapViewProps {
   listings: Listing[];
   center: [number, number];
   selectedId: string | null;
+  hoveredId: string | null;
   onSelect: (id: string) => void;
+  onHover: (id: string | null) => void;
   adults: number;
+  budgetRange: BudgetRange | null;
 }
 
 export default function MapView({
   listings,
   center,
   selectedId,
+  hoveredId,
   onSelect,
+  onHover,
   adults,
+  budgetRange,
 }: MapViewProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -84,15 +92,28 @@ export default function MapView({
           ? `$${Math.round(listing.perNight)}/n`
           : "?";
 
+      const listingPrice = listing.perNight || listing.totalCost;
+      const tier = getPriceTier(listingPrice, budgetRange);
+
       const existing = markers.current.get(listing.id);
       if (existing) {
         existing.el.textContent = price;
         existing.marker.setLngLat([listing.lng, listing.lat]);
+        // Update budget class
+        existing.el.classList.remove("budget-low", "budget-high");
+        if (tier === "low") existing.el.classList.add("budget-low");
+        if (tier === "high") existing.el.classList.add("budget-high");
       } else {
         const el = document.createElement("div");
         el.className = "price-marker";
         el.textContent = price;
+
+        if (tier === "low") el.classList.add("budget-low");
+        if (tier === "high") el.classList.add("budget-high");
+
         el.addEventListener("click", () => onSelect(listing.id));
+        el.addEventListener("mouseenter", () => onHover(listing.id));
+        el.addEventListener("mouseleave", () => onHover(null));
 
         const marker = new mapboxgl.Marker({ element: el })
           .setLngLat([listing.lng, listing.lat])
@@ -101,14 +122,21 @@ export default function MapView({
         markers.current.set(listing.id, { marker, el });
       }
     });
-  }, [listings, noToken, onSelect, adults]);
+  }, [listings, noToken, onSelect, onHover, adults, budgetRange]);
 
+  // Update selected/hovered classes
   useEffect(() => {
     markers.current.forEach((entry, id) => {
       if (id === selectedId) {
         entry.el.classList.add("active");
       } else {
         entry.el.classList.remove("active");
+      }
+
+      if (id === hoveredId && id !== selectedId) {
+        entry.el.classList.add("hovered");
+      } else {
+        entry.el.classList.remove("hovered");
       }
     });
 
@@ -121,21 +149,21 @@ export default function MapView({
         });
       }
     }
-  }, [selectedId, listings]);
+  }, [selectedId, hoveredId, listings]);
 
   if (noToken) {
     return (
       <div style={{
-        height: "100%", background: "#F3F0EB",
+        height: "100%", background: "var(--color-bg)",
         display: "flex", alignItems: "center", justifyContent: "center", padding: 32,
       }}>
         <div style={{ textAlign: "center", maxWidth: 320 }}>
           <div style={{ fontSize: 44, marginBottom: 12, opacity: 0.3 }}>&#127758;</div>
-          <h3 style={{ fontSize: 18, fontWeight: 700, color: "#1a1a1a", marginBottom: 8 }}>
+          <h3 style={{ fontSize: 18, fontWeight: 700, color: "var(--color-text)", marginBottom: 8 }}>
             Map View
           </h3>
-          <p style={{ fontSize: 13, color: "#706B65", marginBottom: 16 }}>
-            Set <code style={{ color: "#E94E3C", background: "#EFEAE4", padding: "1px 6px", borderRadius: 4 }}>
+          <p style={{ fontSize: 13, color: "var(--color-text-mid)", marginBottom: 16 }}>
+            Set <code style={{ color: "var(--color-coral)", background: "var(--color-panel)", padding: "1px 6px", borderRadius: 4 }}>
               NEXT_PUBLIC_MAPBOX_TOKEN
             </code> in your <code>.env</code> to enable the map.
           </p>
@@ -148,9 +176,9 @@ export default function MapView({
                   style={{
                     width: "100%", textAlign: "left" as const, padding: "8px 12px", borderRadius: 8,
                     fontSize: 13, cursor: "pointer", fontFamily: "inherit",
-                    border: selectedId === l.id ? "1px solid #E94E3C" : "1px solid #DDD8D0",
-                    background: selectedId === l.id ? "rgba(233,78,60,0.06)" : "#fff",
-                    color: selectedId === l.id ? "#E94E3C" : "#706B65",
+                    border: selectedId === l.id ? "1px solid var(--color-coral)" : "1px solid var(--color-border-dark)",
+                    background: selectedId === l.id ? "var(--color-coral-light)" : "#fff",
+                    color: selectedId === l.id ? "var(--color-coral)" : "var(--color-text-mid)",
                   }}
                 >
                   {l.name}

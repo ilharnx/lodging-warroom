@@ -55,6 +55,7 @@ export async function PATCH(
     if (body.nights !== undefined) data.nights = body.nights ? Number(body.nights) : null;
     if (body.checkIn !== undefined) data.checkIn = body.checkIn ? new Date(body.checkIn) : null;
     if (body.checkOut !== undefined) data.checkOut = body.checkOut ? new Date(body.checkOut) : null;
+    if (body.preferences !== undefined) data.preferences = body.preferences;
 
     const trip = await prisma.trip.update({
       where: { id: tripId },
