@@ -155,7 +155,7 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
           gap: 12,
         }}>
           <div>
-            <label style={{ fontSize: 10, fontWeight: 700, color: "#706B65", marginBottom: 5, display: "block", textTransform: "uppercase", letterSpacing: 1.2 }}>
+            <label className="font-mono" style={{ fontSize: 10, fontWeight: 700, color: "#706B65", marginBottom: 5, display: "block", textTransform: "uppercase", letterSpacing: 1.2 }}>
               Min Bedrooms
             </label>
             <select
@@ -172,7 +172,7 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
           </div>
 
           <div>
-            <label style={{ fontSize: 10, fontWeight: 700, color: "#706B65", marginBottom: 5, display: "block", textTransform: "uppercase", letterSpacing: 1.2 }}>
+            <label className="font-mono" style={{ fontSize: 10, fontWeight: 700, color: "#706B65", marginBottom: 5, display: "block", textTransform: "uppercase", letterSpacing: 1.2 }}>
               Min Bathrooms
             </label>
             <select
@@ -189,7 +189,7 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
           </div>
 
           <div>
-            <label style={{ fontSize: 10, fontWeight: 700, color: "#706B65", marginBottom: 5, display: "block", textTransform: "uppercase", letterSpacing: 1.2 }}>
+            <label className="font-mono" style={{ fontSize: 10, fontWeight: 700, color: "#706B65", marginBottom: 5, display: "block", textTransform: "uppercase", letterSpacing: 1.2 }}>
               Kitchen
             </label>
             <div style={{ display: "flex", gap: 4 }}>
@@ -212,7 +212,7 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
           </div>
 
           <div>
-            <label style={{ fontSize: 10, fontWeight: 700, color: "#706B65", marginBottom: 5, display: "block", textTransform: "uppercase", letterSpacing: 1.2 }}>
+            <label className="font-mono" style={{ fontSize: 10, fontWeight: 700, color: "#706B65", marginBottom: 5, display: "block", textTransform: "uppercase", letterSpacing: 1.2 }}>
               Min Rating
             </label>
             <select

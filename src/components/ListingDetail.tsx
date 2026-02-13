@@ -131,7 +131,7 @@ function FitBadge({ score }: { score: "good" | "okay" | "poor" }) {
   };
   const c = config[score];
   return (
-    <span style={{ padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600, background: c.bg, border: `1px solid ${c.border}`, color: c.color }}>
+    <span className="font-mono" style={{ padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600, background: c.bg, border: `1px solid ${c.border}`, color: c.color, letterSpacing: 0.3, textTransform: "uppercase" as const }}>
       {c.label}
     </span>
   );
@@ -194,7 +194,7 @@ function FitSection({ assessment, listingId, hasPreferences }: { assessment: AIF
     <div style={{ padding: "0 20px 16px" }}>
       <div style={{ padding: 16, background: "var(--color-bg)", borderRadius: 10, border: "1px solid var(--color-border-dark)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-          <h3 style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", margin: 0 }}>
+          <h3 className="font-mono" style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", margin: 0 }}>
             Group Fit
           </h3>
           <FitBadge score={data.score} />
@@ -480,7 +480,7 @@ export function ListingDetail({
           <div style={{ padding: "20px 20px 16px" }}>
             <div style={{ display: "flex", alignItems: "start", gap: 10 }}>
               <span
-                className={`shrink-0 mt-1 px-2.5 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wide ${sourceColor(
+                className={`shrink-0 mt-1 px-2.5 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wide font-mono ${sourceColor(
                   listing.source
                 )}`}
               >
@@ -506,9 +506,9 @@ export function ListingDetail({
                     placeholder="Listing name"
                   />
                 ) : (
-                  <h2 style={{
+                  <h2 className="font-heading" style={{
                     fontSize: 18,
-                    fontWeight: 700,
+                    fontWeight: 600,
                     color: isGenericName ? "var(--color-text-mid)" : "var(--color-text)",
                     lineHeight: 1.3,
                     margin: 0,
@@ -522,12 +522,12 @@ export function ListingDetail({
               </div>
               {listing.rating != null && listing.rating > 0 && (
                 <div style={{ textAlign: "right", flexShrink: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)" }}>
+                  <div className="font-mono" style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)" }}>
                     <span style={{ color: "#D4A017" }}>&#9733;</span>{" "}
                     {listing.rating}
                   </div>
                   {listing.reviewCount != null && listing.reviewCount > 0 && (
-                    <div style={{ fontSize: 11, color: "var(--color-text-mid)" }}>
+                    <div className="font-mono" style={{ fontSize: 11, color: "var(--color-text-mid)" }}>
                       {listing.reviewCount.toLocaleString()} reviews
                     </div>
                   )}
@@ -591,7 +591,7 @@ export function ListingDetail({
               {editing ? (
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                   <div>
-                    <label style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", display: "block", marginBottom: 4 }}>
+                    <label className="font-mono" style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", display: "block", marginBottom: 4 }}>
                       Per Night ($)
                     </label>
                     <input
@@ -603,7 +603,7 @@ export function ListingDetail({
                     />
                   </div>
                   <div>
-                    <label style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", display: "block", marginBottom: 4 }}>
+                    <label className="font-mono" style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", display: "block", marginBottom: 4 }}>
                       Total ($)
                     </label>
                     <input
@@ -615,7 +615,7 @@ export function ListingDetail({
                     />
                   </div>
                   <div>
-                    <label style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", display: "block", marginBottom: 4 }}>
+                    <label className="font-mono" style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", display: "block", marginBottom: 4 }}>
                       Bedrooms
                     </label>
                     <input
@@ -627,7 +627,7 @@ export function ListingDetail({
                     />
                   </div>
                   <div>
-                    <label style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", display: "block", marginBottom: 4 }}>
+                    <label className="font-mono" style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", display: "block", marginBottom: 4 }}>
                       Bathrooms
                     </label>
                     <input
@@ -888,7 +888,7 @@ export function ListingDetail({
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
                   {listing.bedrooms != null && (
                     <div style={{ padding: 12, background: "var(--color-bg)", borderRadius: 8, border: "1px solid var(--color-border-dark)" }}>
-                      <div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", marginBottom: 4 }}>Bedrooms</div>
+                      <div className="font-mono" style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", marginBottom: 4 }}>Bedrooms</div>
                       <div style={{ fontSize: 18, fontWeight: 700, color: "var(--color-text)" }}>{listing.bedrooms}</div>
                       {beds.length > 0 && (
                         <div style={{ marginTop: 4, fontSize: 11, color: "var(--color-text-mid)" }}>
@@ -901,21 +901,21 @@ export function ListingDetail({
                   )}
                   {listing.bathrooms != null && (
                     <div style={{ padding: 12, background: "var(--color-bg)", borderRadius: 8, border: "1px solid var(--color-border-dark)" }}>
-                      <div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", marginBottom: 4 }}>Bathrooms</div>
+                      <div className="font-mono" style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", marginBottom: 4 }}>Bathrooms</div>
                       <div style={{ fontSize: 18, fontWeight: 700, color: "var(--color-text)" }}>{listing.bathrooms}</div>
                       {listing.bathroomNotes && <div style={{ marginTop: 4, fontSize: 11, color: "var(--color-text-mid)" }}>{listing.bathroomNotes}</div>}
                     </div>
                   )}
                   {listing.kitchen && (
                     <div style={{ padding: 12, background: "var(--color-bg)", borderRadius: 8, border: "1px solid var(--color-border-dark)" }}>
-                      <div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", marginBottom: 4 }}>Kitchen</div>
+                      <div className="font-mono" style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", marginBottom: 4 }}>Kitchen</div>
                       <div style={{ fontSize: 16, fontWeight: 700, color: "var(--color-text)", textTransform: "capitalize" as const }}>{listing.kitchen}</div>
                       {listing.kitchenDetails && <div style={{ marginTop: 4, fontSize: 11, color: "var(--color-text-mid)" }}>{listing.kitchenDetails}</div>}
                     </div>
                   )}
                   {listing.beachDistance && (
                     <div style={{ padding: 12, background: "var(--color-bg)", borderRadius: 8, border: "1px solid var(--color-border-dark)" }}>
-                      <div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", marginBottom: 4 }}>Beach</div>
+                      <div className="font-mono" style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", marginBottom: 4 }}>Beach</div>
                       <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)" }}>{listing.beachDistance}</div>
                       {listing.beachType && <div style={{ marginTop: 4, fontSize: 11, color: "var(--color-text-mid)" }}>{listing.beachType} water</div>}
                     </div>
@@ -935,7 +935,7 @@ export function ListingDetail({
               {/* Amenities */}
               {amenities.length > 0 && (
                 <div style={{ marginBottom: 16 }}>
-                  <h3 style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", marginBottom: 8 }}>
+                  <h3 className="font-mono" style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", marginBottom: 8 }}>
                     Amenities
                   </h3>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
@@ -951,7 +951,7 @@ export function ListingDetail({
               {/* Description */}
               {listing.description && (
                 <div>
-                  <h3 style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", marginBottom: 8 }}>
+                  <h3 className="font-mono" style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", marginBottom: 8 }}>
                     Description
                   </h3>
                   <p style={{ fontSize: 13, color: "var(--color-text-mid)", lineHeight: 1.6, margin: 0 }}>
@@ -980,7 +980,7 @@ export function ListingDetail({
 
           {/* Comments */}
           <div style={{ borderTop: "1px solid var(--color-border-dark)", padding: 20 }}>
-            <h3 style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", marginBottom: 12 }}>
+            <h3 className="font-mono" style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", marginBottom: 12 }}>
               Comments ({listing.comments.length})
             </h3>
 

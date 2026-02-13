@@ -103,7 +103,7 @@ export function AddListingModal({
     >
       <div ref={modalRef} role="dialog" aria-modal="true" aria-labelledby="add-listing-title" className="animate-slide-up bg-white border border-[#DDD8D0] rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
         <div className="flex items-center justify-between mb-4">
-          <h2 id="add-listing-title" className="text-lg font-bold text-[#1a1a1a]">Add Listings</h2>
+          <h2 id="add-listing-title" className="text-lg font-bold text-[#1a1a1a] font-heading">Add Listings</h2>
           <button
             onClick={onClose}
             aria-label="Close"

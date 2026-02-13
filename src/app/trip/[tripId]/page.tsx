@@ -330,9 +330,10 @@ export default function TripPage({
             href="/"
             style={{
               fontSize: 16,
-              fontWeight: 700,
+              fontWeight: 600,
               color: "var(--color-coral)",
               textDecoration: "none",
+              fontFamily: "var(--font-heading)",
             }}
           >
             Stay
@@ -348,6 +349,7 @@ export default function TripPage({
               fontWeight: 600,
               color: "var(--color-text)",
               margin: 0,
+              fontFamily: "var(--font-heading)",
             }}
           >
             {trip.name}
@@ -487,6 +489,7 @@ export default function TripPage({
                       fontWeight: 600,
                       color: "var(--color-text)",
                       marginBottom: 8,
+                      fontFamily: "var(--font-heading)",
                     }}
                   >
                     No listings yet
@@ -603,9 +606,10 @@ export default function TripPage({
             <h2
               style={{
                 fontSize: 18,
-                fontWeight: 700,
+                fontWeight: 600,
                 color: "var(--color-text)",
                 marginBottom: 4,
+                fontFamily: "var(--font-heading)",
               }}
             >
               What&apos;s your name?

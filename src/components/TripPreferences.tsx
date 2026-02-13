@@ -144,12 +144,14 @@ export function TripPreferences({
     color: "var(--color-text-mid)",
     marginBottom: 4,
     display: "block",
+    fontFamily: "var(--font-mono)",
   };
   const titleStyle: React.CSSProperties = {
     fontSize: 18,
-    fontWeight: 700,
+    fontWeight: 600,
     color: "var(--color-text)",
     marginBottom: 12,
+    fontFamily: "var(--font-heading)",
   };
 
   return (
@@ -174,7 +176,7 @@ export function TripPreferences({
         >
           &larr; Back to trip
         </button>
-        <h1 style={{ fontSize: 16, fontWeight: 700, color: "var(--color-text)", margin: 0 }}>
+        <h1 style={{ fontSize: 16, fontWeight: 600, color: "var(--color-text)", margin: 0, fontFamily: "var(--font-heading)" }}>
           Trip Preferences
         </h1>
         <button

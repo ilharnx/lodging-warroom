@@ -118,7 +118,7 @@ export default function Home() {
     <div className="min-h-screen" style={{ background: "var(--color-bg)" }}>
       <header style={{ borderBottom: "1px solid var(--color-border-dark)", padding: "16px 24px" }}>
         <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: "var(--color-coral)" }}>
+          <h1 style={{ fontSize: 20, fontWeight: 600, color: "var(--color-coral)", fontFamily: "var(--font-heading)" }}>
             Stay
           </h1>
           <button
@@ -150,7 +150,7 @@ export default function Home() {
           </div>
         ) : trips.length === 0 && !showCreate ? (
           <div className="text-center py-20">
-            <h2 style={{ fontSize: 24, fontWeight: 700, color: "var(--color-text)", marginBottom: 8 }}>
+            <h2 style={{ fontSize: 24, fontWeight: 600, color: "var(--color-text)", marginBottom: 8, fontFamily: "var(--font-heading)" }}>
               Plan your next group trip
             </h2>
             <p style={{ color: "var(--color-text-mid)", marginBottom: 32, maxWidth: 420, marginInline: "auto" }}>
@@ -222,12 +222,12 @@ export default function Home() {
 
         {showCreate && (
           <div className="max-w-lg mx-auto animate-slide-up">
-            <h2 style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text)", marginBottom: 24 }}>
+            <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--color-text)", marginBottom: 24, fontFamily: "var(--font-heading)" }}>
               Create a Trip
             </h2>
             <form onSubmit={createTrip} className="space-y-4">
               <div>
-                <label style={{ display: "block", fontSize: 12, color: "var(--color-text-mid)", marginBottom: 4 }}>
+                <label style={{ display: "block", fontSize: 11, color: "var(--color-text-mid)", marginBottom: 4, fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: 0.8 }}>
                   Trip Name
                 </label>
                 <input
@@ -250,7 +250,7 @@ export default function Home() {
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: 12, color: "var(--color-text-mid)", marginBottom: 4 }}>
+                <label style={{ display: "block", fontSize: 11, color: "var(--color-text-mid)", marginBottom: 4, fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: 0.8 }}>
                   Destination
                 </label>
                 <input
@@ -304,7 +304,7 @@ export default function Home() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label style={{ display: "block", fontSize: 12, color: "var(--color-text-mid)", marginBottom: 4 }}>
+                  <label style={{ display: "block", fontSize: 11, color: "var(--color-text-mid)", marginBottom: 4, fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: 0.8 }}>
                     Center Latitude
                   </label>
                   <input
@@ -326,7 +326,7 @@ export default function Home() {
                   />
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: 12, color: "var(--color-text-mid)", marginBottom: 4 }}>
+                  <label style={{ display: "block", fontSize: 11, color: "var(--color-text-mid)", marginBottom: 4, fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: 0.8 }}>
                     Center Longitude
                   </label>
                   <input
@@ -351,7 +351,7 @@ export default function Home() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label style={{ display: "block", fontSize: 12, color: "var(--color-text-mid)", marginBottom: 4 }}>
+                  <label style={{ display: "block", fontSize: 11, color: "var(--color-text-mid)", marginBottom: 4, fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: 0.8 }}>
                     Adults
                   </label>
                   <input
@@ -372,7 +372,7 @@ export default function Home() {
                   />
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: 12, color: "var(--color-text-mid)", marginBottom: 4 }}>
+                  <label style={{ display: "block", fontSize: 11, color: "var(--color-text-mid)", marginBottom: 4, fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: 0.8 }}>
                     Kids
                   </label>
                   <input
@@ -477,7 +477,7 @@ function TripCard({ trip }: { trip: Trip }) {
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 22 }}>{flag}</span>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <h3 style={{ fontSize: 17, fontWeight: 700, color: "var(--color-text)", margin: 0, lineHeight: 1.3 }}>
+            <h3 style={{ fontSize: 17, fontWeight: 600, color: "var(--color-text)", margin: 0, lineHeight: 1.3, fontFamily: "var(--font-heading)" }}>
               {trip.name}
             </h3>
             <p style={{ fontSize: 13, color: "var(--color-text-mid)", margin: 0, marginTop: 2 }}>

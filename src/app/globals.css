@@ -21,8 +21,9 @@
   --color-red: #b91c1c;
 
   /* Typography */
-  --font-body: 'DM Sans', sans-serif;
-  --font-mono: 'DM Mono', monospace;
+  --font-heading: 'Fraunces', serif;
+  --font-body: 'Plus Jakarta Sans', sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
 
   /* Transitions */
   --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
@@ -136,13 +137,13 @@ body {
   border-color: var(--color-coral);
 }
 
-/* Heading font — DM Sans bold */
+/* Heading font — Fraunces serif */
 .font-heading {
-  font-family: var(--font-body);
-  font-weight: 700;
+  font-family: var(--font-heading);
+  font-weight: 600;
 }
 
-/* Mono font utility */
+/* Mono font utility — IBM Plex Mono for data/labels */
 .font-mono {
   font-family: var(--font-mono);
 }

@@ -94,6 +94,7 @@ function Badge({ source }: { source: string }) {
         fontWeight: 700,
         letterSpacing: 0.6,
         textTransform: "uppercase",
+        fontFamily: "var(--font-mono)",
       }}
     >
       {labels[source] || source}
@@ -242,7 +243,7 @@ export function ListingCard({
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
           <Badge source={listing.source} />
           {listing.rating != null && listing.rating > 0 && (
-            <span style={{ fontSize: 12, color: "var(--color-text-mid)", display: "flex", alignItems: "center", gap: 3 }}>
+            <span className="font-mono" style={{ fontSize: 12, color: "var(--color-text-mid)", display: "flex", alignItems: "center", gap: 3 }}>
               <span style={{ color: "var(--color-coral)" }}>&#9733;</span> {listing.rating}
               {listing.reviewCount ? <span style={{ color: "var(--color-text-muted)" }}>({listing.reviewCount})</span> : null}
             </span>
@@ -273,7 +274,7 @@ export function ListingCard({
                   {formatPrice(listing.totalCost, listing.currency)}
                 </div>
                 <div style={{ fontSize: 11, color: "var(--color-text-mid)" }}>
-                  {perPerson ? `$${perPerson}/person` : "total"}
+                  {perPerson ? <span className="font-mono">${perPerson}/person</span> : "total"}
                 </div>
               </>
             ) : listing.perNight ? (
@@ -281,7 +282,7 @@ export function ListingCard({
                 <div className="font-mono" style={{ fontSize: 20, fontWeight: 700, color: "var(--color-coral)" }}>
                   {formatPrice(listing.perNight, listing.currency)}
                 </div>
-                <div style={{ fontSize: 11, color: "var(--color-text-mid)" }}>/night</div>
+                <div className="font-mono" style={{ fontSize: 11, color: "var(--color-text-mid)" }}>/night</div>
               </>
             ) : (
               <span style={{ fontSize: 12, color: "var(--color-text-muted)", fontStyle: "italic" }}>
