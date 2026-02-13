@@ -74,6 +74,7 @@ export default function Home() {
     kids: "2",
   });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/trips")
@@ -85,7 +86,11 @@ export default function Home() {
         setTrips(Array.isArray(data) ? data : []);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch((err) => {
+        console.error("Failed to load trips:", err);
+        setError("Could not load trips — the database may need a schema update. Try running: npx prisma db push");
+        setLoading(false);
+      });
   }, []);
 
   async function createTrip(e: React.FormEvent) {
@@ -150,6 +155,31 @@ export default function Home() {
         {loading ? (
           <div className="text-center py-20" style={{ color: "var(--color-text-mid)" }}>
             Loading...
+          </div>
+        ) : error ? (
+          <div className="text-center py-20">
+            <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--color-text)", marginBottom: 8, fontFamily: "var(--font-heading)" }}>
+              Something went wrong
+            </h2>
+            <p style={{ color: "var(--color-text-mid)", marginBottom: 24, maxWidth: 480, marginInline: "auto", fontSize: 14 }}>
+              {error}
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              style={{
+                padding: "10px 20px",
+                background: "var(--color-coral)",
+                color: "#fff",
+                fontWeight: 600,
+                borderRadius: 8,
+                border: "none",
+                cursor: "pointer",
+                fontFamily: "inherit",
+                fontSize: 14,
+              }}
+            >
+              Retry
+            </button>
           </div>
         ) : trips.length === 0 && !showCreate ? (
           <div className="text-center py-20">
