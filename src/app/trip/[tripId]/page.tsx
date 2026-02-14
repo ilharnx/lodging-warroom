@@ -10,7 +10,7 @@ import { FilterBar } from "@/components/FilterBar";
 import { TripPreferences } from "@/components/TripPreferences";
 import { computeBudgetRange } from "@/lib/budget";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import type { FilterState, KitchenType, TripPreferences as TripPreferencesType } from "@/types";
+import type { FilterState, KitchenType, TripPreferences as TripPreferencesType, ReactionType } from "@/types";
 
 const MapView = dynamic(() => import("@/components/MapView"), { ssr: false });
 
@@ -59,10 +59,10 @@ const GROUP_META: Record<ConsensusGroup, { label: string; icon: string; color: s
 function computeConsensusGroups(listings: Listing[]): GroupedListings {
   const groups: GroupedListings = { into: [], deciding: [], not: [] };
   for (const listing of listings) {
-    const votes: { value: number }[] = listing.votes || [];
+    const votes: { reactionType: string }[] = listing.votes || [];
     const total = votes.length;
-    const positive = votes.filter((v) => v.value > 0).length;
-    const negative = votes.filter((v) => v.value < 0).length;
+    const positive = votes.filter((v) => v.reactionType === "fire" || v.reactionType === "love").length;
+    const negative = votes.filter((v) => v.reactionType === "pass").length;
 
     // Edge cases: 0 or 1 reaction → "Still deciding"
     if (total <= 1) {
@@ -137,15 +137,15 @@ function applyFilters(listings: Listing[], filters: FilterState): Listing[] {
       break;
     case "votes_desc":
       result.sort((a, b) => {
-        const va = (a.votes || []).reduce(
-          (s: number, v: { value: number }) => s + v.value,
-          0
-        );
-        const vb = (b.votes || []).reduce(
-          (s: number, v: { value: number }) => s + v.value,
-          0
-        );
-        return vb - va;
+        const score = (votes: { reactionType: string }[]) => {
+          let s = 0;
+          for (const v of votes) {
+            if (v.reactionType === "fire" || v.reactionType === "love") s += 1;
+            else if (v.reactionType === "pass") s -= 1;
+          }
+          return s;
+        };
+        return score(b.votes || []) - score(a.votes || []);
       });
       break;
     case "rating":
@@ -319,8 +319,8 @@ export default function TripPage({
     setShowNamePrompt(false);
   }
 
-  // Voting
-  async function handleVote(listingId: string, value: 1 | -1) {
+  // Reactions
+  async function handleReact(listingId: string, reactionType: ReactionType) {
     if (!userName) {
       setShowNamePrompt(true);
       return;
@@ -328,7 +328,7 @@ export default function TripPage({
     await fetch(`/api/listings/${listingId}/vote`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userName, value }),
+      body: JSON.stringify({ userName, reactionType }),
     });
     fetchTrip();
   }
@@ -522,7 +522,8 @@ export default function TripPage({
                 index={indexOffset + i}
                 onSelect={() => openDetail(listing)}
                 onViewDetail={() => openDetail(listing)}
-                onVote={(value) => handleVote(listing.id, value)}
+                onReact={(reactionType) => handleReact(listing.id, reactionType)}
+                onRemoveReaction={() => handleRemoveVote(listing.id)}
                 onRescrape={() => handleRescrape(listing.id)}
                 onMouseEnter={() => setHoveredId(listing.id)}
                 onMouseLeave={() => setHoveredId(null)}
@@ -601,8 +602,8 @@ export default function TripPage({
       onClose={closeDetail}
       onRefresh={fetchTrip}
       onNeedName={() => setShowNamePrompt(true)}
-      onVote={(value) => handleVote(detailListing.id, value)}
-      onRemoveVote={() => handleRemoveVote(detailListing.id)}
+      onReact={(reactionType) => handleReact(detailListing.id, reactionType)}
+      onRemoveReaction={() => handleRemoveVote(detailListing.id)}
       onRescrape={() => handleRescrape(detailListing.id)}
       budgetRange={budgetRange}
       hasPreferences={!!tripPrefs}

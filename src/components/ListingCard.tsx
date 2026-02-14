@@ -1,6 +1,8 @@
 "use client";
 
 import type { BudgetRange } from "@/lib/budget";
+import { ReactionBar } from "./ReactionBar";
+import type { ReactionType } from "./ReactionBar";
 
 interface Photo {
   id: string;
@@ -11,7 +13,7 @@ interface Photo {
 interface Vote {
   id: string;
   userName: string;
-  value: number;
+  reactionType: ReactionType;
 }
 
 interface Comment {
@@ -63,7 +65,8 @@ interface ListingCardProps {
   index: number;
   onSelect: () => void;
   onViewDetail: () => void;
-  onVote: (value: 1 | -1) => void;
+  onReact: (reactionType: ReactionType) => void;
+  onRemoveReaction: () => void;
   onRescrape?: () => void;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
@@ -133,14 +136,13 @@ export function ListingCard({
   userName,
   index,
   onSelect,
-  onVote,
+  onReact,
+  onRemoveReaction,
   onRescrape,
   onMouseEnter,
   onMouseLeave,
   budgetRange,
 }: ListingCardProps) {
-  const voteTotal = listing.votes.reduce((sum, v) => sum + v.value, 0);
-  const userVote = listing.votes.find((v) => v.userName === userName);
   const perPerson =
     listing.totalCost && adults > 0
       ? Math.round(listing.totalCost / adults)
@@ -158,8 +160,6 @@ export function ListingCard({
 
   const amenities: string[] = Array.isArray(listing.amenities) ? listing.amenities : [];
   const listingPrice = listing.perNight || listing.totalCost;
-
-  const upvoters = listing.votes.filter((v) => v.value > 0).map((v) => v.userName);
 
   return (
     <div
@@ -459,52 +459,18 @@ export function ListingCard({
           );
         })()}
 
-        {/* Actions */}
+        {/* Reactions + link */}
         <div style={{
           display: "flex", justifyContent: "space-between", alignItems: "center",
           marginTop: 12, paddingTop: 10, borderTop: "1px solid var(--color-border)",
         }}>
-          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            <button
-              aria-label="Upvote"
-              onClick={(e) => { e.stopPropagation(); onVote(1); }}
-              style={{
-                background: userVote?.value === 1 ? "var(--color-coral-light)" : "#fff",
-                border: userVote?.value === 1 ? "1px solid var(--color-coral)" : "1px solid var(--color-border-dark)",
-                borderRadius: 8, padding: "6px 12px", cursor: "pointer",
-                fontSize: 12, fontWeight: 700, fontFamily: "inherit",
-                color: userVote?.value === 1 ? "var(--color-coral)" : "var(--color-text-mid)",
-                transition: "all 0.15s",
-                display: "flex", alignItems: "center", gap: 4,
-                minHeight: 40,
-              }}
-            >
-              &#128293;
-              <span className="font-mono" style={{ fontSize: 14, fontWeight: 700, color: voteTotal > 0 ? "var(--color-coral)" : "var(--color-text-mid)" }}>
-                {voteTotal}
-              </span>
-            </button>
-            <button
-              aria-label="Downvote"
-              onClick={(e) => { e.stopPropagation(); onVote(-1); }}
-              style={{
-                background: userVote?.value === -1 ? "rgba(185,28,28,0.06)" : "#fff",
-                border: userVote?.value === -1 ? "1px solid #ef4444" : "1px solid var(--color-border-dark)",
-                borderRadius: 8, padding: "6px 10px", cursor: "pointer",
-                fontSize: 12, fontFamily: "inherit",
-                color: userVote?.value === -1 ? "#ef4444" : "var(--color-text-muted)",
-                transition: "all 0.15s",
-                minHeight: 40,
-              }}
-            >
-              &#128078;
-            </button>
-            {upvoters.length > 0 && (
-              <span style={{ fontSize: 10, color: "var(--color-text-muted)", marginLeft: 2 }}>
-                {upvoters.slice(0, 2).join(", ")}{upvoters.length > 2 ? ` +${upvoters.length - 2}` : ""}
-              </span>
-            )}
-          </div>
+          <ReactionBar
+            votes={listing.votes}
+            userName={userName}
+            mode="compact"
+            onReact={onReact}
+            onRemoveReaction={onRemoveReaction}
+          />
           <a
             href={listing.url}
             target="_blank"
@@ -517,6 +483,7 @@ export function ListingCard({
               minHeight: 40,
               display: "flex",
               alignItems: "center",
+              flexShrink: 0,
             }}
           >
             View &#8599;

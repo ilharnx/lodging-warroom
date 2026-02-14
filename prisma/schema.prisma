@@ -88,13 +88,21 @@ model Photo {
   sortOrder Int     @default(0)
 }
 
+enum ReactionType {
+  fire
+  love
+  think
+  pass
+}
+
 model Vote {
-  id        String   @id @default(cuid())
-  listingId String
-  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  userName  String
-  value     Int
-  createdAt DateTime @default(now())
+  id           String       @id @default(cuid())
+  listingId    String
+  listing      Listing      @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  userName     String
+  value        Int          @default(0)
+  reactionType ReactionType @default(fire)
+  createdAt    DateTime     @default(now())
 
   @@unique([listingId, userName])
 }
