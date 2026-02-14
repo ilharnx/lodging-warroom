@@ -6,6 +6,7 @@ import type { FilterState, Platform, KitchenType } from "@/types";
 interface FilterBarProps {
   filters: FilterState;
   onChange: (filters: FilterState) => void;
+  isMobile?: boolean;
 }
 
 const SOURCES: { key: Platform; label: string }[] = [
@@ -14,7 +15,7 @@ const SOURCES: { key: Platform; label: string }[] = [
   { key: "booking", label: "Booking" },
 ];
 
-export function FilterBar({ filters, onChange }: FilterBarProps) {
+export function FilterBar({ filters, onChange, isMobile }: FilterBarProps) {
   const [expanded, setExpanded] = useState(false);
   const activeCount = countActiveFilters(filters);
 
@@ -45,7 +46,7 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
   }
 
   const chip = (active: boolean): React.CSSProperties => ({
-    padding: "6px 14px",
+    padding: isMobile ? "8px 14px" : "6px 14px",
     borderRadius: 20,
     fontSize: 12,
     cursor: "pointer",
@@ -56,6 +57,9 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
     background: active ? "rgba(233,78,60,0.06)" : "#fff",
     color: active ? "#E94E3C" : "#706B65",
     whiteSpace: "nowrap",
+    minHeight: isMobile ? 40 : undefined,
+    display: "flex",
+    alignItems: "center",
   });
 
   const dropStyle: React.CSSProperties = {
@@ -74,11 +78,13 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
   return (
     <div style={{ borderBottom: "1px solid #DDD8D0", flexShrink: 0, background: "#fff" }}>
       <div style={{
-        padding: "12px 28px",
+        padding: isMobile ? "8px 12px" : "12px 28px",
         display: "flex",
-        flexWrap: "wrap",
-        gap: 8,
+        flexWrap: isMobile ? "nowrap" : "wrap",
+        gap: isMobile ? 6 : 8,
         alignItems: "center",
+        overflowX: isMobile ? "auto" : undefined,
+        WebkitOverflowScrolling: "touch" as const,
       }}>
         {/* Sort */}
         <select
@@ -137,10 +143,10 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
       {/* Expanded filters */}
       {expanded && (
         <div style={{
-          padding: "12px 28px 16px",
+          padding: isMobile ? "12px 12px 16px" : "12px 28px 16px",
           borderTop: "1px solid #E8E3DC",
           display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
+          gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)",
           gap: 12,
         }}>
           <div>

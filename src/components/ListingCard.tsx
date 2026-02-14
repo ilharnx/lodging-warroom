@@ -390,11 +390,12 @@ export function ListingCard({
               style={{
                 background: userVote?.value === 1 ? "var(--color-coral-light)" : "#fff",
                 border: userVote?.value === 1 ? "1px solid var(--color-coral)" : "1px solid var(--color-border-dark)",
-                borderRadius: 8, padding: "4px 10px", cursor: "pointer",
+                borderRadius: 8, padding: "6px 12px", cursor: "pointer",
                 fontSize: 12, fontWeight: 700, fontFamily: "inherit",
                 color: userVote?.value === 1 ? "var(--color-coral)" : "var(--color-text-mid)",
                 transition: "all 0.15s",
                 display: "flex", alignItems: "center", gap: 4,
+                minHeight: 40,
               }}
             >
               &#128293;
@@ -408,10 +409,11 @@ export function ListingCard({
               style={{
                 background: userVote?.value === -1 ? "rgba(185,28,28,0.06)" : "#fff",
                 border: userVote?.value === -1 ? "1px solid #ef4444" : "1px solid var(--color-border-dark)",
-                borderRadius: 8, padding: "4px 8px", cursor: "pointer",
+                borderRadius: 8, padding: "6px 10px", cursor: "pointer",
                 fontSize: 12, fontFamily: "inherit",
                 color: userVote?.value === -1 ? "#ef4444" : "var(--color-text-muted)",
                 transition: "all 0.15s",
+                minHeight: 40,
               }}
             >
               &#128078;
@@ -429,8 +431,11 @@ export function ListingCard({
             onClick={(e) => e.stopPropagation()}
             style={{
               fontSize: 12, color: "var(--color-coral)", fontWeight: 600, textDecoration: "none",
-              padding: "4px 10px", border: "1px solid var(--color-coral-border)", borderRadius: 8,
+              padding: "6px 12px", border: "1px solid var(--color-coral-border)", borderRadius: 8,
               transition: "all 0.15s",
+              minHeight: 40,
+              display: "flex",
+              alignItems: "center",
             }}
           >
             View &#8599;

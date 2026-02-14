@@ -10,6 +10,7 @@ interface BudgetRangeBarProps {
   adults: number;
   nights: number | null;
   onNightsChange?: (nights: number) => void;
+  isMobile?: boolean;
 }
 
 function formatPrice(amount: number): string {
@@ -20,7 +21,7 @@ function formatPrice(amount: number): string {
   }).format(amount);
 }
 
-export function BudgetRangeBar({ range, listings, hoveredId, adults, nights, onNightsChange }: BudgetRangeBarProps) {
+export function BudgetRangeBar({ range, listings, hoveredId, adults, nights, onNightsChange, isMobile }: BudgetRangeBarProps) {
   const spread = range.max - range.min;
   if (spread <= 0) return null;
 
@@ -43,26 +44,27 @@ export function BudgetRangeBar({ range, listings, hoveredId, adults, nights, onN
   const totalAvg = range.avg * localNights;
   const perPersonAvg = adults > 0 ? Math.round(totalAvg / adults) : totalAvg;
 
+  const stepSize = isMobile ? 28 : 20;
   const stepBtn = (disabled: boolean): React.CSSProperties => ({
-    width: 20, height: 20, borderRadius: "50%",
+    width: stepSize, height: stepSize, borderRadius: "50%",
     border: "1px solid var(--color-border-dark)",
     background: disabled ? "var(--color-bg)" : "#fff",
     color: disabled ? "var(--color-text-light)" : "var(--color-text)",
     cursor: disabled ? "default" : "pointer",
-    fontSize: 13, fontWeight: 600, fontFamily: "inherit",
+    fontSize: isMobile ? 16 : 13, fontWeight: 600, fontFamily: "inherit",
     display: "flex", alignItems: "center", justifyContent: "center",
     padding: 0, lineHeight: 1,
   });
 
   return (
     <div style={{
-      padding: "10px 20px 12px",
+      padding: isMobile ? "8px 12px 10px" : "10px 20px 12px",
       background: "#fff",
       borderBottom: "1px solid var(--color-border-dark)",
       flexShrink: 0,
     }}>
       {/* Stats row */}
-      <div style={{ display: "flex", gap: 16, marginBottom: 8, fontSize: 12, color: "var(--color-text-mid)", alignItems: "center" }}>
+      <div style={{ display: "flex", gap: isMobile ? 8 : 16, marginBottom: 8, fontSize: isMobile ? 11 : 12, color: "var(--color-text-mid)", alignItems: "center", flexWrap: isMobile ? "wrap" : undefined }}>
         <span>
           Avg <span className="font-mono" style={{ fontWeight: 600, color: "var(--color-text)" }}>{formatPrice(range.avg)}</span>/night
         </span>

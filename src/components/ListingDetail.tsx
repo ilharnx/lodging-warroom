@@ -84,6 +84,7 @@ interface ListingDetailProps {
   onRescrape?: () => void;
   budgetRange?: BudgetRange | null;
   hasPreferences?: boolean;
+  isMobile?: boolean;
 }
 
 function formatPrice(amount: number | null, currency: string = "USD"): string {
@@ -252,6 +253,7 @@ export function ListingDetail({
   onRescrape,
   budgetRange,
   hasPreferences,
+  isMobile,
 }: ListingDetailProps) {
   const [photoFilter, setPhotoFilter] = useState("all");
   const [commentText, setCommentText] = useState("");
@@ -273,6 +275,7 @@ export function ListingDetail({
   );
   const [saving, setSaving] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  const touchStartX = useRef<number>(0);
 
   // Close on Escape
   useEffect(() => {
@@ -402,12 +405,13 @@ export function ListingDetail({
 
   return (
     <>
-      {/* Inline detail panel */}
+      {/* Detail panel: full-screen sheet on mobile, inline on desktop */}
       <div
         ref={panelRef}
         role="complementary"
         aria-label={listing.name}
-        style={{
+        className={isMobile ? "mobile-detail-sheet" : undefined}
+        style={isMobile ? undefined : {
           width: 420,
           flexShrink: 0,
           background: "var(--color-card)",
@@ -419,7 +423,7 @@ export function ListingDetail({
       >
         {/* Panel header */}
         <div style={{
-          padding: "14px 20px",
+          padding: isMobile ? "12px 16px" : "14px 20px",
           borderBottom: "1px solid var(--color-border)",
           display: "flex",
           alignItems: "center",
@@ -439,9 +443,10 @@ export function ListingDetail({
               display: "flex",
               alignItems: "center",
               gap: 6,
-              padding: "4px 8px",
+              padding: isMobile ? "8px 12px" : "4px 8px",
               borderRadius: 6,
               transition: "all 0.15s",
+              minHeight: 44,
             }}
             onMouseOver={(e) => (e.currentTarget.style.color = "var(--color-coral)")}
             onMouseOut={(e) => (e.currentTarget.style.color = "var(--color-text-mid)")}
@@ -457,9 +462,12 @@ export function ListingDetail({
               fontWeight: 600,
               color: "var(--color-coral)",
               textDecoration: "none",
-              padding: "4px 10px",
+              padding: isMobile ? "8px 14px" : "4px 10px",
               border: "1px solid var(--color-coral-border)",
               borderRadius: 6,
+              minHeight: isMobile ? 44 : undefined,
+              display: "flex",
+              alignItems: "center",
             }}
           >
             View on {sourceLabel(listing.source)} &#8599;
@@ -1015,7 +1023,7 @@ export function ListingDetail({
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}
                 style={{
-                  flex: 1, padding: "8px 12px", fontSize: 13,
+                  flex: 1, padding: isMobile ? "12px 14px" : "8px 12px", fontSize: isMobile ? 16 : 13,
                   background: "var(--color-bg)", border: "1px solid var(--color-border-dark)",
                   borderRadius: 8, color: "var(--color-text)", fontFamily: "inherit",
                 }}
@@ -1024,10 +1032,11 @@ export function ListingDetail({
                 type="submit"
                 disabled={submitting || !commentText.trim()}
                 style={{
-                  padding: "8px 14px", fontSize: 13, fontWeight: 600,
+                  padding: isMobile ? "12px 18px" : "8px 14px", fontSize: isMobile ? 14 : 13, fontWeight: 600,
                   background: "var(--color-coral)", color: "#fff", borderRadius: 8,
                   border: "none", cursor: "pointer", fontFamily: "inherit",
                   opacity: submitting || !commentText.trim() ? 0.5 : 1,
+                  minHeight: isMobile ? 44 : undefined,
                 }}
               >
                 Post
@@ -1062,7 +1071,7 @@ export function ListingDetail({
           <button
             onClick={() => setSelectedPhotoIdx(null)}
             aria-label="Close lightbox"
-            style={{ position: "absolute", top: 16, right: 16, color: "rgba(255,255,255,0.7)", fontSize: 24, background: "none", border: "none", cursor: "pointer" }}
+            style={{ position: "absolute", top: 16, right: 16, color: "rgba(255,255,255,0.7)", fontSize: 24, background: "none", border: "none", cursor: "pointer", width: 48, height: 48, display: "flex", alignItems: "center", justifyContent: "center" }}
           >
             &#10005;
           </button>
@@ -1070,7 +1079,7 @@ export function ListingDetail({
             <button
               onClick={(e) => { e.stopPropagation(); setSelectedPhotoIdx(selectedPhotoIdx - 1); }}
               aria-label="Previous photo"
-              style={{ position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.7)", fontSize: 32, background: "none", border: "none", cursor: "pointer" }}
+              style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.7)", fontSize: 32, background: "rgba(0,0,0,0.3)", border: "none", cursor: "pointer", width: 48, height: 48, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}
             >
               &#8249;
             </button>
@@ -1079,7 +1088,7 @@ export function ListingDetail({
             <button
               onClick={(e) => { e.stopPropagation(); setSelectedPhotoIdx(selectedPhotoIdx + 1); }}
               aria-label="Next photo"
-              style={{ position: "absolute", right: 16, top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.7)", fontSize: 32, background: "none", border: "none", cursor: "pointer" }}
+              style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.7)", fontSize: 32, background: "rgba(0,0,0,0.3)", border: "none", cursor: "pointer", width: 48, height: 48, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}
             >
               &#8250;
             </button>
@@ -1088,8 +1097,19 @@ export function ListingDetail({
           <img
             src={filteredPhotos[selectedPhotoIdx].url}
             alt={filteredPhotos[selectedPhotoIdx].caption || listing.name}
-            style={{ maxWidth: "100%", maxHeight: "85vh", objectFit: "contain", borderRadius: 8 }}
+            style={{ maxWidth: "100%", maxHeight: "85vh", objectFit: "contain", borderRadius: 8, touchAction: "pan-y" }}
             onClick={(e) => e.stopPropagation()}
+            onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
+            onTouchEnd={(e) => {
+              const dx = e.changedTouches[0].clientX - touchStartX.current;
+              if (Math.abs(dx) > 50) {
+                if (dx < 0 && selectedPhotoIdx < filteredPhotos.length - 1) {
+                  setSelectedPhotoIdx(selectedPhotoIdx + 1);
+                } else if (dx > 0 && selectedPhotoIdx > 0) {
+                  setSelectedPhotoIdx(selectedPhotoIdx - 1);
+                }
+              }
+            }}
           />
           <div style={{ position: "absolute", bottom: 16, textAlign: "center", color: "rgba(255,255,255,0.5)", fontSize: 13, width: "100%" }}>
             {selectedPhotoIdx + 1} / {filteredPhotos.length}

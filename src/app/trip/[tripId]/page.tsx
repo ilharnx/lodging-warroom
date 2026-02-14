@@ -9,6 +9,7 @@ import { FilterBar } from "@/components/FilterBar";
 import { BudgetRangeBar } from "@/components/BudgetRangeBar";
 import { TripPreferences } from "@/components/TripPreferences";
 import { computeBudgetRange } from "@/lib/budget";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import type { FilterState, KitchenType, TripPreferences as TripPreferencesType } from "@/types";
 
 const MapView = dynamic(() => import("@/components/MapView"), { ssr: false });
@@ -127,12 +128,12 @@ function StepperRow({ label, value, min, max, onChange }: {
   label: string; value: number; min: number; max: number; onChange: (v: number) => void;
 }) {
   const btn = (disabled: boolean): React.CSSProperties => ({
-    width: 28, height: 28, borderRadius: "50%",
+    width: 36, height: 36, borderRadius: "50%",
     border: "1px solid var(--color-border-dark)",
     background: disabled ? "var(--color-bg)" : "#fff",
     color: disabled ? "var(--color-text-light)" : "var(--color-text)",
     cursor: disabled ? "default" : "pointer",
-    fontSize: 16, fontWeight: 600, fontFamily: "inherit",
+    fontSize: 18, fontWeight: 600, fontFamily: "inherit",
     display: "flex", alignItems: "center", justifyContent: "center",
     padding: 0,
   });
@@ -170,6 +171,8 @@ export default function TripPage({
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
   const [showPreferences, setShowPreferences] = useState(false);
   const [editingTripSettings, setEditingTripSettings] = useState(false);
+  const [mobileTab, setMobileTab] = useState<"list" | "map">("list");
+  const isMobile = useIsMobile();
   const sidebarRef = useRef<HTMLDivElement>(null);
 
   // Keep ref in sync so fetchTrip can read it without a dependency
@@ -316,10 +319,14 @@ export default function TripPage({
   function openDetail(listing: Listing) {
     setDetailListing(listing);
     setSelectedId(listing.id);
+    if (isMobile) {
+      document.body.classList.add("mobile-detail-open");
+    }
   }
 
   function closeDetail() {
     setDetailListing(null);
+    document.body.classList.remove("mobile-detail-open");
   }
 
   if (loading) {
@@ -399,21 +406,136 @@ export default function TripPage({
     );
   }
 
+  // Shared sidebar content (used in both mobile list view and desktop sidebar)
+  const sidebarContent = filtered.length === 0 ? (
+    <div
+      style={{
+        padding: 32,
+        textAlign: "center",
+        color: "var(--color-text-mid)",
+      }}
+    >
+      {listings.length === 0 ? (
+        <>
+          <div style={{ fontSize: 40, marginBottom: 12, opacity: 0.25 }}>
+            &#127968;
+          </div>
+          <h3
+            style={{
+              fontSize: 16,
+              fontWeight: 600,
+              color: "var(--color-text)",
+              marginBottom: 8,
+              fontFamily: "var(--font-heading)",
+            }}
+          >
+            No listings yet
+          </h3>
+          <p style={{ fontSize: 13, marginBottom: 16 }}>
+            Add your first vacation rental listing to get started.
+          </p>
+          <button
+            onClick={() => setShowAddModal(true)}
+            style={{
+              padding: "8px 16px",
+              fontSize: 13,
+              fontWeight: 600,
+              background: "var(--color-coral)",
+              color: "#fff",
+              borderRadius: 8,
+              border: "none",
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            + Add Listing
+          </button>
+        </>
+      ) : (
+        <p style={{ fontSize: 13 }}>No listings match your filters.</p>
+      )}
+    </div>
+  ) : (
+    <div
+      style={{
+        padding: isMobile ? 8 : 12,
+        display: "flex",
+        flexDirection: "column",
+        gap: isMobile ? 8 : 12,
+      }}
+    >
+      {filtered.map((listing: Listing, index: number) => (
+        <div key={listing.id} data-listing-id={listing.id}>
+          <ListingCard
+            listing={listing}
+            adults={trip.adults}
+            isSelected={selectedId === listing.id}
+            isHovered={hoveredId === listing.id}
+            userName={userName}
+            index={index}
+            onSelect={() => openDetail(listing)}
+            onViewDetail={() => openDetail(listing)}
+            onVote={(value) => handleVote(listing.id, value)}
+            onRescrape={() => handleRescrape(listing.id)}
+            onMouseEnter={() => setHoveredId(listing.id)}
+            onMouseLeave={() => setHoveredId(null)}
+            budgetRange={budgetRange}
+          />
+        </div>
+      ))}
+    </div>
+  );
+
+  const detailPanel = detailListing && (
+    <ListingDetail
+      listing={detailListing}
+      adults={trip.adults}
+      userName={userName}
+      onClose={closeDetail}
+      onRefresh={fetchTrip}
+      onNeedName={() => setShowNamePrompt(true)}
+      onVote={(value) => handleVote(detailListing.id, value)}
+      onRemoveVote={() => handleRemoveVote(detailListing.id)}
+      onRescrape={() => handleRescrape(detailListing.id)}
+      budgetRange={budgetRange}
+      hasPreferences={!!tripPrefs}
+      isMobile={isMobile}
+    />
+  );
+
+  const mapView = (
+    <MapView
+      listings={filtered}
+      center={[trip.centerLng, trip.centerLat]}
+      selectedId={selectedId}
+      hoveredId={hoveredId}
+      onSelect={(id) => {
+        setSelectedId(id);
+        const listing = listings.find((l: Listing) => l.id === id);
+        if (listing) openDetail(listing);
+      }}
+      onHover={setHoveredId}
+      adults={trip.adults}
+      budgetRange={budgetRange}
+    />
+  );
+
   return (
     <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
       {/* Trip header */}
       <header
         style={{
-          padding: "10px 20px",
+          padding: isMobile ? "8px 12px" : "10px 20px",
           background: "#fff",
           borderBottom: "1px solid var(--color-border-dark)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
           flexShrink: 0,
+          gap: 8,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 6 : 12, minWidth: 0, flex: 1 }}>
           <a
             href="/"
             style={{
@@ -422,50 +544,55 @@ export default function TripPage({
               color: "var(--color-coral)",
               textDecoration: "none",
               fontFamily: "var(--font-heading)",
+              flexShrink: 0,
             }}
           >
             Stay
           </a>
-          <span
-            style={{ color: "var(--color-text-light)", fontSize: 13 }}
-          >
-            /
-          </span>
+          {!isMobile && (
+            <span style={{ color: "var(--color-text-light)", fontSize: 13 }}>/</span>
+          )}
           <h1
             style={{
-              fontSize: 16,
+              fontSize: isMobile ? 14 : 16,
               fontWeight: 600,
               color: "var(--color-text)",
               margin: 0,
               fontFamily: "var(--font-heading)",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
             }}
           >
-            {trip.name}
+            {isMobile ? trip.destination : trip.name}
           </h1>
-          <span style={{ fontSize: 14, color: "var(--color-text-mid)" }}>
-            {trip.destination}
-          </span>
-          <div style={{ position: "relative" }}>
+          {!isMobile && (
+            <span style={{ fontSize: 14, color: "var(--color-text-mid)" }}>
+              {trip.destination}
+            </span>
+          )}
+          <div style={{ position: "relative", flexShrink: 0 }}>
             <button
               onClick={() => setEditingTripSettings(!editingTripSettings)}
               style={{
                 fontSize: 12, color: "var(--color-text-muted)",
                 background: editingTripSettings ? "var(--color-panel)" : "transparent",
                 border: "1px solid", borderColor: editingTripSettings ? "var(--color-border-dark)" : "transparent",
-                borderRadius: 6, padding: "3px 8px", cursor: "pointer", fontFamily: "inherit",
+                borderRadius: 6, padding: isMobile ? "4px 6px" : "3px 8px", cursor: "pointer", fontFamily: "inherit",
                 transition: "all 0.15s",
+                whiteSpace: "nowrap",
               }}
               onMouseOver={(e) => { if (!editingTripSettings) e.currentTarget.style.borderColor = "var(--color-border-dark)"; }}
               onMouseOut={(e) => { if (!editingTripSettings) e.currentTarget.style.borderColor = "transparent"; }}
             >
-              {trip.adults} adults{trip.kids > 0 ? `, ${trip.kids} kids` : ""}{trip.nights ? ` · ${trip.nights}n` : ""}
+              {trip.adults}{isMobile ? "a" : " adults"}{trip.kids > 0 ? `, ${trip.kids}${isMobile ? "k" : " kids"}` : ""}{trip.nights ? ` · ${trip.nights}n` : ""}
               <span style={{ marginLeft: 4, fontSize: 10 }}>&#9998;</span>
             </button>
             {editingTripSettings && (
               <>
                 <div style={{ position: "fixed", inset: 0, zIndex: 49 }} onClick={() => setEditingTripSettings(false)} />
                 <div style={{
-                  position: "absolute", top: "100%", left: 0, marginTop: 4,
+                  position: "absolute", top: "100%", left: isMobile ? "auto" : 0, right: isMobile ? 0 : "auto", marginTop: 4,
                   background: "#fff", border: "1px solid var(--color-border-dark)",
                   borderRadius: 10, padding: 16, boxShadow: "0 8px 24px rgba(0,0,0,0.1)",
                   zIndex: 50, width: 220,
@@ -479,8 +606,8 @@ export default function TripPage({
           </div>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {userName && (
+        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 4 : 8, flexShrink: 0 }}>
+          {userName && !isMobile && (
             <span
               style={{
                 fontSize: 12,
@@ -493,54 +620,58 @@ export default function TripPage({
               {userName}
             </span>
           )}
-          <button
-            onClick={() => setShowPreferences(true)}
-            style={{
-              padding: "7px 14px",
-              fontSize: 13,
-              fontWeight: 500,
-              background: "var(--color-panel)",
-              color: "var(--color-text-mid)",
-              borderRadius: 8,
-              border: "1px solid var(--color-border-dark)",
-              cursor: "pointer",
-              fontFamily: "inherit",
-              transition: "all 0.15s",
-            }}
-          >
-            Preferences
-          </button>
-          <button
-            onClick={() => setShowAddModal(true)}
-            style={{
-              padding: "7px 16px",
-              fontSize: 13,
-              fontWeight: 600,
-              background: "var(--color-coral)",
-              color: "#fff",
-              borderRadius: 8,
-              border: "none",
-              cursor: "pointer",
-              fontFamily: "inherit",
-              transition: "background 0.15s",
-            }}
-            onMouseOver={(e) =>
-              (e.currentTarget.style.background = "var(--color-coral-hover)")
-            }
-            onMouseOut={(e) =>
-              (e.currentTarget.style.background = "var(--color-coral)")
-            }
-          >
-            + Add Listing
-          </button>
+          {!isMobile && (
+            <button
+              onClick={() => setShowPreferences(true)}
+              style={{
+                padding: "7px 14px",
+                fontSize: 13,
+                fontWeight: 500,
+                background: "var(--color-panel)",
+                color: "var(--color-text-mid)",
+                borderRadius: 8,
+                border: "1px solid var(--color-border-dark)",
+                cursor: "pointer",
+                fontFamily: "inherit",
+                transition: "all 0.15s",
+              }}
+            >
+              Preferences
+            </button>
+          )}
+          {!isMobile && (
+            <button
+              onClick={() => setShowAddModal(true)}
+              style={{
+                padding: "7px 16px",
+                fontSize: 13,
+                fontWeight: 600,
+                background: "var(--color-coral)",
+                color: "#fff",
+                borderRadius: 8,
+                border: "none",
+                cursor: "pointer",
+                fontFamily: "inherit",
+                transition: "background 0.15s",
+              }}
+              onMouseOver={(e) =>
+                (e.currentTarget.style.background = "var(--color-coral-hover)")
+              }
+              onMouseOut={(e) =>
+                (e.currentTarget.style.background = "var(--color-coral)")
+              }
+            >
+              + Add Listing
+            </button>
+          )}
         </div>
       </header>
 
       {/* Filter bar */}
-      <FilterBar filters={filters} onChange={setFilters} />
+      <FilterBar filters={filters} onChange={setFilters} isMobile={isMobile} />
 
-      {/* Budget range bar */}
-      {budgetRange && (
+      {/* Budget range bar — hide on mobile map tab */}
+      {budgetRange && (!isMobile || mobileTab === "list") && (
         <BudgetRangeBar
           range={budgetRange}
           listings={listings}
@@ -548,146 +679,81 @@ export default function TripPage({
           adults={trip.adults}
           nights={trip.nights}
           onNightsChange={(n) => updateTripSettings({ nights: n })}
+          isMobile={isMobile}
         />
       )}
 
-      {/* Main content: Sidebar + Map + Detail */}
-      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-        {/* Listing sidebar (LEFT) */}
-        <div
-          ref={sidebarRef}
-          style={{
-            width: sidebarWidth,
-            flexShrink: 0,
-            borderRight: "1px solid var(--color-border-dark)",
-            overflowY: "auto",
-            background: "var(--color-bg)",
-            transition: "width 0.25s var(--ease-spring)",
-          }}
-        >
-          {filtered.length === 0 ? (
-            <div
-              style={{
-                padding: 32,
-                textAlign: "center",
-                color: "var(--color-text-mid)",
-              }}
-            >
-              {listings.length === 0 ? (
-                <>
-                  <div
-                    style={{
-                      fontSize: 40,
-                      marginBottom: 12,
-                      opacity: 0.25,
-                    }}
-                  >
-                    &#127968;
-                  </div>
-                  <h3
-                    style={{
-                      fontSize: 16,
-                      fontWeight: 600,
-                      color: "var(--color-text)",
-                      marginBottom: 8,
-                      fontFamily: "var(--font-heading)",
-                    }}
-                  >
-                    No listings yet
-                  </h3>
-                  <p style={{ fontSize: 13, marginBottom: 16 }}>
-                    Add your first vacation rental listing to get started.
-                  </p>
-                  <button
-                    onClick={() => setShowAddModal(true)}
-                    style={{
-                      padding: "8px 16px",
-                      fontSize: 13,
-                      fontWeight: 600,
-                      background: "var(--color-coral)",
-                      color: "#fff",
-                      borderRadius: 8,
-                      border: "none",
-                      cursor: "pointer",
-                      fontFamily: "inherit",
-                    }}
-                  >
-                    + Add Listing
-                  </button>
-                </>
-              ) : (
-                <p style={{ fontSize: 13 }}>
-                  No listings match your filters.
-                </p>
-              )}
-            </div>
-          ) : (
-            <div
-              style={{
-                padding: 12,
-                display: "flex",
-                flexDirection: "column",
-                gap: 12,
-              }}
-            >
-              {filtered.map((listing: Listing, index: number) => (
-                <div key={listing.id} data-listing-id={listing.id}>
-                  <ListingCard
-                    listing={listing}
-                    adults={trip.adults}
-                    isSelected={selectedId === listing.id}
-                    isHovered={hoveredId === listing.id}
-                    userName={userName}
-                    index={index}
-                    onSelect={() => openDetail(listing)}
-                    onViewDetail={() => openDetail(listing)}
-                    onVote={(value) => handleVote(listing.id, value)}
-                    onRescrape={() => handleRescrape(listing.id)}
-                    onMouseEnter={() => setHoveredId(listing.id)}
-                    onMouseLeave={() => setHoveredId(null)}
-                    budgetRange={budgetRange}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+      {/* Main content */}
+      {isMobile ? (
+        <>
+          {/* Mobile: single view */}
+          <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
+            {mobileTab === "list" ? (
+              <div ref={sidebarRef} style={{ height: "100%", overflowY: "auto", background: "var(--color-bg)" }}>
+                {sidebarContent}
+              </div>
+            ) : (
+              <div style={{ height: "100%", position: "relative" }}>
+                {mapView}
+              </div>
+            )}
+          </div>
 
-        {/* Map (CENTER) */}
-        <div style={{ flex: 1, position: "relative" }}>
-          <MapView
-            listings={filtered}
-            center={[trip.centerLng, trip.centerLat]}
-            selectedId={selectedId}
-            hoveredId={hoveredId}
-            onSelect={(id) => {
-              setSelectedId(id);
-              const listing = listings.find((l: Listing) => l.id === id);
-              if (listing) openDetail(listing);
+          {/* Mobile FAB for adding listings */}
+          <button
+            className="mobile-fab"
+            onClick={() => setShowAddModal(true)}
+            aria-label="Add listing"
+          >
+            +
+          </button>
+
+          {/* Mobile tab bar */}
+          <div className="mobile-tab-bar">
+            <button
+              className={mobileTab === "list" ? "active" : ""}
+              onClick={() => setMobileTab("list")}
+            >
+              List ({filtered.length})
+            </button>
+            <button
+              className={mobileTab === "map" ? "active" : ""}
+              onClick={() => setMobileTab("map")}
+            >
+              Map
+            </button>
+          </div>
+
+          {/* Mobile detail sheet */}
+          {detailPanel}
+        </>
+      ) : (
+        /* Desktop: three-column layout */
+        <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+          {/* Listing sidebar (LEFT) */}
+          <div
+            ref={sidebarRef}
+            style={{
+              width: sidebarWidth,
+              flexShrink: 0,
+              borderRight: "1px solid var(--color-border-dark)",
+              overflowY: "auto",
+              background: "var(--color-bg)",
+              transition: "width 0.25s var(--ease-spring)",
             }}
-            onHover={setHoveredId}
-            adults={trip.adults}
-            budgetRange={budgetRange}
-          />
-        </div>
+          >
+            {sidebarContent}
+          </div>
 
-        {/* Detail panel (RIGHT, inline) */}
-        {detailListing && (
-          <ListingDetail
-            listing={detailListing}
-            adults={trip.adults}
-            userName={userName}
-            onClose={closeDetail}
-            onRefresh={fetchTrip}
-            onNeedName={() => setShowNamePrompt(true)}
-            onVote={(value) => handleVote(detailListing.id, value)}
-            onRemoveVote={() => handleRemoveVote(detailListing.id)}
-            onRescrape={() => handleRescrape(detailListing.id)}
-            budgetRange={budgetRange}
-            hasPreferences={!!tripPrefs}
-          />
-        )}
-      </div>
+          {/* Map (CENTER) */}
+          <div style={{ flex: 1, position: "relative" }}>
+            {mapView}
+          </div>
+
+          {/* Detail panel (RIGHT, inline) */}
+          {detailPanel}
+        </div>
+      )}
 
       {/* Add listing modal */}
       {showAddModal && (
@@ -716,7 +782,7 @@ export default function TripPage({
             style={{
               background: "#fff",
               borderRadius: 14,
-              padding: 28,
+              padding: isMobile ? 20 : 28,
               maxWidth: 360,
               width: "100%",
               margin: 16,
@@ -752,8 +818,8 @@ export default function TripPage({
                 onChange={(e) => setNameInput(e.target.value)}
                 style={{
                   width: "100%",
-                  padding: "10px 16px",
-                  fontSize: 14,
+                  padding: "12px 16px",
+                  fontSize: 16,
                   background: "var(--color-bg)",
                   border: "1px solid var(--color-border-dark)",
                   borderRadius: 8,
@@ -767,8 +833,8 @@ export default function TripPage({
                 style={{
                   marginTop: 12,
                   width: "100%",
-                  padding: "10px 16px",
-                  fontSize: 14,
+                  padding: "12px 16px",
+                  fontSize: 16,
                   fontWeight: 600,
                   background: "var(--color-coral)",
                   color: "#fff",
