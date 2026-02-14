@@ -946,23 +946,32 @@ function TripCard({ trip }: { trip: Trip }) {
       href={`/trip/${trip.id}`}
       style={{
         display: "block",
-        background: "#fff",
+        background: "var(--color-card, #FDFBF7)",
         borderRadius: 16,
         overflow: "hidden",
+        border: "1px solid var(--color-border)",
         textDecoration: "none",
         color: "inherit",
         transition: "all 0.2s var(--ease-spring)",
-        transform: hovered ? "translateY(-2px)" : "none",
+        transform: hovered ? "translateY(-3px)" : "none",
         boxShadow: hovered
-          ? "0 8px 24px rgba(0,0,0,0.08)"
-          : "0 1px 4px rgba(0,0,0,0.04)",
+          ? "0 12px 36px rgba(46,42,38,0.1)"
+          : "none",
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {/* Photo header — fixed height, photo fills edge-to-edge */}
-      <div style={{ position: "relative", height: 140, overflow: "hidden" }}>
-        {/* Background photo — abs positioned with bleed so ken-burns never shows gaps */}
+      {/* Photo header — matches .trip-card-header in stay-dashboard-v2.html */}
+      <div style={{
+        position: "relative",
+        height: 110,
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "flex-end",
+        padding: "16px 18px",
+      }}>
+        {/* Background photo — abs positioned with bleed for ken-burns */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={coverPhoto}
@@ -977,32 +986,35 @@ function TripCard({ trip }: { trip: Trip }) {
           }}
         />
 
-        {/* Dark gradient overlay ON TOP of photo for text readability */}
+        {/* Dark gradient overlay */}
         <div style={{
           position: "absolute",
           inset: 0,
-          background: "linear-gradient(to top, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.1) 60%)",
+          background: "linear-gradient(to top, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.05) 60%)",
         }} />
 
-        {/* Trip name pinned to bottom-left of the photo */}
-        <div style={{
-          position: "absolute",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          padding: "12px 16px",
-        }}>
+        {/* Header content: name + destination */}
+        <div style={{ position: "relative", zIndex: 1 }}>
           <h3 style={{
-            fontSize: 18,
+            fontSize: 20,
             fontWeight: 600,
             color: "#fff",
             margin: 0,
-            lineHeight: 1.25,
+            marginBottom: 2,
+            lineHeight: 1.2,
             fontFamily: "var(--font-heading)",
-            textShadow: "0 1px 4px rgba(0,0,0,0.3)",
+            textShadow: "0 1px 4px rgba(0,0,0,0.2)",
           }}>
             {trip.name}
           </h3>
+          <p style={{
+            fontSize: 13,
+            fontWeight: 300,
+            color: "rgba(255,255,255,0.85)",
+            margin: 0,
+          }}>
+            {trip.destination}
+          </p>
         </div>
 
         {/* Unsplash attribution */}
@@ -1038,64 +1050,59 @@ function TripCard({ trip }: { trip: Trip }) {
         />
       </div>
 
-      {/* Body — destination, dates, countdown, avatars, activity */}
-      <div style={{ padding: "14px 16px 16px" }}>
-        {/* Destination */}
-        <p style={{
-          fontSize: 13,
-          fontWeight: 600,
-          color: "var(--color-text)",
-          margin: 0,
-        }}>
-          {trip.destination}
-        </p>
-
-        {/* Dates + countdown on one line */}
+      {/* Body — matches .trip-card-body in mockup */}
+      <div style={{ padding: "14px 18px 16px" }}>
+        {/* Meta row: countdown left, dates right */}
         <div style={{
           display: "flex",
-          alignItems: "baseline",
-          gap: 6,
-          marginTop: 3,
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 12,
         }}>
-          <span className="font-mono" style={{
-            fontSize: 11,
-            color: "var(--color-text-mid)",
+          {daysUntilTrip != null && daysUntilTrip > 0 ? (
+            <span className="font-mono" style={{
+              fontSize: 12,
+              color: "var(--color-text-mid)",
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+            }}>
+              &#9728;&#65039; {daysUntilTrip}d away
+            </span>
+          ) : (
+            <span />
+          )}
+          <span style={{
+            fontSize: 12,
+            color: "var(--color-text-light)",
+            fontWeight: 300,
             fontStyle: trip.checkIn ? "normal" : "italic",
           }}>
             {dateLabel}
           </span>
-          {daysUntilTrip != null && daysUntilTrip > 0 && (
-            <span className="font-mono" style={{
-              fontSize: 11,
-              color: "var(--color-text-light)",
-              letterSpacing: 0.3,
-            }}>
-              · {daysUntilTrip}d away
-            </span>
-          )}
         </div>
 
-        {/* Member avatar row */}
+        {/* Avatar row */}
         {members.length > 0 && (
-          <div style={{ display: "flex", alignItems: "center", marginTop: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", marginBottom: 12 }}>
             <div style={{ display: "flex" }}>
               {members.slice(0, 6).map((name, i) => (
                 <div
                   key={name}
                   title={name}
                   style={{
-                    width: 26,
-                    height: 26,
+                    width: 28,
+                    height: 28,
                     borderRadius: "50%",
                     background: getUserColor(name),
                     color: "#fff",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    fontSize: 10,
-                    fontWeight: 700,
+                    fontSize: 11,
+                    fontWeight: 600,
                     border: "2px solid #fff",
-                    marginLeft: i > 0 ? -6 : 0,
+                    marginLeft: i > 0 ? -8 : 0,
                     position: "relative",
                     zIndex: members.length - i,
                   }}
@@ -1106,8 +1113,8 @@ function TripCard({ trip }: { trip: Trip }) {
               {members.length > 6 && (
                 <div
                   style={{
-                    width: 26,
-                    height: 26,
+                    width: 28,
+                    height: 28,
                     borderRadius: "50%",
                     background: "var(--color-panel)",
                     color: "var(--color-text-muted)",
@@ -1115,28 +1122,55 @@ function TripCard({ trip }: { trip: Trip }) {
                     alignItems: "center",
                     justifyContent: "center",
                     fontSize: 9,
-                    fontWeight: 700,
+                    fontWeight: 600,
                     border: "2px solid #fff",
-                    marginLeft: -6,
+                    marginLeft: -8,
                   }}
                 >
                   +{members.length - 6}
                 </div>
               )}
             </div>
+            <span style={{
+              marginLeft: 8,
+              fontSize: 11,
+              color: "var(--color-text-light)",
+            }}>
+              {members.length} traveler{members.length !== 1 ? "s" : ""}
+            </span>
           </div>
         )}
 
-        {/* Activity status with timestamp */}
+        {/* Activity row with separator */}
         <div style={{
           display: "flex",
           alignItems: "center",
           gap: 8,
-          marginTop: 10,
+          paddingTop: 12,
+          borderTop: "1px solid var(--color-border)",
         }}>
+          {/* Small activity avatar */}
+          {activity.text && (
+            <div style={{
+              width: 22,
+              height: 22,
+              borderRadius: "50%",
+              background: "var(--color-coral)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 9,
+              fontWeight: 600,
+              color: "#fff",
+              flexShrink: 0,
+            }}>
+              {activity.text.charAt(0).toUpperCase()}
+            </div>
+          )}
           <p style={{
             fontSize: 12,
             color: "var(--color-text-mid)",
+            fontWeight: 300,
             margin: 0,
             lineHeight: 1.4,
             overflow: "hidden",
@@ -1157,21 +1191,6 @@ function TripCard({ trip }: { trip: Trip }) {
               {activity.time}
             </span>
           )}
-        </div>
-
-        {/* Hover CTA */}
-        <div
-          style={{
-            marginTop: 10,
-            fontSize: 13,
-            fontWeight: 600,
-            color: "var(--color-coral)",
-            opacity: hovered ? 1 : 0,
-            transform: hovered ? "translateX(0)" : "translateX(-4px)",
-            transition: "all 0.2s var(--ease-spring)",
-          }}
-        >
-          Open trip &rarr;
         </div>
       </div>
     </a>
