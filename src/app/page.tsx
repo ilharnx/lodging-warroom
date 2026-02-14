@@ -258,7 +258,8 @@ export default function Home() {
     setCreateStep(3);
   }
 
-  async function createTrip() {
+  async function createTrip(finalTravelers?: { name: string; color: string }[]) {
+    const travelers = finalTravelers || formTravelers;
     setCreating(true);
     try {
       // Geocode the destination
@@ -295,14 +296,14 @@ export default function Home() {
           destination: form.destination,
           centerLat,
           centerLng,
-          adults: formTravelers.length > 0 ? formTravelers.length : 2,
+          adults: travelers.length > 0 ? travelers.length : 2,
           kids: 0,
           checkIn: form.checkIn || null,
           checkOut: form.checkOut || null,
           nights: dateNights,
           coverPhotoUrl,
           coverPhotoAttribution,
-          travelers: formTravelers.length > 0 ? formTravelers : undefined,
+          travelers: travelers.length > 0 ? travelers : undefined,
         }),
       });
       if (res.ok) {
@@ -1113,9 +1114,17 @@ export default function Home() {
                           </button>
                           <button
                             onClick={() => {
-                              if (travelerInput.trim()) addTraveler(travelerInput.trim());
+                              const final = [...formTravelers];
+                              if (travelerInput.trim()) {
+                                const trimmed = travelerInput.trim();
+                                if (!final.some((t) => t.name.toLowerCase() === trimmed.toLowerCase())) {
+                                  const usedColors = final.map((t) => t.color);
+                                  final.push({ name: trimmed, color: getNextColor(usedColors) });
+                                }
+                              }
+                              setFormTravelers(final);
                               setTravelerInput("");
-                              createTrip();
+                              createTrip(final);
                             }}
                             disabled={creating}
                             style={{

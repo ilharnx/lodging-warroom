@@ -518,7 +518,9 @@ function TripSettingsView({ trip, onSave, onClose, onRefresh }: TripSettingsProp
       });
       if (res.ok) {
         const t = await res.json();
-        setTravelers([...travelers, t]);
+        const updated = [...travelers, t];
+        setTravelers(updated);
+        setAdults(updated.length);
         setNewTravelerName("");
         onRefresh();
       }
@@ -532,7 +534,9 @@ function TripSettingsView({ trip, onSave, onClose, onRefresh }: TripSettingsProp
       method: "DELETE",
     });
     if (res.ok) {
-      setTravelers(travelers.filter((t) => t.id !== travelerId));
+      const updated = travelers.filter((t) => t.id !== travelerId);
+      setTravelers(updated);
+      if (updated.length > 0) setAdults(updated.length);
       onRefresh();
     }
   }
@@ -1391,6 +1395,8 @@ export default function TripPage({
   const listings: Listing[] = trip.listings || [];
   const filtered = applyFilters(listings, filters);
   const nights = trip.nights || 7;
+  // Use travelers count for per-person pricing when travelers exist
+  const adults = tripTravelers.length > 0 ? tripTravelers.length : trip.adults;
 
   const isDetailOpen = detailListing !== null;
   const sidebarWidth = isDetailOpen ? 300 : 380;
@@ -1439,7 +1445,7 @@ export default function TripPage({
           setUserEmoji(emoji);
           setStoredEmoji(emoji);
         }}
-        adults={trip.adults}
+        adults={adults}
         kids={trip.kids}
         nights={trip.nights || 7}
         onTripSettingsChange={updateTripSettings}
@@ -1563,7 +1569,7 @@ export default function TripPage({
             <div key={listing.id} data-listing-id={listing.id}>
               <ListingCard
                 listing={listing}
-                adults={trip.adults}
+                adults={adults}
                 nights={nights}
                 isSelected={selectedId === listing.id}
                 isHovered={hoveredId === listing.id}
@@ -1640,7 +1646,7 @@ export default function TripPage({
   const detailPanel = detailListing && (
     <ListingDetail
       listing={detailListing}
-      adults={trip.adults}
+      adults={adults}
       nights={nights}
       userName={userName}
       onClose={closeDetail}
@@ -1683,7 +1689,7 @@ export default function TripPage({
       hoveredId={hoveredId}
       onSelect={handleMapPinSelect}
       onHover={setHoveredId}
-      adults={trip.adults}
+      adults={adults}
       nights={nights}
     />
   );
