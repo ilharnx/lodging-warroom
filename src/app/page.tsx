@@ -145,6 +145,8 @@ export default function Home() {
     centerLng: "",
     adults: "4",
     kids: "2",
+    checkIn: "",
+    checkOut: "",
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -166,6 +168,11 @@ export default function Home() {
       });
   }, []);
 
+  // Auto-calculate nights from dates
+  const dateNights = form.checkIn && form.checkOut
+    ? Math.max(1, Math.round((new Date(form.checkOut).getTime() - new Date(form.checkIn).getTime()) / (1000 * 60 * 60 * 24)))
+    : null;
+
   async function createTrip(e: React.FormEvent) {
     e.preventDefault();
     const res = await fetch("/api/trips", {
@@ -178,6 +185,9 @@ export default function Home() {
         centerLng: parseFloat(form.centerLng) || -59.5432,
         adults: parseInt(form.adults) || 4,
         kids: parseInt(form.kids) || 2,
+        checkIn: form.checkIn || null,
+        checkOut: form.checkOut || null,
+        nights: dateNights,
       }),
     });
     if (res.ok) {
@@ -462,6 +472,53 @@ export default function Home() {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Dates — optional */}
+              <div>
+                <label style={{ display: "block", fontSize: 11, color: "var(--color-text-mid)", marginBottom: 4, fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: 0.8 }}>
+                  Dates <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0, fontFamily: "inherit" }}>(optional)</span>
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <input
+                    type="date"
+                    value={form.checkIn}
+                    onChange={(e) => setForm({ ...form, checkIn: e.target.value })}
+                    placeholder="Arrival"
+                    style={{
+                      width: "100%",
+                      padding: "10px 16px",
+                      background: "#fff",
+                      border: "1px solid var(--color-border-dark)",
+                      borderRadius: 8,
+                      color: form.checkIn ? "var(--color-text)" : "var(--color-text-muted)",
+                      fontFamily: "inherit",
+                      fontSize: 14,
+                    }}
+                  />
+                  <input
+                    type="date"
+                    value={form.checkOut}
+                    min={form.checkIn || undefined}
+                    onChange={(e) => setForm({ ...form, checkOut: e.target.value })}
+                    placeholder="Departure"
+                    style={{
+                      width: "100%",
+                      padding: "10px 16px",
+                      background: "#fff",
+                      border: "1px solid var(--color-border-dark)",
+                      borderRadius: 8,
+                      color: form.checkOut ? "var(--color-text)" : "var(--color-text-muted)",
+                      fontFamily: "inherit",
+                      fontSize: 14,
+                    }}
+                  />
+                </div>
+                {dateNights != null && (
+                  <p className="font-mono" style={{ fontSize: 12, color: "var(--color-text-mid)", marginTop: 6 }}>
+                    {dateNights} night{dateNights !== 1 ? "s" : ""}
+                  </p>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
