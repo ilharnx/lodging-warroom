@@ -74,6 +74,13 @@ interface BudgetRange {
   p80: number;
 }
 
+interface TravelerInfo {
+  id: string;
+  name: string;
+  color: string;
+  isCreator: boolean;
+}
+
 interface ListingDetailProps {
   listing: Listing;
   adults: number;
@@ -89,6 +96,7 @@ interface ListingDetailProps {
   budgetRange?: BudgetRange | null;
   hasPreferences?: boolean;
   isMobile?: boolean;
+  travelers?: TravelerInfo[];
 }
 
 function formatPrice(amount: number | null, currency: string = "USD"): string {
@@ -125,7 +133,11 @@ const USER_COLORS = [
   "#0891B2", "#DB2777", "#EA580C", "#6D28D9", "#059669",
 ];
 
-function getUserColor(name: string): string {
+function getUserColor(name: string, travelers?: TravelerInfo[]): string {
+  if (travelers) {
+    const t = travelers.find((t) => t.name.toLowerCase() === name.toLowerCase());
+    if (t) return t.color;
+  }
   let hash = 0;
   for (let i = 0; i < name.length; i++) {
     hash = name.charCodeAt(i) + ((hash << 5) - hash);
@@ -287,6 +299,7 @@ export function ListingDetail({
   budgetRange,
   hasPreferences,
   isMobile,
+  travelers,
 }: ListingDetailProps) {
   const [photoFilter, setPhotoFilter] = useState("all");
   const [commentText, setCommentText] = useState("");
@@ -986,7 +999,7 @@ export function ListingDetail({
             {listing.comments.length > 0 && (
               <div style={{ display: "flex", flexDirection: "column", gap: 2, marginBottom: 10 }}>
                 {listing.comments.map((comment) => {
-                  const color = getUserColor(comment.userName);
+                  const color = getUserColor(comment.userName, travelers);
                   const initial = comment.userName.charAt(0).toUpperCase();
                   const timeAgo = formatTimeAgo(comment.createdAt);
                   return (

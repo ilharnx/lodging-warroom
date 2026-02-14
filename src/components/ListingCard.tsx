@@ -54,6 +54,13 @@ interface Listing {
   amenities: unknown;
 }
 
+interface TravelerInfo {
+  id: string;
+  name: string;
+  color: string;
+  isCreator: boolean;
+}
+
 interface ListingCardProps {
   listing: Listing;
   adults: number;
@@ -64,6 +71,7 @@ interface ListingCardProps {
   onSelect: () => void;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
+  travelers?: TravelerInfo[];
 }
 
 const USER_COLORS = [
@@ -71,7 +79,11 @@ const USER_COLORS = [
   "#0891B2", "#DB2777", "#EA580C", "#6D28D9", "#059669",
 ];
 
-function getUserColor(name: string): string {
+function getUserColor(name: string, travelers?: TravelerInfo[]): string {
+  if (travelers) {
+    const t = travelers.find((t) => t.name.toLowerCase() === name.toLowerCase());
+    if (t) return t.color;
+  }
   let hash = 0;
   for (let i = 0; i < name.length; i++) {
     hash = name.charCodeAt(i) + ((hash << 5) - hash);
@@ -221,6 +233,7 @@ export function ListingCard({
   onSelect,
   onMouseEnter,
   onMouseLeave,
+  travelers,
 }: ListingCardProps) {
   const isScraping =
     listing.scrapeStatus === "pending" || listing.scrapeStatus === "scraping";
@@ -353,7 +366,7 @@ export function ListingCard({
               {/* Avatar pips with emoji */}
               <div style={{ display: "flex", gap: -4 }}>
                 {listing.votes.slice(0, 5).map((vote) => {
-                  const color = getUserColor(vote.userName);
+                  const color = getUserColor(vote.userName, travelers);
                   const initial = vote.userName.charAt(0).toUpperCase();
                   const REACTION_EMOJI: Record<string, string> = { fire: "\uD83D\uDD25", love: "\uD83D\uDE0D", think: "\uD83E\uDD14", pass: "\uD83D\uDC4E" };
                   const emoji = REACTION_EMOJI[vote.reactionType] || "\uD83E\uDD14";
@@ -421,7 +434,7 @@ export function ListingCard({
                   borderRadius: 8,
                   padding: "3px 8px",
                 }}>
-                  <span style={{ fontWeight: 600, color: getUserColor(latestComment.userName) }}>
+                  <span style={{ fontWeight: 600, color: getUserColor(latestComment.userName, travelers) }}>
                     {latestComment.userName}:
                   </span>{" "}
                   {latestComment.text}

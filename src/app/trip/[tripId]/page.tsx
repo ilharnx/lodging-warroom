@@ -1453,9 +1453,46 @@ export default function TripPage({
     [consensusGroups.into, consensusGroups.deciding, consensusGroups.not]
       .filter((g) => g.length > 0).length > 1;
 
+  // Compute named waiting message for group headers
+  function getGroupLabel(groupKey: ConsensusGroup): string {
+    const meta = GROUP_META[groupKey];
+    if (groupKey !== "deciding" || tripTravelers.length === 0) return meta.label;
+
+    // Find who hasn't voted across all listings in this group
+    const allVoters = new Set<string>();
+    for (const listing of filtered) {
+      for (const v of (listing.votes || [])) {
+        allVoters.add(v.userName);
+      }
+    }
+
+    const nonVoters = tripTravelers.filter((t) => !allVoters.has(t.name));
+    if (nonVoters.length === 0) return meta.label;
+
+    if (allVoters.size > 0 && nonVoters.length <= 2) {
+      const names = nonVoters.map((t) => t.name);
+      return `Waiting on ${names.join(" and ")}`;
+    }
+
+    return meta.label;
+  }
+
   function renderGroupSection(groupKey: ConsensusGroup, listings: Listing[], indexOffset: number) {
     if (listings.length === 0) return null;
     const meta = GROUP_META[groupKey];
+    const label = getGroupLabel(groupKey);
+
+    // Check if everyone voted on ALL listings in "into" group
+    const allVotedLabel = groupKey === "into" && tripTravelers.length > 0
+      ? (() => {
+          const allVoted = listings.every((l: Listing) => {
+            const voters = new Set((l.votes || []).map((v: { userName: string }) => v.userName));
+            return tripTravelers.every((t) => voters.has(t.name));
+          });
+          return allVoted ? "\u2713 everyone\u2019s in" : null;
+        })()
+      : null;
+
     return (
       <div key={groupKey}>
         {hasMultipleGroups && (
@@ -1485,8 +1522,18 @@ export default function TripPage({
                 color: meta.color,
                 letterSpacing: "0.01em",
               }}>
-                {meta.label}
+                {label}
               </span>
+              {allVotedLabel && (
+                <span style={{
+                  fontSize: 11,
+                  color: "var(--color-green)",
+                  fontWeight: 500,
+                  marginLeft: 4,
+                }}>
+                  {allVotedLabel}
+                </span>
+              )}
             </div>
             <span style={{
               fontSize: 11,
@@ -1524,6 +1571,7 @@ export default function TripPage({
                 onSelect={() => openDetail(listing)}
                 onMouseEnter={() => setHoveredId(listing.id)}
                 onMouseLeave={() => setHoveredId(null)}
+                travelers={tripTravelers}
               />
             </div>
           ))}
@@ -1605,6 +1653,7 @@ export default function TripPage({
       budgetRange={null}
       hasPreferences={!!tripPrefs}
       isMobile={isMobile}
+      travelers={tripTravelers}
     />
   );
 
@@ -1706,6 +1755,53 @@ export default function TripPage({
             >
               {"\u2600\uFE0F"} {daysUntilTrip}d
             </span>
+          )}
+          {/* Traveler avatar pips in header */}
+          {!isMobile && tripTravelers.length > 0 && (
+            <div style={{ display: "flex", marginLeft: 8, flexShrink: 0 }}>
+              {tripTravelers.slice(0, 5).map((t, i) => (
+                <div
+                  key={t.id}
+                  title={t.name}
+                  style={{
+                    width: 22,
+                    height: 22,
+                    borderRadius: "50%",
+                    background: t.color,
+                    color: "#fff",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 9,
+                    fontWeight: 600,
+                    border: currentTraveler?.id === t.id ? "2px solid var(--color-coral)" : "2px solid #fff",
+                    marginLeft: i > 0 ? -5 : 0,
+                    position: "relative" as const,
+                    zIndex: tripTravelers.length - i,
+                  }}
+                >
+                  {t.name.charAt(0).toUpperCase()}
+                </div>
+              ))}
+              {tripTravelers.length > 5 && (
+                <div style={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: "50%",
+                  background: "var(--color-panel)",
+                  color: "var(--color-text-muted)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 8,
+                  fontWeight: 600,
+                  border: "2px solid #fff",
+                  marginLeft: -5,
+                }}>
+                  +{tripTravelers.length - 5}
+                </div>
+              )}
+            </div>
           )}
         </div>
 
