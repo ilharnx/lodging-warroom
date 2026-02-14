@@ -75,6 +75,7 @@ interface BudgetRange {
 interface ListingDetailProps {
   listing: Listing;
   adults: number;
+  nights: number;
   userName: string;
   onClose: () => void;
   onRefresh: () => void;
@@ -244,6 +245,7 @@ const photoCategories = [
 export function ListingDetail({
   listing,
   adults,
+  nights,
   userName,
   onClose,
   onRefresh,
@@ -642,57 +644,50 @@ export function ListingDetail({
                 </div>
               ) : listing.totalCost || listing.perNight ? (
                 <>
-                  <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-                    <span className="font-mono" style={{ fontSize: 24, fontWeight: 700, color: "var(--color-coral)" }}>
-                      {listing.totalCost
-                        ? formatPrice(listing.totalCost, listing.currency)
-                        : formatPrice(listing.perNight, listing.currency)}
+                  {/* Primary price */}
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+                    <span className="font-mono" style={{ fontSize: 28, fontWeight: 700, color: "var(--color-text)" }}>
+                      {listing.perNight
+                        ? formatPrice(listing.perNight, listing.currency)
+                        : formatPrice(listing.totalCost, listing.currency)}
                     </span>
-                    <span style={{ fontSize: 13, color: "var(--color-text-mid)" }}>
-                      {listing.totalCost ? "total" : "/night"}
+                    <span className="font-mono" style={{ fontSize: 13, color: "var(--color-text-mid)" }}>
+                      {listing.perNight ? "/night" : "total"}
                     </span>
-                    {perPerson && (
-                      <span className="font-mono" style={{ fontSize: 13, fontWeight: 500, color: "var(--color-coral)", opacity: 0.7 }}>
-                        {formatPrice(perPerson)}/person
-                      </span>
-                    )}
                   </div>
 
-                  {/* Budget range bar in detail */}
-                  {budgetRange && listingPrice && budgetRange.max > budgetRange.min && (
-                    <div style={{ marginTop: 12 }}>
-                      <div style={{ position: "relative", height: 6, background: "var(--color-border)", borderRadius: 3 }}>
-                        {/* Sweet spot */}
-                        <div style={{
-                          position: "absolute",
-                          left: `${((budgetRange.p20 - budgetRange.min) / (budgetRange.max - budgetRange.min)) * 100}%`,
-                          width: `${((budgetRange.p80 - budgetRange.p20) / (budgetRange.max - budgetRange.min)) * 100}%`,
-                          top: 0,
-                          bottom: 0,
-                          background: "var(--color-coral-light)",
-                          border: "1px solid var(--color-coral-border)",
-                          borderRadius: 3,
-                        }} />
-                        {/* This listing's dot */}
-                        <div style={{
-                          position: "absolute",
-                          left: `${Math.min(Math.max(((listingPrice - budgetRange.min) / (budgetRange.max - budgetRange.min)) * 100, 0), 100)}%`,
-                          top: "50%",
-                          transform: "translate(-50%, -50%)",
-                          width: 12,
-                          height: 12,
-                          borderRadius: "50%",
-                          background: "var(--color-coral)",
-                          border: "2px solid #fff",
-                          boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
-                        }} />
+                  {/* Contextual breakdown: N nights + per person */}
+                  {(() => {
+                    const totalForStay = listing.perNight
+                      ? listing.perNight * nights
+                      : listing.totalCost!;
+                    const perPersonSplit = adults > 0 ? Math.round(totalForStay / adults) : null;
+                    return (
+                      <div style={{
+                        display: "flex", gap: 16, marginTop: 10, paddingTop: 10,
+                        borderTop: "1px solid var(--color-border-dark)",
+                      }}>
+                        <div>
+                          <div className="font-mono" style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.04em", color: "var(--color-text-light)" }}>
+                            {nights} nights
+                          </div>
+                          <div className="font-mono" style={{ fontSize: 17, fontWeight: 700, marginTop: 2 }}>
+                            {formatPrice(totalForStay, listing.currency)}
+                          </div>
+                        </div>
+                        {perPersonSplit && adults > 1 && (
+                          <div>
+                            <div className="font-mono" style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.04em", color: "var(--color-text-light)" }}>
+                              Per person
+                            </div>
+                            <div className="font-mono" style={{ fontSize: 17, fontWeight: 700, marginTop: 2 }}>
+                              {formatPrice(perPersonSplit, listing.currency)}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontSize: 10, color: "var(--color-text-light)" }} className="font-mono">
-                        <span>{formatPrice(budgetRange.min)}</span>
-                        <span>{formatPrice(budgetRange.max)}</span>
-                      </div>
-                    </div>
-                  )}
+                    );
+                  })()}
 
                   {/* Cost breakdown */}
                   {(listing.cleaningFee || listing.serviceFee || listing.taxes) && (

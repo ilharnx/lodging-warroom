@@ -48,6 +48,7 @@ interface Listing {
 interface ListingCardProps {
   listing: Listing;
   adults: number;
+  nights: number;
   isSelected: boolean;
   isHovered: boolean;
   userName: string;
@@ -105,6 +106,7 @@ function Badge({ source }: { source: string }) {
 export function ListingCard({
   listing,
   adults,
+  nights,
   isSelected,
   isHovered,
   userName,
@@ -268,21 +270,19 @@ export function ListingCard({
             {listing.name || "Untitled Listing"}
           </h3>
           <div style={{ textAlign: "right", flexShrink: 0 }}>
-            {listing.totalCost ? (
-              <>
-                <div className="font-mono" style={{ fontSize: 20, fontWeight: 700, color: "var(--color-coral)" }}>
-                  {formatPrice(listing.totalCost, listing.currency)}
-                </div>
-                <div style={{ fontSize: 11, color: "var(--color-text-mid)" }}>
-                  {perPerson ? <span className="font-mono">${perPerson}/person</span> : "total"}
-                </div>
-              </>
-            ) : listing.perNight ? (
+            {listing.perNight ? (
               <>
                 <div className="font-mono" style={{ fontSize: 20, fontWeight: 700, color: "var(--color-coral)" }}>
                   {formatPrice(listing.perNight, listing.currency)}
                 </div>
                 <div className="font-mono" style={{ fontSize: 11, color: "var(--color-text-mid)" }}>/night</div>
+              </>
+            ) : listing.totalCost ? (
+              <>
+                <div className="font-mono" style={{ fontSize: 20, fontWeight: 700, color: "var(--color-coral)" }}>
+                  {formatPrice(listing.totalCost, listing.currency)}
+                </div>
+                <div className="font-mono" style={{ fontSize: 11, color: "var(--color-text-mid)" }}>total</div>
               </>
             ) : (
               <span style={{ fontSize: 12, color: "var(--color-text-muted)", fontStyle: "italic" }}>
@@ -291,6 +291,22 @@ export function ListingCard({
             )}
           </div>
         </div>
+
+        {/* Per-listing price context: total for N nights · per person */}
+        {(listing.perNight || listing.totalCost) && (() => {
+          const totalForStay = listing.perNight
+            ? listing.perNight * nights
+            : listing.totalCost!;
+          const perPersonSplit = adults > 0 ? Math.round(totalForStay / adults) : null;
+          return (
+            <div className="font-mono" style={{
+              fontSize: 11, color: "var(--color-text-muted)",
+              marginTop: 4,
+            }}>
+              {formatPrice(totalForStay, listing.currency)} total{perPersonSplit ? ` · ${formatPrice(perPersonSplit, listing.currency)}/person` : ""}
+            </div>
+          );
+        })()}
 
         {/* Budget range dot */}
         {budgetRange && listingPrice && budgetRange.max > budgetRange.min && (
