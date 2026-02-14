@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stay — Dashboard Mockup v2</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400;1,9..144,600&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+
+  :root {
+    --cream: #F5F0E8;
+    --warm-white: #FDFBF7;
+    --terracotta: #C4725A;
+    --terracotta-light: #D4917D;
+    --terracotta-dark: #A85A44;
+    --sage: #8B9E7E;
+    --olive: #6B7559;
+    --sand: #D9C9A8;
+    --clay: #B8A48E;
+    --charcoal: #2E2A26;
+    --warm-gray: #7A7269;
+    --light-gray: #E8E2D8;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background: var(--cream);
+    color: var(--charcoal);
+    min-height: 100vh;
+    position: relative;
+  }
+
+  /* Topographic contour background */
+  .topo-bg {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: -1;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .topo-bg svg {
+    width: 100%;
+    height: 100%;
+    opacity: 0.05;
+  }
+
+  .page {
+    position: relative;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* ---- Header ---- */
+  .header {
+    padding: 24px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--light-gray);
+  }
+
+  .logo-area {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .logo {
+    font-family: 'Fraunces', serif;
+    font-size: 26px;
+    color: var(--charcoal);
+    font-weight: 600;
+    letter-spacing: -0.5px;
+  }
+
+  .logo span { color: var(--terracotta); }
+
+  .alpha-badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--terracotta);
+    background: rgba(196, 114, 90, 0.12);
+    padding: 3px 8px;
+    border-radius: 4px;
+    line-height: 1;
+  }
+
+  .new-trip-btn {
+    padding: 10px 20px;
+    background: var(--terracotta);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .new-trip-btn:hover { background: var(--terracotta-dark); }
+
+  /* ---- Cards Grid ---- */
+  .cards {
+    display: flex;
+    gap: 20px;
+    padding: 32px 0;
+    flex-wrap: wrap;
+  }
+
+  /* ---- Trip Card ---- */
+  .trip-card {
+    width: 340px;
+    border-radius: 16px;
+    overflow: hidden;
+    background: var(--warm-white);
+    border: 1px solid var(--light-gray);
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    animation: fadeUp 0.5s ease backwards;
+  }
+
+  .trip-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 36px rgba(46, 42, 38, 0.1);
+  }
+
+  .trip-card-header {
+    height: 110px;
+    background:
+      linear-gradient(to top, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.05) 60%),
+      url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600&h=200&fit=crop') center/cover;
+    position: relative;
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+  }
+
+  .trip-card-header-content {
+    position: relative;
+    z-index: 1;
+  }
+
+  .trip-card-name {
+    font-family: 'Fraunces', serif;
+    font-size: 20px;
+    font-weight: 600;
+    color: white;
+    line-height: 1.2;
+    margin-bottom: 2px;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  }
+
+  .trip-card-destination {
+    font-size: 13px;
+    color: rgba(255,255,255,0.85);
+    font-weight: 300;
+  }
+
+  .trip-card-body {
+    padding: 14px 18px 16px;
+  }
+
+  .trip-card-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+  .countdown {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--warm-gray);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .trip-dates-label {
+    font-size: 12px;
+    color: var(--clay);
+    font-weight: 300;
+  }
+
+  .avatar-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+
+  .avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid var(--warm-white);
+    margin-left: -8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: white;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+  }
+
+  .avatar:first-child { margin-left: 0; }
+
+  .avatar-count {
+    margin-left: 8px;
+    font-size: 11px;
+    color: var(--clay);
+  }
+
+  .activity {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-top: 12px;
+    border-top: 1px solid var(--light-gray);
+  }
+
+  .activity-avatar {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    font-weight: 600;
+    color: white;
+    flex-shrink: 0;
+  }
+
+  .activity-text {
+    font-size: 12px;
+    color: var(--warm-gray);
+    font-weight: 300;
+  }
+
+  .activity-text strong {
+    color: var(--charcoal);
+    font-weight: 500;
+  }
+
+  .activity-time {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--clay);
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+
+  /* ---- Empty State Card ---- */
+  .empty-card {
+    width: 260px;
+    height: auto;
+    min-height: 200px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(196,114,90,0.04) 0%, rgba(217,201,168,0.08) 100%);
+    border: 1.5px dashed var(--sand);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 24px;
+    cursor: pointer;
+    transition: border-color 0.2s, transform 0.2s;
+    animation: fadeUp 0.5s ease 0.15s backwards;
+  }
+
+  .empty-card:hover {
+    border-color: var(--terracotta-light);
+    transform: translateY(-2px);
+  }
+
+  .empty-plus {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(196,114,90,0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 12px;
+  }
+
+  .empty-title {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 17px;
+    color: var(--charcoal);
+    margin-bottom: 4px;
+  }
+
+  .empty-sub {
+    font-size: 12px;
+    color: var(--clay);
+    font-weight: 300;
+  }
+
+  /* ---- Footer ---- */
+  .footer {
+    padding: 32px 0 40px;
+    text-align: center;
+  }
+
+  .footer-divider { margin-bottom: 16px; opacity: 0.3; }
+
+  .footer-logo {
+    font-family: 'Fraunces', serif;
+    font-size: 16px;
+    color: var(--clay);
+    font-weight: 400;
+  }
+
+  .footer-logo span { color: var(--terracotta-light); }
+
+  /* ---- Mobile Frame ---- */
+  .view-label {
+    text-align: center;
+    padding: 48px 0 12px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--clay);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .mobile-frame {
+    max-width: 400px;
+    margin: 0 auto;
+    background: var(--warm-white);
+    border-radius: 24px;
+    box-shadow: 0 0 80px rgba(46, 42, 38, 0.08);
+    overflow: hidden;
+    padding-bottom: 20px;
+  }
+
+  .mobile-header {
+    padding: 16px 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--light-gray);
+  }
+
+  .mobile-cards { padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+
+  .mobile-trip-card {
+    border-radius: 14px;
+    overflow: hidden;
+    background: var(--warm-white);
+    border: 1px solid var(--light-gray);
+  }
+
+  .mobile-trip-card-header {
+    height: 95px;
+    background:
+      linear-gradient(to top, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.05) 60%),
+      url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400&h=150&fit=crop') center/cover;
+    position: relative;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+  }
+
+  .mobile-trip-card-body { padding: 12px 16px 14px; }
+
+  .mobile-empty-card {
+    border-radius: 14px;
+    background: linear-gradient(135deg, rgba(196,114,90,0.04) 0%, rgba(217,201,168,0.08) 100%);
+    border: 1.5px dashed var(--sand);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 20px;
+  }
+
+  .mobile-footer { padding: 16px 0 4px; text-align: center; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+
+<!-- Topographic contour background -->
+<div class="topo-bg">
+  <svg viewBox="0 0 800 600" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <pattern id="topo" patternUnits="userSpaceOnUse" width="300" height="300">
+        <g fill="none" stroke="#B8A48E" stroke-width="0.8" opacity="1">
+          <!-- Contour rings - organic, slightly irregular -->
+          <path d="M150 50 C180 48, 220 55, 240 80 C260 105, 255 140, 240 165 C225 190, 190 210, 155 215 C120 220, 85 210, 65 185 C45 160, 40 125, 50 95 C60 65, 100 52, 150 50Z"/>
+          <path d="M150 75 C172 73, 200 78, 215 98 C230 118, 228 145, 218 163 C208 181, 185 193, 158 196 C131 199, 107 192, 92 175 C77 158, 73 133, 80 112 C87 91, 115 77, 150 75Z"/>
+          <path d="M152 100 C167 99, 183 103, 193 116 C203 129, 201 148, 195 160 C189 172, 175 180, 158 182 C141 184, 125 179, 115 168 C105 157, 102 140, 107 126 C112 112, 132 101, 152 100Z"/>
+          <path d="M153 122 C162 121, 173 124, 179 133 C185 142, 183 154, 179 162 C175 170, 166 175, 155 176 C144 177, 134 173, 129 165 C124 157, 123 146, 127 137 C131 128, 142 123, 153 122Z"/>
+
+          <!-- Second cluster - offset -->
+          <path d="M30 180 C55 170, 95 175, 115 200 C135 225, 130 265, 110 290 C90 315, 55 325, 25 315 C-5 305, -15 275, -10 245 C-5 215, 10 190, 30 180Z"/>
+          <path d="M35 200 C52 193, 80 197, 95 215 C110 233, 107 260, 93 278 C79 296, 55 303, 35 297 C15 291, 7 270, 10 248 C13 226, 22 207, 35 200Z"/>
+          <path d="M40 220 C50 215, 67 218, 76 230 C85 242, 83 258, 75 269 C67 280, 53 284, 42 280 C31 276, 25 264, 27 250 C29 236, 33 225, 40 220Z"/>
+
+          <!-- Third cluster - top right -->
+          <path d="M220 10 C245 5, 275 15, 290 38 C305 61, 300 92, 283 112 C266 132, 238 140, 212 135 C186 130, 168 112, 165 88 C162 64, 178 35, 200 20 C210 14, 215 11, 220 10Z"/>
+          <path d="M222 30 C240 26, 260 33, 272 50 C284 67, 280 90, 268 105 C256 120, 236 126, 218 122 C200 118, 188 104, 186 86 C184 68, 196 48, 210 38 C215 34, 219 31, 222 30Z"/>
+          <path d="M225 52 C236 49, 250 54, 257 65 C264 76, 262 91, 254 101 C246 111, 233 114, 222 111 C211 108, 204 98, 203 86 C202 74, 210 60, 220 55 C222 54, 224 53, 225 52Z"/>
+
+          <!-- Bottom right cluster -->
+          <path d="M200 230 C225 225, 260 232, 278 255 C296 278, 292 310, 275 332 C258 354, 228 362, 200 357 C172 352, 152 332, 148 307 C144 282, 160 253, 180 240 C190 234, 195 231, 200 230Z"/>
+          <path d="M203 250 C220 246, 245 252, 258 268 C271 284, 268 307, 256 323 C244 339, 222 345, 203 341 C184 337, 170 322, 167 303 C164 284, 175 265, 190 256 C196 252, 200 251, 203 250Z"/>
+          <path d="M205 270 C215 267, 230 272, 238 283 C246 294, 244 310, 236 320 C228 330, 215 334, 205 331 C195 328, 188 318, 186 306 C184 294, 191 279, 200 274 C202 272, 204 271, 205 270Z"/>
+
+          <!-- Scattered small contours -->
+          <ellipse cx="70" cy="60" rx="22" ry="18" transform="rotate(-15 70 60)"/>
+          <ellipse cx="70" cy="60" rx="12" ry="9" transform="rotate(-15 70 60)"/>
+
+          <ellipse cx="260" cy="180" rx="18" ry="22" transform="rotate(20 260 180)"/>
+          <ellipse cx="260" cy="180" rx="9" ry="12" transform="rotate(20 260 180)"/>
+
+          <ellipse cx="120" cy="280" rx="15" ry="20" transform="rotate(-8 120 280)"/>
+        </g>
+      </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#topo)"/>
+  </svg>
+</div>
+
+<!-- ═══════════════ DESKTOP VIEW ═══════════════ -->
+<div class="view-label">Desktop Dashboard</div>
+
+<div class="page">
+  <div class="header">
+    <div class="logo-area">
+      <div class="logo">stay<span>.</span></div>
+      <span class="alpha-badge">ALPHA</span>
+    </div>
+    <button class="new-trip-btn">+ New Trip</button>
+  </div>
+
+  <div class="cards">
+    <div class="trip-card">
+      <div class="trip-card-header">
+        <div class="trip-card-header-content">
+          <div class="trip-card-name">Friend & BabyMoon 2026</div>
+          <div class="trip-card-destination">Barbados</div>
+        </div>
+      </div>
+      <div class="trip-card-body">
+        <div class="trip-card-meta">
+          <span class="countdown">☀️ 77d away</span>
+          <span class="trip-dates-label">May 10 – 17</span>
+        </div>
+        <div class="avatar-row">
+          <div class="avatar" style="background: #C4725A;">A</div>
+          <div class="avatar" style="background: #8B9E7E;">A</div>
+          <div class="avatar" style="background: #6B7559;">M</div>
+          <div class="avatar" style="background: #B8A48E;">S</div>
+          <span class="avatar-count">4 travelers</span>
+        </div>
+        <div class="activity">
+          <div class="activity-avatar" style="background: #C4725A;">A</div>
+          <span class="activity-text"><strong>Alf</strong> added 3 new places</span>
+          <span class="activity-time">2h ago</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="empty-card">
+      <div class="empty-plus">
+        <svg viewBox="0 0 18 18" fill="none" width="18" height="18">
+          <path d="M9 3V15M3 9H15" stroke="#C4725A" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="empty-title">Where to next?</div>
+      <div class="empty-sub">Start planning your next trip</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-divider">
+      <svg width="120" height="6" viewBox="0 0 120 6" fill="none" style="display: inline-block;">
+        <path d="M2 4C15 2 30 4 45 3C60 2 75 4 90 3C105 2 115 3 118 3" stroke="#D9C9A8" stroke-width="1" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="footer-logo">stay<span>.</span></div>
+  </div>
+</div>
+
+<!-- ═══════════════ MOBILE VIEW ═══════════════ -->
+<div class="view-label">Mobile Dashboard</div>
+
+<div class="mobile-frame">
+  <div class="mobile-header">
+    <div class="logo-area">
+      <div class="logo" style="font-size: 22px;">stay<span>.</span></div>
+      <span class="alpha-badge">ALPHA</span>
+    </div>
+    <button class="new-trip-btn" style="padding: 8px 16px; font-size: 13px; border-radius: 8px;">+ New Trip</button>
+  </div>
+
+  <div class="mobile-cards">
+    <div class="mobile-trip-card">
+      <div class="mobile-trip-card-header">
+        <div class="trip-card-header-content">
+          <div class="trip-card-name" style="font-size: 18px;">Friend & BabyMoon 2026</div>
+          <div class="trip-card-destination" style="font-size: 12px;">Barbados</div>
+        </div>
+      </div>
+      <div class="mobile-trip-card-body">
+        <div class="trip-card-meta" style="margin-bottom: 10px;">
+          <span class="countdown">☀️ 77d away</span>
+          <span class="trip-dates-label">May 10 – 17</span>
+        </div>
+        <div class="avatar-row" style="margin-bottom: 10px;">
+          <div class="avatar" style="background: #C4725A; width: 26px; height: 26px; font-size: 10px;">A</div>
+          <div class="avatar" style="background: #8B9E7E; width: 26px; height: 26px; font-size: 10px;">A</div>
+          <div class="avatar" style="background: #6B7559; width: 26px; height: 26px; font-size: 10px;">M</div>
+          <div class="avatar" style="background: #B8A48E; width: 26px; height: 26px; font-size: 10px;">S</div>
+          <span class="avatar-count">4 travelers</span>
+        </div>
+        <div class="activity">
+          <div class="activity-avatar" style="background: #C4725A;">A</div>
+          <span class="activity-text"><strong>Alf</strong> added 3 new places</span>
+          <span class="activity-time">2h ago</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="mobile-empty-card">
+      <div class="empty-plus">
+        <svg viewBox="0 0 18 18" fill="none" width="18" height="18">
+          <path d="M9 3V15M3 9H15" stroke="#C4725A" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="empty-title">Where to next?</div>
+      <div class="empty-sub">Start planning your next trip</div>
+    </div>
+  </div>
+
+  <div class="mobile-footer">
+    <div class="footer-divider">
+      <svg width="80" height="6" viewBox="0 0 80 6" fill="none" style="display: inline-block;">
+        <path d="M2 4C12 2 22 4 32 3C42 2 52 4 62 3C72 2 78 3 78 3" stroke="#D9C9A8" stroke-width="1" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="footer-logo" style="font-size: 14px;">stay<span>.</span></div>
+  </div>
+</div>
+
+<div style="height: 60px;"></div>
+
+</body>
+</html>
