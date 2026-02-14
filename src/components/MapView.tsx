@@ -175,9 +175,10 @@ export default function MapView({
     ) {
       const listing = listings.find((l) => l.id === selectedId);
       if (listing && listing.lat !== 0) {
-        map.current.flyTo({
+        map.current.easeTo({
           center: [listing.lng, listing.lat],
-          duration: 600,
+          duration: 800,
+          easing: (t) => t * (2 - t), // ease-out quadratic
         });
       }
     }

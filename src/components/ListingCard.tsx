@@ -70,6 +70,7 @@ interface ListingCardProps {
   onRescrape?: () => void;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
+  onNightsChange?: (nights: number) => void;
   budgetRange: BudgetRange | null;
 }
 
@@ -141,6 +142,7 @@ export function ListingCard({
   onRescrape,
   onMouseEnter,
   onMouseLeave,
+  onNightsChange,
   budgetRange,
 }: ListingCardProps) {
   const perPerson =
@@ -319,12 +321,43 @@ export function ListingCard({
             ? listing.perNight * nights
             : listing.totalCost!;
           const perPersonSplit = adults > 0 ? Math.round(totalForStay / adults) : null;
+          const nightsBtnStyle: React.CSSProperties = {
+            background: "none", border: "none", cursor: "pointer",
+            fontSize: 11, fontWeight: 700, fontFamily: "var(--font-mono)",
+            color: "var(--color-text-light)", padding: "0 3px",
+            lineHeight: 1, borderRadius: 3, transition: "color 0.15s",
+          };
           return (
             <div className="font-mono" style={{
               fontSize: 11, color: "var(--color-text-muted)",
-              marginTop: 4,
+              marginTop: 4, display: "flex", alignItems: "center",
             }}>
-              {formatPrice(totalForStay, listing.currency)} total{perPersonSplit ? ` · ${formatPrice(perPersonSplit, listing.currency)}/person` : ""}
+              {formatPrice(totalForStay, listing.currency)}
+              {onNightsChange ? (
+                <span style={{ display: "inline-flex", alignItems: "center", marginLeft: 4, gap: 1 }}>
+                  for
+                  <button
+                    onClick={(e) => { e.stopPropagation(); if (nights > 1) onNightsChange(nights - 1); }}
+                    style={{ ...nightsBtnStyle, opacity: nights <= 1 ? 0.3 : 1 }}
+                    aria-label="Fewer nights"
+                  >
+                    &minus;
+                  </button>
+                  <span style={{ fontWeight: 700, color: "var(--color-text-mid)", minWidth: 16, textAlign: "center" as const }}>
+                    {nights}n
+                  </span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); if (nights < 30) onNightsChange(nights + 1); }}
+                    style={{ ...nightsBtnStyle, opacity: nights >= 30 ? 0.3 : 1 }}
+                    aria-label="More nights"
+                  >
+                    +
+                  </button>
+                </span>
+              ) : (
+                <span style={{ marginLeft: 4 }}>total</span>
+              )}
+              {perPersonSplit ? ` · ${formatPrice(perPersonSplit, listing.currency)}/person` : ""}
             </div>
           );
         })()}

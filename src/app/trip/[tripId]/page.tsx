@@ -527,6 +527,7 @@ export default function TripPage({
                 onRescrape={() => handleRescrape(listing.id)}
                 onMouseEnter={() => setHoveredId(listing.id)}
                 onMouseLeave={() => setHoveredId(null)}
+                onNightsChange={(n) => updateTripSettings({ nights: n })}
                 budgetRange={budgetRange}
               />
             </div>
