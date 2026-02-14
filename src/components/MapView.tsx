@@ -44,6 +44,8 @@ export default function MapView({
     new Map()
   );
   const [noToken, setNoToken] = useState(false);
+  const prevSelectedId = useRef<string | null>(null);
+  const userInteracting = useRef(false);
 
   useEffect(() => {
     if (!mapContainer.current) return;
@@ -128,7 +130,24 @@ export default function MapView({
     });
   }, [listings, noToken, onSelect, onHover, adults, budgetRange]);
 
-  // Update selected/hovered classes
+  // Track user map interaction to suppress flyTo during drags/zooms
+  useEffect(() => {
+    const m = map.current;
+    if (!m) return;
+
+    const onStart = () => { userInteracting.current = true; };
+    const onEnd = () => { userInteracting.current = false; };
+
+    m.on("dragstart", onStart);
+    m.on("dragend", onEnd);
+
+    return () => {
+      m.off("dragstart", onStart);
+      m.off("dragend", onEnd);
+    };
+  }, [noToken]);
+
+  // Update selected/hovered marker classes
   useEffect(() => {
     markers.current.forEach((entry, id) => {
       if (id === selectedId) {
@@ -143,8 +162,17 @@ export default function MapView({
         entry.el.classList.remove("hovered");
       }
     });
+  }, [selectedId, hoveredId]);
 
-    if (selectedId && map.current) {
+  // Fly to selected listing — only when selectedId genuinely changes
+  // and user is not actively dragging the map
+  useEffect(() => {
+    if (
+      selectedId &&
+      selectedId !== prevSelectedId.current &&
+      map.current &&
+      !userInteracting.current
+    ) {
       const listing = listings.find((l) => l.id === selectedId);
       if (listing && listing.lat !== 0) {
         map.current.flyTo({
@@ -153,7 +181,8 @@ export default function MapView({
         });
       }
     }
-  }, [selectedId, hoveredId, listings]);
+    prevSelectedId.current = selectedId;
+  }, [selectedId, listings]);
 
   if (noToken) {
     return (

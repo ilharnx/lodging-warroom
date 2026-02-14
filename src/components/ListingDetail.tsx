@@ -117,6 +117,33 @@ function sourceColor(source: string): string {
   return colors[source] || colors.other;
 }
 
+const USER_COLORS = [
+  "#E05A47", "#3D67FF", "#4A9E6B", "#D4A843", "#8B5CF6",
+  "#0891B2", "#DB2777", "#EA580C", "#6D28D9", "#059669",
+];
+
+function getUserColor(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return USER_COLORS[Math.abs(hash) % USER_COLORS.length];
+}
+
+function formatTimeAgo(dateStr: string): string {
+  const now = Date.now();
+  const then = new Date(dateStr).getTime();
+  const diffMs = now - then;
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(dateStr).toLocaleDateString();
+}
+
 function getDomain(url: string): string {
   try {
     return new URL(url).hostname.replace("www.", "");
@@ -859,6 +886,88 @@ export function ListingDetail({
                 </button>
               </div>
             </div>
+          </div>
+
+          {/* Discussion — group chat style */}
+          <div style={{ padding: "0 20px 16px" }}>
+            <h3 className="font-mono" style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", marginBottom: 10 }}>
+              Discussion ({listing.comments.length})
+            </h3>
+
+            {listing.comments.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 2, marginBottom: 10 }}>
+                {listing.comments.map((comment) => {
+                  const color = getUserColor(comment.userName);
+                  const initial = comment.userName.charAt(0).toUpperCase();
+                  const timeAgo = formatTimeAgo(comment.createdAt);
+                  return (
+                    <div
+                      key={comment.id}
+                      className="group"
+                      style={{ display: "flex", gap: 8, padding: "6px 0" }}
+                    >
+                      <div style={{
+                        width: 28, height: 28, borderRadius: "50%", flexShrink: 0,
+                        background: color, color: "#fff",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 12, fontWeight: 700, marginTop: 1,
+                      }}>
+                        {initial}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                          <span style={{ fontSize: 13, fontWeight: 700, color }}>{comment.userName}</span>
+                          <span className="font-mono" style={{ fontSize: 10, color: "var(--color-text-muted)", fontWeight: 400 }}>
+                            {timeAgo}
+                          </span>
+                          {comment.userName === userName && (
+                            <button
+                              onClick={() => deleteComment(comment.id)}
+                              className="opacity-0 group-hover:opacity-100"
+                              style={{ fontSize: 10, color: "var(--color-text-muted)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", transition: "opacity 0.15s", marginLeft: "auto" }}
+                              title="Delete"
+                            >
+                              &#10005;
+                            </button>
+                          )}
+                        </div>
+                        <p style={{ fontSize: 13, color: "var(--color-text)", lineHeight: 1.45, margin: "1px 0 0" }}>{comment.text}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <form onSubmit={submitComment} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <input
+                type="text"
+                placeholder="Say something..."
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                style={{
+                  flex: 1, padding: isMobile ? "10px 14px" : "8px 14px", fontSize: isMobile ? 16 : 13,
+                  background: "var(--color-bg)", border: "1px solid var(--color-border-dark)",
+                  borderRadius: 20, color: "var(--color-text)", fontFamily: "inherit",
+                }}
+              />
+              <button
+                type="submit"
+                disabled={submitting || !commentText.trim()}
+                aria-label="Send"
+                style={{
+                  width: 32, height: 32, borderRadius: "50%", border: "none", cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  background: commentText.trim() ? "var(--color-coral)" : "var(--color-border-dark)",
+                  color: "#fff", fontSize: 14, fontWeight: 700,
+                  transition: "background 0.15s",
+                  flexShrink: 0,
+                  opacity: submitting ? 0.5 : 1,
+                }}
+              >
+                &#8593;
+              </button>
+            </form>
           </div>
 
           {/* AI Fit Assessment */}
