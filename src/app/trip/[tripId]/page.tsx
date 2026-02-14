@@ -274,10 +274,13 @@ function IdentityPicker({
     }
   }
 
+  // Format trip name: add spaces around '&' if missing
+  const displayName = trip.name.replace(/(\S)&(\S)/g, "$1 & $2");
+
   return (
     <div style={{
       minHeight: "100dvh",
-      background: "#F5F0E8",
+      background: "rgba(245,240,232,0.85)",
       display: "flex",
       flexDirection: "column",
       alignItems: "center",
@@ -297,7 +300,7 @@ function IdentityPicker({
       </h1>
 
       {/* Trip info */}
-      <div style={{ textAlign: "center", marginBottom: 32, maxWidth: 360 }}>
+      <div style={{ textAlign: "center", marginBottom: 28, maxWidth: 360 }}>
         <h2 style={{
           fontSize: 24,
           fontWeight: 600,
@@ -314,19 +317,9 @@ function IdentityPicker({
           color: "var(--color-text-muted)",
           margin: 0,
         }}>
-          {trip.name}{dateLabel ? ` \u00B7 ${dateLabel}` : ""}
+          {displayName}{dateLabel ? ` \u00B7 ${dateLabel}` : ""}
         </p>
       </div>
-
-      {/* Question */}
-      <p style={{
-        fontSize: 15,
-        color: "var(--color-text-mid)",
-        fontWeight: 500,
-        marginBottom: 20,
-      }}>
-        Tap your name to jump in
-      </p>
 
       {/* Traveler cards */}
       <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%", maxWidth: 320 }}>
@@ -351,24 +344,36 @@ function IdentityPicker({
             onMouseOver={(e) => {
               if (!claiming) {
                 e.currentTarget.style.transform = "translateY(-2px)";
-                e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.06)";
+                e.currentTarget.style.boxShadow = "0 6px 16px rgba(0,0,0,0.08)";
               }
             }}
             onMouseOut={(e) => {
               e.currentTarget.style.transform = "none";
               e.currentTarget.style.boxShadow = "none";
             }}
+            onMouseDown={(e) => {
+              if (!claiming) {
+                e.currentTarget.style.transform = "translateY(0px)";
+                e.currentTarget.style.boxShadow = "0 2px 6px rgba(0,0,0,0.1)";
+              }
+            }}
+            onMouseUp={(e) => {
+              if (!claiming) {
+                e.currentTarget.style.transform = "translateY(-2px)";
+                e.currentTarget.style.boxShadow = "0 6px 16px rgba(0,0,0,0.08)";
+              }
+            }}
           >
             <div style={{
-              width: 32,
-              height: 32,
+              width: 36,
+              height: 36,
               borderRadius: "50%",
               background: t.color,
               color: "#fff",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: 14,
+              fontSize: 15,
               fontWeight: 600,
               flexShrink: 0,
             }}>
