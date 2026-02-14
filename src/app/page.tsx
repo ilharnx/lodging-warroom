@@ -947,8 +947,7 @@ function TripCard({ trip }: { trip: Trip }) {
       style={{
         display: "block",
         background: "#fff",
-        border: "1px solid var(--color-border-dark)",
-        borderRadius: 14,
+        borderRadius: 16,
         overflow: "hidden",
         textDecoration: "none",
         color: "inherit",
@@ -961,18 +960,19 @@ function TripCard({ trip }: { trip: Trip }) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {/* Photo header — fixed height, photo fills completely */}
+      {/* Photo header — fixed height, photo fills edge-to-edge */}
       <div style={{ position: "relative", height: 140, overflow: "hidden" }}>
-        {/* Background photo — fills the container edge-to-edge */}
+        {/* Background photo — abs positioned with bleed so ken-burns never shows gaps */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={coverPhoto}
           alt=""
           className="trip-card-ken-burns"
           style={{
-            display: "block",
-            width: "100%",
-            height: "100%",
+            position: "absolute",
+            inset: -8,
+            width: "calc(100% + 16px)",
+            height: "calc(100% + 16px)",
             objectFit: "cover",
           }}
         />
@@ -990,7 +990,7 @@ function TripCard({ trip }: { trip: Trip }) {
           bottom: 0,
           left: 0,
           right: 0,
-          padding: "12px 20px",
+          padding: "12px 16px",
         }}>
           <h3 style={{
             fontSize: 18,
@@ -1039,36 +1039,41 @@ function TripCard({ trip }: { trip: Trip }) {
       </div>
 
       {/* Body — destination, dates, countdown, avatars, activity */}
-      <div style={{ padding: "14px 20px 16px" }}>
-        {/* Destination + dates + countdown */}
+      <div style={{ padding: "14px 16px 16px" }}>
+        {/* Destination */}
         <p style={{
           fontSize: 13,
-          fontWeight: 500,
+          fontWeight: 600,
           color: "var(--color-text)",
           margin: 0,
         }}>
           {trip.destination}
         </p>
-        <p style={{
-          fontSize: 12,
-          color: "var(--color-text-mid)",
-          margin: 0,
-          marginTop: 2,
-          fontStyle: trip.checkIn ? "normal" : "italic",
+
+        {/* Dates + countdown on one line */}
+        <div style={{
+          display: "flex",
+          alignItems: "baseline",
+          gap: 6,
+          marginTop: 3,
         }}>
-          {dateLabel}
-        </p>
-        {daysUntilTrip != null && daysUntilTrip > 0 && (
-          <p className="font-mono" style={{
+          <span className="font-mono" style={{
             fontSize: 11,
-            color: "var(--color-text-light)",
-            margin: 0,
-            marginTop: 3,
-            letterSpacing: 0.3,
+            color: "var(--color-text-mid)",
+            fontStyle: trip.checkIn ? "normal" : "italic",
           }}>
-            &#9728;&#65039; {daysUntilTrip}d away
-          </p>
-        )}
+            {dateLabel}
+          </span>
+          {daysUntilTrip != null && daysUntilTrip > 0 && (
+            <span className="font-mono" style={{
+              fontSize: 11,
+              color: "var(--color-text-light)",
+              letterSpacing: 0.3,
+            }}>
+              · {daysUntilTrip}d away
+            </span>
+          )}
+        </div>
 
         {/* Member avatar row */}
         {members.length > 0 && (
@@ -1079,15 +1084,15 @@ function TripCard({ trip }: { trip: Trip }) {
                   key={name}
                   title={name}
                   style={{
-                    width: 28,
-                    height: 28,
+                    width: 26,
+                    height: 26,
                     borderRadius: "50%",
                     background: getUserColor(name),
                     color: "#fff",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: 700,
                     border: "2px solid #fff",
                     marginLeft: i > 0 ? -6 : 0,
@@ -1101,8 +1106,8 @@ function TripCard({ trip }: { trip: Trip }) {
               {members.length > 6 && (
                 <div
                   style={{
-                    width: 28,
-                    height: 28,
+                    width: 26,
+                    height: 26,
                     borderRadius: "50%",
                     background: "var(--color-panel)",
                     color: "var(--color-text-muted)",
@@ -1130,7 +1135,7 @@ function TripCard({ trip }: { trip: Trip }) {
           marginTop: 10,
         }}>
           <p style={{
-            fontSize: 13,
+            fontSize: 12,
             color: "var(--color-text-mid)",
             margin: 0,
             lineHeight: 1.4,
@@ -1144,7 +1149,7 @@ function TripCard({ trip }: { trip: Trip }) {
           </p>
           {activity.time && (
             <span className="font-mono" style={{
-              fontSize: 11,
+              fontSize: 10,
               color: "var(--color-text-light)",
               whiteSpace: "nowrap",
               flexShrink: 0,
