@@ -10,7 +10,16 @@ interface TripPreferencesProps {
   hasKids: boolean;
   onSave: (prefs: TripPreferencesType) => void;
   onClose: () => void;
+  userName: string;
+  userEmoji: string;
+  onProfileChange: (name: string, emoji: string) => void;
 }
+
+const AVATAR_EMOJI = [
+  "\uD83D\uDE0E", "\uD83E\uDDD1", "\uD83C\uDFC4", "\uD83C\uDF34",
+  "\uD83D\uDE80", "\uD83C\uDF1E", "\uD83E\uDD99", "\uD83D\uDC27",
+  "\uD83D\uDC36", "\uD83C\uDF3B",
+];
 
 const VIBE_OPTIONS: { key: Vibe; label: string; desc: string; icon: string }[] = [
   { key: "chill", label: "Chill & quiet", desc: "Low-key relaxation, minimal crowds, peaceful vibes", icon: "\u{1F3D6}\uFE0F" },
@@ -99,6 +108,9 @@ export function TripPreferences({
   hasKids,
   onSave,
   onClose,
+  userName,
+  userEmoji,
+  onProfileChange,
 }: TripPreferencesProps) {
   const prefs = initial || EMPTY_PREFERENCES;
   const [vibe, setVibe] = useState<Vibe | null>(prefs.vibe);
@@ -108,6 +120,8 @@ export function TripPreferences({
   const [kidNeeds, setKidNeeds] = useState<string[]>(prefs.kidNeeds);
   const [notes, setNotes] = useState(prefs.notes);
   const [saving, setSaving] = useState(false);
+  const [editName, setEditName] = useState(userName);
+  const [editEmoji, setEditEmoji] = useState(userEmoji);
 
   async function handleSave() {
     setSaving(true);
@@ -126,6 +140,9 @@ export function TripPreferences({
         body: JSON.stringify({ preferences }),
       });
       if (res.ok) {
+        if (editName.trim() && (editName.trim() !== userName || editEmoji !== userEmoji)) {
+          onProfileChange(editName.trim(), editEmoji);
+        }
         onSave(preferences);
       }
     } finally {
@@ -195,6 +212,51 @@ export function TripPreferences({
 
       {/* Scrollable form */}
       <div style={{ flex: 1, overflowY: "auto", padding: "32px 24px", maxWidth: 680, margin: "0 auto", width: "100%" }}>
+        {/* Profile */}
+        <div style={{ ...sectionStyle, paddingBottom: 24, borderBottom: "1px solid var(--color-border-dark)" }}>
+          <span style={labelStyle}>Your profile</span>
+          <h2 style={titleStyle}>Name &amp; avatar</h2>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ fontSize: 13, color: "var(--color-text-mid)", display: "block", marginBottom: 6 }}>
+              Display name
+            </label>
+            <input
+              type="text"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              placeholder="Your first name"
+              style={{
+                width: "100%", padding: "10px 14px", fontSize: 15,
+                background: "#fff", border: "1px solid var(--color-border-dark)",
+                borderRadius: 8, color: "var(--color-text)", fontFamily: "inherit",
+              }}
+            />
+          </div>
+          <div>
+            <label style={{ fontSize: 13, color: "var(--color-text-mid)", display: "block", marginBottom: 8 }}>
+              Pick your avatar
+            </label>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {AVATAR_EMOJI.map((e) => (
+                <button
+                  key={e}
+                  type="button"
+                  onClick={() => setEditEmoji(e)}
+                  style={{
+                    width: 44, height: 44, borderRadius: "50%", fontSize: 22,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s",
+                    border: editEmoji === e ? "2px solid var(--color-coral)" : "1px solid var(--color-border-dark)",
+                    background: editEmoji === e ? "var(--color-coral-light)" : "#fff",
+                  }}
+                >
+                  {e}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
         {/* 1. Vibe */}
         <div style={sectionStyle}>
           <span style={labelStyle}>1 / {hasKids ? "6" : "5"}</span>

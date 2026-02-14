@@ -46,6 +46,7 @@ export default function MapView({
   const [noToken, setNoToken] = useState(false);
   const prevSelectedId = useRef<string | null>(null);
   const userInteracting = useRef(false);
+  const easeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!mapContainer.current) return;
@@ -71,6 +72,7 @@ export default function MapView({
     ro.observe(mapContainer.current);
 
     return () => {
+      if (easeTimeout.current) clearTimeout(easeTimeout.current);
       ro.disconnect();
       map.current?.remove();
     };
@@ -164,8 +166,10 @@ export default function MapView({
     });
   }, [selectedId, hoveredId]);
 
-  // Fly to selected listing — only when selectedId genuinely changes
-  // and user is not actively dragging the map
+  // Ease to selected listing — only when selectedId genuinely changes
+  // and user is not actively dragging the map.
+  // Delay lets layout transitions (sidebar resize, detail panel mount) settle
+  // so resize() calls don't interrupt the animation.
   useEffect(() => {
     if (
       selectedId &&
@@ -173,13 +177,17 @@ export default function MapView({
       map.current &&
       !userInteracting.current
     ) {
+      if (easeTimeout.current) clearTimeout(easeTimeout.current);
       const listing = listings.find((l) => l.id === selectedId);
       if (listing && listing.lat !== 0) {
-        map.current.easeTo({
-          center: [listing.lng, listing.lat],
-          duration: 800,
-          easing: (t) => t * (2 - t), // ease-out quadratic
-        });
+        easeTimeout.current = setTimeout(() => {
+          easeTimeout.current = null;
+          map.current?.easeTo({
+            center: [listing.lng, listing.lat],
+            duration: 900,
+            easing: (t) => t * (2 - t), // ease-out quadratic
+          });
+        }, 300);
       }
     }
     prevSelectedId.current = selectedId;

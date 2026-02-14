@@ -30,6 +30,15 @@ function setStoredName(name: string) {
   localStorage.setItem("stay_username", name);
 }
 
+function getStoredEmoji(): string {
+  if (typeof window === "undefined") return "";
+  return localStorage.getItem("stay_emoji") || "";
+}
+
+function setStoredEmoji(emoji: string) {
+  localStorage.setItem("stay_emoji", emoji);
+}
+
 const defaultFilters: FilterState = {
   sources: [],
   priceMin: 0,
@@ -205,6 +214,7 @@ export default function TripPage({
   const detailListingRef = useRef<Listing | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [userName, setUserName] = useState("");
+  const [userEmoji, setUserEmoji] = useState("");
   const [showNamePrompt, setShowNamePrompt] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
@@ -264,7 +274,7 @@ export default function TripPage({
     return () => clearInterval(interval);
   }, [trip, fetchTrip]);
 
-  // Username
+  // Username + emoji
   useEffect(() => {
     const stored = getStoredName();
     if (stored) {
@@ -272,6 +282,7 @@ export default function TripPage({
     } else {
       setShowNamePrompt(true);
     }
+    setUserEmoji(getStoredEmoji());
   }, []);
 
   // Scroll-to-center: fly map to the most visible card in the sidebar
@@ -441,6 +452,14 @@ export default function TripPage({
           fetchTrip();
         }}
         onClose={() => setShowPreferences(false)}
+        userName={userName}
+        userEmoji={userEmoji}
+        onProfileChange={(name, emoji) => {
+          setUserName(name);
+          setStoredName(name);
+          setUserEmoji(emoji);
+          setStoredEmoji(emoji);
+        }}
       />
     );
   }
@@ -724,8 +743,12 @@ export default function TripPage({
                 padding: "4px 10px",
                 background: "var(--color-panel)",
                 borderRadius: 20,
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
               }}
             >
+              {userEmoji && <span style={{ fontSize: 14 }}>{userEmoji}</span>}
               {userName}
             </span>
           )}
