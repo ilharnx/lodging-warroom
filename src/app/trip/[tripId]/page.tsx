@@ -218,6 +218,7 @@ interface TripSettingsProps {
     name?: string; destination?: string;
     adults?: number; kids?: number; nights?: number | null;
     checkIn?: string | null; checkOut?: string | null;
+    centerLat?: number; centerLng?: number;
     coverPhotoUrl?: string | null; coverPhotoAttribution?: string | null;
   }) => Promise<void>;
   onClose: () => void;
@@ -244,10 +245,24 @@ function TripSettingsView({ trip, onSave, onClose }: TripSettingsProps) {
     ? Math.max(1, Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / (1000 * 60 * 60 * 24)))
     : null;
 
+  const hasDates = !!(trip.checkIn || trip.checkOut);
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     try {
+      // Geocode if destination changed
+      let geoUpdates: { centerLat?: number; centerLng?: number } = {};
+      if (destination.trim() !== trip.destination) {
+        try {
+          const geoRes = await fetch(`/api/geocode?q=${encodeURIComponent(destination.trim())}`);
+          if (geoRes.ok) {
+            const geo = await geoRes.json();
+            geoUpdates = { centerLat: geo.lat, centerLng: geo.lng };
+          }
+        } catch {}
+      }
+
       // If user uploaded a new file, upload it
       if (coverFile) {
         const formData = new FormData();
@@ -262,6 +277,7 @@ function TripSettingsView({ trip, onSave, onClose }: TripSettingsProps) {
             name: name.trim(), destination: destination.trim(),
             adults, kids, checkIn: checkIn || null, checkOut: checkOut || null,
             nights: dateNights, coverPhotoUrl, coverPhotoAttribution: null,
+            ...geoUpdates,
           });
           return;
         }
@@ -275,6 +291,7 @@ function TripSettingsView({ trip, onSave, onClose }: TripSettingsProps) {
         checkIn: checkIn || null,
         checkOut: checkOut || null,
         nights: dateNights,
+        ...geoUpdates,
         ...(coverChanged && !coverFile ? { coverPhotoUrl: coverPreview, coverPhotoAttribution: coverAttribution } : {}),
       });
     } finally {
@@ -327,6 +344,22 @@ function TripSettingsView({ trip, onSave, onClose }: TripSettingsProps) {
     fontWeight: 600,
   };
 
+  // Gentle prompt style for empty optional fields
+  const promptStyle: React.CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    padding: "14px 16px",
+    background: "var(--color-coral-light)",
+    border: "1px solid var(--color-coral-border)",
+    borderRadius: 10,
+    fontSize: 14,
+    color: "var(--color-text-mid)",
+    cursor: "pointer",
+    fontFamily: "inherit",
+    transition: "all 0.15s",
+  };
+
   return (
     <div style={{
       height: "100dvh",
@@ -372,6 +405,86 @@ function TripSettingsView({ trip, onSave, onClose }: TripSettingsProps) {
         flexDirection: "column",
         gap: 20,
       }}>
+        {/* Cover Photo — at top for visual impact */}
+        <div>
+          <label style={labelStyle}>Cover Photo</label>
+          {coverPreview ? (
+            <div style={{ position: "relative", borderRadius: 10, overflow: "hidden", border: "1px solid var(--color-border-dark)" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={coverPreview}
+                alt="Cover"
+                style={{ width: "100%", height: 160, objectFit: "cover", display: "block" }}
+              />
+              <div style={{
+                position: "absolute", inset: 0,
+                background: "linear-gradient(to bottom, transparent 50%, rgba(0,0,0,0.35) 100%)",
+              }} />
+              {coverAttribution && (
+                <div style={{ position: "absolute", bottom: 4, right: 8, fontSize: 9, color: "rgba(255,255,255,0.5)" }}>
+                  {coverAttribution}
+                </div>
+              )}
+              <div style={{ position: "absolute", top: 8, right: 8, display: "flex", gap: 4 }}>
+                <label style={{
+                  fontSize: 11, padding: "4px 10px", borderRadius: 8,
+                  background: "rgba(0,0,0,0.5)", color: "#fff",
+                  cursor: "pointer", fontFamily: "inherit",
+                }}>
+                  Upload new
+                  <input type="file" accept="image/*" onChange={handleCoverUpload} style={{ display: "none" }} />
+                </label>
+                <button
+                  type="button"
+                  onClick={fetchUnsplashCover}
+                  style={{
+                    fontSize: 11, padding: "4px 10px", borderRadius: 8,
+                    background: "rgba(0,0,0,0.5)", color: "rgba(255,255,255,0.8)",
+                    border: "none", cursor: "pointer", fontFamily: "inherit",
+                  }}
+                >
+                  Unsplash
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setCoverPreview(null); setCoverAttribution(null); setCoverFile(null); setCoverChanged(true); }}
+                  style={{
+                    fontSize: 11, padding: "4px 10px", borderRadius: 8,
+                    background: "rgba(0,0,0,0.5)", color: "rgba(255,255,255,0.7)",
+                    border: "none", cursor: "pointer", fontFamily: "inherit",
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: "flex", gap: 8 }}>
+              <label style={{
+                flex: 1, padding: "12px 16px", fontSize: 14, fontWeight: 500,
+                background: "#fff", border: "1px solid var(--color-border-dark)",
+                borderRadius: 10, cursor: "pointer", fontFamily: "inherit",
+                color: "var(--color-text-mid)", textAlign: "center" as const,
+              }}>
+                Upload photo
+                <input type="file" accept="image/*" onChange={handleCoverUpload} style={{ display: "none" }} />
+              </label>
+              <button
+                type="button"
+                onClick={fetchUnsplashCover}
+                style={{
+                  flex: 1, padding: "12px 16px", fontSize: 14, fontWeight: 500,
+                  background: "#fff", border: "1px solid var(--color-border-dark)",
+                  borderRadius: 10, cursor: "pointer", fontFamily: "inherit",
+                  color: "var(--color-text-mid)",
+                }}
+              >
+                Unsplash suggestion
+              </button>
+            </div>
+          )}
+        </div>
+
         {/* Trip name */}
         <div>
           <label style={labelStyle}>Trip Name</label>
@@ -396,57 +509,76 @@ function TripSettingsView({ trip, onSave, onClose }: TripSettingsProps) {
             style={inputStyle}
             placeholder="Barbados"
           />
-        </div>
-
-        {/* Dates */}
-        <div>
-          <label style={labelStyle}>
-            Dates <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0, fontFamily: "inherit" }}>(optional)</span>
-          </label>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <div>
-              <span style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 4 }}>Arrival</span>
-              <input
-                type="date"
-                value={checkIn}
-                onChange={(e) => setCheckIn(e.target.value)}
-                style={{
-                  ...inputStyle,
-                  color: checkIn ? "var(--color-text)" : "var(--color-text-muted)",
-                }}
-              />
-            </div>
-            <div>
-              <span style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 4 }}>Departure</span>
-              <input
-                type="date"
-                value={checkOut}
-                min={checkIn || undefined}
-                onChange={(e) => setCheckOut(e.target.value)}
-                style={{
-                  ...inputStyle,
-                  color: checkOut ? "var(--color-text)" : "var(--color-text-muted)",
-                }}
-              />
-            </div>
-          </div>
-          {dateNights != null && (
-            <p className="font-mono" style={{ fontSize: 12, color: "var(--color-text-mid)", marginTop: 8, marginBottom: 0 }}>
-              {dateNights} night{dateNights !== 1 ? "s" : ""} &mdash; updates prices and countdown everywhere
+          {destination.trim() !== trip.destination && destination.trim() && (
+            <p style={{ fontSize: 12, color: "var(--color-text-muted)", marginTop: 6, marginBottom: 0 }}>
+              Map center will update when you save.
             </p>
           )}
-          {(checkIn || checkOut) && (
-            <button
-              type="button"
-              onClick={() => { setCheckIn(""); setCheckOut(""); }}
-              style={{
-                fontSize: 12, color: "var(--color-text-muted)", background: "none",
-                border: "none", cursor: "pointer", fontFamily: "inherit", padding: 0,
-                marginTop: 6,
+        </div>
+
+        {/* Dates — with gentle prompt if missing */}
+        <div>
+          <label style={labelStyle}>Dates</label>
+          {!hasDates && !checkIn && !checkOut ? (
+            <div
+              onClick={() => {
+                // Focus the first date input by setting a dummy value and clearing
+                const today = new Date().toISOString().split("T")[0];
+                setCheckIn(today);
               }}
+              style={promptStyle}
             >
-              Clear dates
-            </button>
+              <span style={{ fontSize: 18, color: "var(--color-coral)", lineHeight: 1 }}>+</span>
+              <span>Add your travel dates</span>
+            </div>
+          ) : (
+            <>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div>
+                  <span style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 4 }}>Arrival</span>
+                  <input
+                    type="date"
+                    value={checkIn}
+                    onChange={(e) => setCheckIn(e.target.value)}
+                    style={{
+                      ...inputStyle,
+                      color: checkIn ? "var(--color-text)" : "var(--color-text-muted)",
+                    }}
+                  />
+                </div>
+                <div>
+                  <span style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 4 }}>Departure</span>
+                  <input
+                    type="date"
+                    value={checkOut}
+                    min={checkIn || undefined}
+                    onChange={(e) => setCheckOut(e.target.value)}
+                    style={{
+                      ...inputStyle,
+                      color: checkOut ? "var(--color-text)" : "var(--color-text-muted)",
+                    }}
+                  />
+                </div>
+              </div>
+              {dateNights != null && (
+                <p className="font-mono" style={{ fontSize: 12, color: "var(--color-text-mid)", marginTop: 8, marginBottom: 0 }}>
+                  {dateNights} night{dateNights !== 1 ? "s" : ""}
+                </p>
+              )}
+              {(checkIn || checkOut) && (
+                <button
+                  type="button"
+                  onClick={() => { setCheckIn(""); setCheckOut(""); }}
+                  style={{
+                    fontSize: 12, color: "var(--color-text-muted)", background: "none",
+                    border: "none", cursor: "pointer", fontFamily: "inherit", padding: 0,
+                    marginTop: 6,
+                  }}
+                >
+                  Clear dates
+                </button>
+              )}
+            </>
           )}
         </div>
 
@@ -525,86 +657,6 @@ function TripSettingsView({ trip, onSave, onClose }: TripSettingsProps) {
           <p style={{ fontSize: 12, color: "var(--color-text-muted)", marginTop: 6, marginBottom: 0 }}>
             Changing adults updates all per-person price calculations.
           </p>
-        </div>
-
-        {/* Cover Photo */}
-        <div>
-          <label style={labelStyle}>Cover Photo</label>
-          {coverPreview ? (
-            <div style={{ position: "relative", borderRadius: 10, overflow: "hidden", border: "1px solid var(--color-border-dark)" }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={coverPreview}
-                alt="Cover"
-                style={{ width: "100%", height: 160, objectFit: "cover", display: "block" }}
-              />
-              <div style={{
-                position: "absolute", inset: 0,
-                background: "linear-gradient(to bottom, transparent 50%, rgba(0,0,0,0.35) 100%)",
-              }} />
-              {coverAttribution && (
-                <div style={{ position: "absolute", bottom: 4, right: 8, fontSize: 9, color: "rgba(255,255,255,0.5)" }}>
-                  {coverAttribution}
-                </div>
-              )}
-              <div style={{ position: "absolute", top: 8, right: 8, display: "flex", gap: 4 }}>
-                <label style={{
-                  fontSize: 11, padding: "4px 10px", borderRadius: 8,
-                  background: "rgba(0,0,0,0.5)", color: "#fff",
-                  cursor: "pointer", fontFamily: "inherit",
-                }}>
-                  Upload new
-                  <input type="file" accept="image/*" onChange={handleCoverUpload} style={{ display: "none" }} />
-                </label>
-                <button
-                  type="button"
-                  onClick={fetchUnsplashCover}
-                  style={{
-                    fontSize: 11, padding: "4px 10px", borderRadius: 8,
-                    background: "rgba(0,0,0,0.5)", color: "rgba(255,255,255,0.8)",
-                    border: "none", cursor: "pointer", fontFamily: "inherit",
-                  }}
-                >
-                  Unsplash
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setCoverPreview(null); setCoverAttribution(null); setCoverFile(null); setCoverChanged(true); }}
-                  style={{
-                    fontSize: 11, padding: "4px 10px", borderRadius: 8,
-                    background: "rgba(0,0,0,0.5)", color: "rgba(255,255,255,0.7)",
-                    border: "none", cursor: "pointer", fontFamily: "inherit",
-                  }}
-                >
-                  Remove
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div style={{ display: "flex", gap: 8 }}>
-              <label style={{
-                flex: 1, padding: "12px 16px", fontSize: 14, fontWeight: 500,
-                background: "#fff", border: "1px solid var(--color-border-dark)",
-                borderRadius: 10, cursor: "pointer", fontFamily: "inherit",
-                color: "var(--color-text-mid)", textAlign: "center" as const,
-              }}>
-                Upload photo
-                <input type="file" accept="image/*" onChange={handleCoverUpload} style={{ display: "none" }} />
-              </label>
-              <button
-                type="button"
-                onClick={fetchUnsplashCover}
-                style={{
-                  flex: 1, padding: "12px 16px", fontSize: 14, fontWeight: 500,
-                  background: "#fff", border: "1px solid var(--color-border-dark)",
-                  borderRadius: 10, cursor: "pointer", fontFamily: "inherit",
-                  color: "var(--color-text-mid)",
-                }}
-              >
-                Unsplash suggestion
-              </button>
-            </div>
-          )}
         </div>
 
         {/* Save */}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 
 interface TripVote {
   userName: string;
@@ -141,21 +141,16 @@ function getActivityStatus(trip: Trip): string {
 export default function Home() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [showCreate, setShowCreate] = useState(false);
+  const [createStep, setCreateStep] = useState(1);
   const [form, setForm] = useState({
     name: "",
     destination: "",
-    centerLat: "",
-    centerLng: "",
-    adults: "4",
-    kids: "2",
     checkIn: "",
     checkOut: "",
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [coverPreview, setCoverPreview] = useState<{ url: string; attribution: string | null; source: "unsplash" | "upload" } | null>(null);
-  const [coverFile, setCoverFile] = useState<File | null>(null);
-  const [fetchingCover, setFetchingCover] = useState(false);
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     fetch("/api/trips")
@@ -179,81 +174,77 @@ export default function Home() {
     ? Math.max(1, Math.round((new Date(form.checkOut).getTime() - new Date(form.checkIn).getTime()) / (1000 * 60 * 60 * 24)))
     : null;
 
-  // Fetch Unsplash cover photo when destination changes
-  const fetchUnsplash = useCallback((dest: string) => {
-    if (!dest.trim()) { setCoverPreview(null); return; }
-    setFetchingCover(true);
-    fetch(`/api/unsplash?q=${encodeURIComponent(dest)}`)
-      .then((r) => r.ok ? r.json() : null)
-      .then((data) => {
-        if (data?.url) {
-          setCoverPreview({ url: data.url, attribution: data.attribution, source: "unsplash" });
-        }
-      })
-      .catch(() => {})
-      .finally(() => setFetchingCover(false));
-  }, []);
+  const presets = ["Barbados", "Cancun", "Maui", "Lisbon", "Bali", "Tulum"];
 
-  useEffect(() => {
-    if (!form.destination.trim() || coverPreview?.source === "upload") return;
-    const timer = setTimeout(() => fetchUnsplash(form.destination), 600);
-    return () => clearTimeout(timer);
-  }, [form.destination, fetchUnsplash, coverPreview?.source]);
-
-  function handleCoverFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setCoverFile(file);
-    const objectUrl = URL.createObjectURL(file);
-    setCoverPreview({ url: objectUrl, attribution: null, source: "upload" });
+  function openCreateModal() {
+    setForm({ name: "", destination: "", checkIn: "", checkOut: "" });
+    setCreateStep(1);
+    setShowCreate(true);
   }
 
-  async function createTrip(e: React.FormEvent) {
-    e.preventDefault();
-    // Determine cover photo to include at creation
-    const coverPhotoUrl = coverPreview?.source === "unsplash" ? coverPreview.url : null;
-    const coverPhotoAttribution = coverPreview?.source === "unsplash" ? coverPreview.attribution : null;
-
-    const res = await fetch("/api/trips", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: form.name,
-        destination: form.destination,
-        centerLat: parseFloat(form.centerLat) || 13.1939,
-        centerLng: parseFloat(form.centerLng) || -59.5432,
-        adults: parseInt(form.adults) || 4,
-        kids: parseInt(form.kids) || 2,
-        checkIn: form.checkIn || null,
-        checkOut: form.checkOut || null,
-        nights: dateNights,
-        coverPhotoUrl,
-        coverPhotoAttribution,
-      }),
+  function handleChipPick(dest: string) {
+    setForm({
+      ...form,
+      name: `${dest} ${new Date().getFullYear()}`,
+      destination: dest,
     });
-    if (res.ok) {
-      const trip = await res.json();
-      // Upload user photo if selected
-      if (coverFile) {
-        const formData = new FormData();
-        formData.append("file", coverFile);
-        await fetch(`/api/trips/${trip.id}/cover-photo`, {
-          method: "POST",
-          body: formData,
-        });
+    setCreateStep(3);
+  }
+
+  async function createTrip() {
+    setCreating(true);
+    try {
+      // Geocode the destination
+      let centerLat = 0;
+      let centerLng = 0;
+      try {
+        const geoRes = await fetch(`/api/geocode?q=${encodeURIComponent(form.destination)}`);
+        if (geoRes.ok) {
+          const geo = await geoRes.json();
+          centerLat = geo.lat;
+          centerLng = geo.lng;
+        }
+      } catch {}
+
+      // Auto-fetch Unsplash cover
+      let coverPhotoUrl: string | null = null;
+      let coverPhotoAttribution: string | null = null;
+      try {
+        const unsplashRes = await fetch(`/api/unsplash?q=${encodeURIComponent(form.destination)}`);
+        if (unsplashRes.ok) {
+          const data = await unsplashRes.json();
+          if (data?.url) {
+            coverPhotoUrl = data.url;
+            coverPhotoAttribution = data.attribution;
+          }
+        }
+      } catch {}
+
+      const res = await fetch("/api/trips", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.name,
+          destination: form.destination,
+          centerLat,
+          centerLng,
+          adults: 2,
+          kids: 0,
+          checkIn: form.checkIn || null,
+          checkOut: form.checkOut || null,
+          nights: dateNights,
+          coverPhotoUrl,
+          coverPhotoAttribution,
+        }),
+      });
+      if (res.ok) {
+        const trip = await res.json();
+        window.location.href = `/trip/${trip.id}`;
       }
-      window.location.href = `/trip/${trip.id}`;
+    } finally {
+      setCreating(false);
     }
   }
-
-  const presets = [
-    { name: "Barbados", lat: 13.1939, lng: -59.5432 },
-    { name: "Cancun", lat: 21.1619, lng: -86.8515 },
-    { name: "Maui", lat: 20.7984, lng: -156.3319 },
-    { name: "Lisbon", lat: 38.7223, lng: -9.1393 },
-    { name: "Bali", lat: -8.3405, lng: 115.092 },
-    { name: "Tulum", lat: 20.2114, lng: -87.4654 },
-  ];
 
   return (
     <div className="min-h-screen" style={{ background: "var(--color-bg)" }}>
@@ -269,7 +260,7 @@ export default function Home() {
           </div>
           <button
             className="entrance entrance-d1"
-            onClick={() => setShowCreate(true)}
+            onClick={() => openCreateModal()}
             style={{
               padding: "8px 16px",
               background: "var(--color-coral)",
@@ -349,7 +340,7 @@ export default function Home() {
               Start planning your next trip
             </p>
             <button
-              onClick={() => setShowCreate(true)}
+              onClick={() => openCreateModal()}
               style={{
                 padding: "14px 32px",
                 background: "var(--color-coral)",
@@ -394,8 +385,8 @@ export default function Home() {
                   <div
                     role="button"
                     tabIndex={0}
-                    onClick={() => setShowCreate(true)}
-                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setShowCreate(true); } }}
+                    onClick={() => openCreateModal()}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openCreateModal(); } }}
                     style={{
                       borderRadius: 14,
                       overflow: "hidden",
@@ -455,333 +446,398 @@ export default function Home() {
           </>
         )}
 
+        {/* Creation modal overlay */}
         {showCreate && (
-          <div className="max-w-lg mx-auto animate-slide-up">
-            <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--color-text)", marginBottom: 24, fontFamily: "var(--font-heading)" }}>
-              Create a Trip
-            </h2>
-            <form onSubmit={createTrip} className="space-y-4">
-              <div>
-                <label style={{ display: "block", fontSize: 11, color: "var(--color-text-mid)", marginBottom: 4, fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: 0.8 }}>
-                  Trip Name
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Barbados 2026"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 50,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 16,
+            }}
+          >
+            {/* Backdrop */}
+            <div
+              onClick={() => setShowCreate(false)}
+              className="animate-fade-in"
+              style={{
+                position: "absolute",
+                inset: 0,
+                background: "rgba(42,37,32,0.4)",
+                backdropFilter: "blur(4px)",
+              }}
+            />
+
+            {/* Modal */}
+            <div
+              className="animate-slide-up"
+              style={{
+                position: "relative",
+                width: "100%",
+                maxWidth: 440,
+                background: "var(--color-card)",
+                borderRadius: 16,
+                boxShadow: "0 20px 60px rgba(0,0,0,0.15)",
+                overflow: "hidden",
+              }}
+            >
+              {/* Header with X close */}
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "16px 20px 0",
+              }}>
+                {/* Step dots */}
+                <div style={{ display: "flex", gap: 6 }}>
+                  {[1, 2, 3].map((s) => (
+                    <div
+                      key={s}
+                      style={{
+                        width: s === createStep ? 20 : 6,
+                        height: 6,
+                        borderRadius: 3,
+                        background: s === createStep ? "var(--color-coral)" : s < createStep ? "var(--color-coral)" : "var(--color-border-dark)",
+                        transition: "all 0.25s var(--ease-spring)",
+                      }}
+                    />
+                  ))}
+                </div>
+                <button
+                  onClick={() => setShowCreate(false)}
                   style={{
-                    width: "100%",
-                    padding: "10px 16px",
-                    background: "#fff",
-                    border: "1px solid var(--color-border-dark)",
-                    borderRadius: 8,
-                    color: "var(--color-text)",
+                    width: 32,
+                    height: 32,
+                    borderRadius: "50%",
+                    border: "none",
+                    background: "var(--color-panel)",
+                    color: "var(--color-text-muted)",
+                    cursor: "pointer",
+                    fontSize: 16,
                     fontFamily: "inherit",
-                    fontSize: 14,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
                   }}
-                />
+                >
+                  &#10005;
+                </button>
               </div>
 
-              <div>
-                <label style={{ display: "block", fontSize: 11, color: "var(--color-text-mid)", marginBottom: 4, fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: 0.8 }}>
-                  Destination
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Barbados"
-                  value={form.destination}
-                  onChange={(e) => setForm({ ...form, destination: e.target.value })}
-                  style={{
-                    width: "100%",
-                    padding: "10px 16px",
-                    background: "#fff",
-                    border: "1px solid var(--color-border-dark)",
-                    borderRadius: 8,
-                    color: "var(--color-text)",
-                    fontFamily: "inherit",
-                    fontSize: 14,
-                  }}
-                />
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {presets.map((p) => (
-                    <button
-                      key={p.name}
-                      type="button"
-                      onClick={() =>
-                        setForm({
-                          ...form,
-                          destination: p.name,
-                          name: form.name || `${p.name} ${new Date().getFullYear()}`,
-                          centerLat: String(p.lat),
-                          centerLng: String(p.lng),
-                        })
-                      }
+              <div style={{ padding: "24px 24px 28px" }}>
+                {/* Step 1 — Trip name + destination chips */}
+                {createStep === 1 && (
+                  <div>
+                    <h2 style={{
+                      fontSize: 22,
+                      fontWeight: 600,
+                      fontFamily: "var(--font-heading)",
+                      fontStyle: "italic",
+                      color: "var(--color-text)",
+                      margin: 0,
+                      marginBottom: 20,
+                    }}>
+                      What should we call this trip?
+                    </h2>
+                    <input
+                      type="text"
+                      autoFocus
+                      placeholder="e.g. Spring Break 2026"
+                      value={form.name}
+                      onChange={(e) => setForm({ ...form, name: e.target.value })}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && form.name.trim()) {
+                          e.preventDefault();
+                          setCreateStep(2);
+                        }
+                      }}
                       style={{
-                        padding: "4px 12px",
-                        fontSize: 12,
-                        background: "var(--color-panel)",
+                        width: "100%",
+                        padding: "14px 16px",
+                        background: "#fff",
                         border: "1px solid var(--color-border-dark)",
-                        borderRadius: 20,
-                        color: "var(--color-text-mid)",
-                        cursor: "pointer",
+                        borderRadius: 10,
+                        color: "var(--color-text)",
                         fontFamily: "inherit",
+                        fontSize: 16,
+                      }}
+                    />
+
+                    {/* Quick-pick chips */}
+                    <div style={{ marginTop: 20 }}>
+                      <p style={{
+                        fontSize: 12,
+                        color: "var(--color-text-muted)",
+                        marginBottom: 10,
+                        fontFamily: "var(--font-mono)",
+                        textTransform: "uppercase" as const,
+                        letterSpacing: "0.05em",
+                      }}>
+                        Or pick a destination
+                      </p>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                        {presets.map((dest) => (
+                          <button
+                            key={dest}
+                            type="button"
+                            onClick={() => handleChipPick(dest)}
+                            style={{
+                              padding: "8px 16px",
+                              fontSize: 13,
+                              fontWeight: 500,
+                              background: "var(--color-panel)",
+                              border: "1px solid var(--color-border-dark)",
+                              borderRadius: 24,
+                              color: "var(--color-text-mid)",
+                              cursor: "pointer",
+                              fontFamily: "inherit",
+                              transition: "all 0.15s",
+                            }}
+                            onMouseOver={(e) => {
+                              e.currentTarget.style.borderColor = "var(--color-coral-border)";
+                              e.currentTarget.style.color = "var(--color-coral)";
+                            }}
+                            onMouseOut={(e) => {
+                              e.currentTarget.style.borderColor = "var(--color-border-dark)";
+                              e.currentTarget.style.color = "var(--color-text-mid)";
+                            }}
+                          >
+                            {getFlag(dest)} {dest}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => setCreateStep(2)}
+                      disabled={!form.name.trim()}
+                      style={{
+                        width: "100%",
+                        padding: "14px 16px",
+                        fontSize: 15,
+                        fontWeight: 600,
+                        background: form.name.trim() ? "var(--color-coral)" : "var(--color-panel)",
+                        color: form.name.trim() ? "#fff" : "var(--color-text-light)",
+                        borderRadius: 10,
+                        border: "none",
+                        cursor: form.name.trim() ? "pointer" : "default",
+                        fontFamily: "inherit",
+                        marginTop: 24,
                         transition: "all 0.15s",
                       }}
                     >
-                      {p.name}
+                      Next
                     </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Dates — optional */}
-              <div>
-                <label style={{ display: "block", fontSize: 11, color: "var(--color-text-mid)", marginBottom: 4, fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: 0.8 }}>
-                  Dates <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0, fontFamily: "inherit" }}>(optional)</span>
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <input
-                    type="date"
-                    value={form.checkIn}
-                    onChange={(e) => setForm({ ...form, checkIn: e.target.value })}
-                    placeholder="Arrival"
-                    style={{
-                      width: "100%",
-                      padding: "10px 16px",
-                      background: "#fff",
-                      border: "1px solid var(--color-border-dark)",
-                      borderRadius: 8,
-                      color: form.checkIn ? "var(--color-text)" : "var(--color-text-muted)",
-                      fontFamily: "inherit",
-                      fontSize: 14,
-                    }}
-                  />
-                  <input
-                    type="date"
-                    value={form.checkOut}
-                    min={form.checkIn || undefined}
-                    onChange={(e) => setForm({ ...form, checkOut: e.target.value })}
-                    placeholder="Departure"
-                    style={{
-                      width: "100%",
-                      padding: "10px 16px",
-                      background: "#fff",
-                      border: "1px solid var(--color-border-dark)",
-                      borderRadius: 8,
-                      color: form.checkOut ? "var(--color-text)" : "var(--color-text-muted)",
-                      fontFamily: "inherit",
-                      fontSize: 14,
-                    }}
-                  />
-                </div>
-                {dateNights != null && (
-                  <p className="font-mono" style={{ fontSize: 12, color: "var(--color-text-mid)", marginTop: 6 }}>
-                    {dateNights} night{dateNights !== 1 ? "s" : ""}
-                  </p>
+                  </div>
                 )}
-              </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label style={{ display: "block", fontSize: 11, color: "var(--color-text-mid)", marginBottom: 4, fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: 0.8 }}>
-                    Center Latitude
-                  </label>
-                  <input
-                    type="number"
-                    step="any"
-                    placeholder="13.1939"
-                    value={form.centerLat}
-                    onChange={(e) => setForm({ ...form, centerLat: e.target.value })}
-                    style={{
-                      width: "100%",
-                      padding: "10px 16px",
-                      background: "#fff",
-                      border: "1px solid var(--color-border-dark)",
-                      borderRadius: 8,
+                {/* Step 2 — Destination */}
+                {createStep === 2 && (
+                  <div>
+                    <h2 style={{
+                      fontSize: 22,
+                      fontWeight: 600,
+                      fontFamily: "var(--font-heading)",
+                      fontStyle: "italic",
                       color: "var(--color-text)",
-                      fontFamily: "inherit",
-                      fontSize: 14,
-                    }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: "block", fontSize: 11, color: "var(--color-text-mid)", marginBottom: 4, fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: 0.8 }}>
-                    Center Longitude
-                  </label>
-                  <input
-                    type="number"
-                    step="any"
-                    placeholder="-59.5432"
-                    value={form.centerLng}
-                    onChange={(e) => setForm({ ...form, centerLng: e.target.value })}
-                    style={{
-                      width: "100%",
-                      padding: "10px 16px",
-                      background: "#fff",
-                      border: "1px solid var(--color-border-dark)",
-                      borderRadius: 8,
-                      color: "var(--color-text)",
-                      fontFamily: "inherit",
-                      fontSize: 14,
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label style={{ display: "block", fontSize: 11, color: "var(--color-text-mid)", marginBottom: 4, fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: 0.8 }}>
-                    Adults
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={form.adults}
-                    onChange={(e) => setForm({ ...form, adults: e.target.value })}
-                    style={{
-                      width: "100%",
-                      padding: "10px 16px",
-                      background: "#fff",
-                      border: "1px solid var(--color-border-dark)",
-                      borderRadius: 8,
-                      color: "var(--color-text)",
-                      fontFamily: "inherit",
-                      fontSize: 14,
-                    }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: "block", fontSize: 11, color: "var(--color-text-mid)", marginBottom: 4, fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: 0.8 }}>
-                    Kids
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={form.kids}
-                    onChange={(e) => setForm({ ...form, kids: e.target.value })}
-                    style={{
-                      width: "100%",
-                      padding: "10px 16px",
-                      background: "#fff",
-                      border: "1px solid var(--color-border-dark)",
-                      borderRadius: 8,
-                      color: "var(--color-text)",
-                      fontFamily: "inherit",
-                      fontSize: 14,
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* Cover photo — optional */}
-              <div>
-                <label style={{ display: "block", fontSize: 11, color: "var(--color-text-mid)", marginBottom: 4, fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: 0.8 }}>
-                  Cover Photo <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0, fontFamily: "inherit" }}>(optional)</span>
-                </label>
-                {coverPreview ? (
-                  <div style={{ position: "relative", borderRadius: 10, overflow: "hidden", border: "1px solid var(--color-border-dark)" }}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={coverPreview.url}
-                      alt="Cover preview"
-                      style={{ width: "100%", height: 140, objectFit: "cover", display: "block" }}
+                      margin: 0,
+                      marginBottom: 20,
+                    }}>
+                      Where are you headed?
+                    </h2>
+                    <input
+                      type="text"
+                      autoFocus
+                      placeholder="e.g. Barbados"
+                      value={form.destination}
+                      onChange={(e) => setForm({ ...form, destination: e.target.value })}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && form.destination.trim()) {
+                          e.preventDefault();
+                          setCreateStep(3);
+                        }
+                      }}
+                      style={{
+                        width: "100%",
+                        padding: "14px 16px",
+                        background: "#fff",
+                        border: "1px solid var(--color-border-dark)",
+                        borderRadius: 10,
+                        color: "var(--color-text)",
+                        fontFamily: "inherit",
+                        fontSize: 16,
+                      }}
                     />
-                    <div style={{
-                      position: "absolute", inset: 0,
-                      background: "linear-gradient(to bottom, transparent 50%, rgba(0,0,0,0.4) 100%)",
-                    }} />
-                    {coverPreview.attribution && (
-                      <div style={{
-                        position: "absolute", bottom: 4, right: 8,
-                        fontSize: 9, color: "rgba(255,255,255,0.5)",
-                      }}>
-                        {coverPreview.attribution}
-                      </div>
-                    )}
-                    <div style={{ position: "absolute", top: 8, right: 8, display: "flex", gap: 4 }}>
-                      {coverPreview.source === "unsplash" && (
-                        <span style={{
-                          fontSize: 10, padding: "2px 8px", borderRadius: 10,
-                          background: "rgba(0,0,0,0.5)", color: "rgba(255,255,255,0.8)",
-                        }}>
-                          Auto
-                        </span>
-                      )}
-                      <label style={{
-                        fontSize: 10, padding: "2px 8px", borderRadius: 10,
-                        background: "rgba(0,0,0,0.5)", color: "#fff",
-                        cursor: "pointer",
-                      }}>
-                        Upload
-                        <input type="file" accept="image/*" onChange={handleCoverFileChange} style={{ display: "none" }} />
-                      </label>
+
+                    <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
                       <button
-                        type="button"
-                        onClick={() => { setCoverPreview(null); setCoverFile(null); }}
+                        onClick={() => setCreateStep(1)}
                         style={{
-                          fontSize: 10, padding: "2px 8px", borderRadius: 10,
-                          background: "rgba(0,0,0,0.5)", color: "rgba(255,255,255,0.8)",
-                          border: "none", cursor: "pointer", fontFamily: "inherit",
+                          padding: "14px 16px",
+                          fontSize: 15,
+                          fontWeight: 500,
+                          background: "var(--color-panel)",
+                          color: "var(--color-text-mid)",
+                          borderRadius: 10,
+                          border: "none",
+                          cursor: "pointer",
+                          fontFamily: "inherit",
                         }}
                       >
-                        Remove
+                        Back
+                      </button>
+                      <button
+                        onClick={() => setCreateStep(3)}
+                        disabled={!form.destination.trim()}
+                        style={{
+                          flex: 1,
+                          padding: "14px 16px",
+                          fontSize: 15,
+                          fontWeight: 600,
+                          background: form.destination.trim() ? "var(--color-coral)" : "var(--color-panel)",
+                          color: form.destination.trim() ? "#fff" : "var(--color-text-light)",
+                          borderRadius: 10,
+                          border: "none",
+                          cursor: form.destination.trim() ? "pointer" : "default",
+                          fontFamily: "inherit",
+                          transition: "all 0.15s",
+                        }}
+                      >
+                        Next
                       </button>
                     </div>
                   </div>
-                ) : (
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <label style={{
-                      flex: 1, padding: "10px 16px", fontSize: 13, fontWeight: 500,
-                      background: "var(--color-panel)", border: "1px solid var(--color-border-dark)",
-                      borderRadius: 8, cursor: "pointer", fontFamily: "inherit",
-                      color: "var(--color-text-mid)", textAlign: "center" as const,
+                )}
+
+                {/* Step 3 — Dates */}
+                {createStep === 3 && (
+                  <div>
+                    <h2 style={{
+                      fontSize: 22,
+                      fontWeight: 600,
+                      fontFamily: "var(--font-heading)",
+                      fontStyle: "italic",
+                      color: "var(--color-text)",
+                      margin: 0,
+                      marginBottom: 20,
                     }}>
-                      {fetchingCover ? "Loading..." : "Upload your own"}
-                      <input type="file" accept="image/*" onChange={handleCoverFileChange} style={{ display: "none" }} />
-                    </label>
+                      When are you going?
+                    </h2>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                      <div>
+                        <span style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 4 }}>Arrival</span>
+                        <input
+                          type="date"
+                          value={form.checkIn}
+                          onChange={(e) => setForm({ ...form, checkIn: e.target.value })}
+                          style={{
+                            width: "100%",
+                            padding: "12px 14px",
+                            background: "#fff",
+                            border: "1px solid var(--color-border-dark)",
+                            borderRadius: 10,
+                            color: form.checkIn ? "var(--color-text)" : "var(--color-text-muted)",
+                            fontFamily: "inherit",
+                            fontSize: 15,
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <span style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 4 }}>Departure</span>
+                        <input
+                          type="date"
+                          value={form.checkOut}
+                          min={form.checkIn || undefined}
+                          onChange={(e) => setForm({ ...form, checkOut: e.target.value })}
+                          style={{
+                            width: "100%",
+                            padding: "12px 14px",
+                            background: "#fff",
+                            border: "1px solid var(--color-border-dark)",
+                            borderRadius: 10,
+                            color: form.checkOut ? "var(--color-text)" : "var(--color-text-muted)",
+                            fontFamily: "inherit",
+                            fontSize: 15,
+                          }}
+                        />
+                      </div>
+                    </div>
+                    {dateNights != null && (
+                      <p className="font-mono" style={{ fontSize: 12, color: "var(--color-text-mid)", marginTop: 8, marginBottom: 0 }}>
+                        {dateNights} night{dateNights !== 1 ? "s" : ""}
+                      </p>
+                    )}
+
+                    <div style={{ display: "flex", gap: 10, marginTop: 24, alignItems: "center" }}>
+                      <button
+                        onClick={() => setCreateStep(form.destination ? 2 : 1)}
+                        style={{
+                          padding: "14px 16px",
+                          fontSize: 15,
+                          fontWeight: 500,
+                          background: "var(--color-panel)",
+                          color: "var(--color-text-mid)",
+                          borderRadius: 10,
+                          border: "none",
+                          cursor: "pointer",
+                          fontFamily: "inherit",
+                        }}
+                      >
+                        Back
+                      </button>
+                      <button
+                        onClick={() => createTrip()}
+                        disabled={creating}
+                        style={{
+                          flex: 1,
+                          padding: "14px 16px",
+                          fontSize: 15,
+                          fontWeight: 600,
+                          background: "var(--color-coral)",
+                          color: "#fff",
+                          borderRadius: 10,
+                          border: "none",
+                          cursor: creating ? "default" : "pointer",
+                          fontFamily: "inherit",
+                          transition: "all 0.15s",
+                          opacity: creating ? 0.6 : 1,
+                          boxShadow: "0 4px 14px rgba(224,90,71,0.25)",
+                        }}
+                      >
+                        {creating ? "Creating..." : "Let\u2019s go"}
+                      </button>
+                    </div>
+
+                    {/* Skip for now */}
+                    {!form.checkIn && !form.checkOut && (
+                      <button
+                        onClick={() => createTrip()}
+                        disabled={creating}
+                        style={{
+                          display: "block",
+                          width: "100%",
+                          textAlign: "center" as const,
+                          marginTop: 12,
+                          fontSize: 13,
+                          color: "var(--color-text-muted)",
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          fontFamily: "inherit",
+                          padding: 4,
+                        }}
+                      >
+                        Skip for now
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="submit"
-                  style={{
-                    flex: 1,
-                    padding: "10px 16px",
-                    background: "var(--color-coral)",
-                    color: "#fff",
-                    fontWeight: 600,
-                    borderRadius: 8,
-                    border: "none",
-                    cursor: "pointer",
-                    fontFamily: "inherit",
-                    fontSize: 14,
-                  }}
-                >
-                  Create Trip
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowCreate(false)}
-                  style={{
-                    padding: "10px 16px",
-                    background: "var(--color-panel)",
-                    border: "1px solid var(--color-border-dark)",
-                    color: "var(--color-text-mid)",
-                    borderRadius: 8,
-                    cursor: "pointer",
-                    fontFamily: "inherit",
-                    fontSize: 14,
-                  }}
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
+            </div>
           </div>
         )}
       </main>
