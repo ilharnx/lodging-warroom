@@ -83,19 +83,6 @@ function formatPrice(amount: number | null, currency: string = "USD"): string {
   }).format(amount);
 }
 
-const USER_COLORS = [
-  "#E05A47", "#3D67FF", "#4A9E6B", "#D4A843", "#8B5CF6",
-  "#0891B2", "#DB2777", "#EA580C", "#6D28D9", "#059669",
-];
-
-function getUserColor(name: string): string {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return USER_COLORS[Math.abs(hash) % USER_COLORS.length];
-}
-
 function Badge({ source }: { source: string }) {
   const colors: Record<string, string> = {
     airbnb: "#FF5A5F",
@@ -448,51 +435,7 @@ export function ListingCard({
           </div>
         )}
 
-        {/* Comment preview */}
-        {listing.comments && listing.comments.length > 0 && (() => {
-          const latest = listing.comments[0];
-          const color = getUserColor(latest.userName);
-          const initial = latest.userName.charAt(0).toUpperCase();
-          const extraCount = listing.comments.length - 1;
-          return (
-            <div
-              style={{
-                marginTop: 8, padding: "6px 8px",
-                background: "var(--color-bg)", borderRadius: 8,
-                display: "flex", alignItems: "center", gap: 6,
-                overflow: "hidden",
-              }}
-            >
-              <div style={{
-                width: 20, height: 20, borderRadius: "50%", flexShrink: 0,
-                background: color, color: "#fff",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 10, fontWeight: 700,
-              }}>
-                {initial}
-              </div>
-              <span style={{ fontSize: 11, fontWeight: 700, color, flexShrink: 0 }}>
-                {latest.userName}:
-              </span>
-              <span style={{
-                fontSize: 11, color: "var(--color-text-mid)", flex: 1, minWidth: 0,
-                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-              }}>
-                {latest.text}
-              </span>
-              {extraCount > 0 && (
-                <span className="font-mono" style={{
-                  fontSize: 10, color: "var(--color-text-muted)", flexShrink: 0,
-                  fontWeight: 600,
-                }}>
-                  +{extraCount}
-                </span>
-              )}
-            </div>
-          );
-        })()}
-
-        {/* Reactions + link */}
+        {/* Actions */}
         <div style={{
           display: "flex", justifyContent: "space-between", alignItems: "center",
           marginTop: 12, paddingTop: 10, borderTop: "1px solid var(--color-border)",
