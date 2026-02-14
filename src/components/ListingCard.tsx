@@ -180,7 +180,7 @@ function PhotoCarousel({ photos, name }: { photos: Photo[]; name: string }) {
           onClick={(e) => { e.stopPropagation(); goTo(current - 1); }}
           style={{
             position: "absolute", left: 6, top: "50%", transform: "translateY(-50%)",
-            width: 28, height: 28, borderRadius: "50%", background: "rgba(255,255,255,0.85)",
+            width: 36, height: 36, borderRadius: "50%", background: "rgba(255,255,255,0.85)",
             border: "none", cursor: "pointer", fontSize: 13, color: "#333",
             display: "flex", alignItems: "center", justifyContent: "center",
             opacity: 0, transition: "opacity 0.15s",
@@ -196,7 +196,7 @@ function PhotoCarousel({ photos, name }: { photos: Photo[]; name: string }) {
           onClick={(e) => { e.stopPropagation(); goTo(current + 1); }}
           style={{
             position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)",
-            width: 28, height: 28, borderRadius: "50%", background: "rgba(255,255,255,0.85)",
+            width: 36, height: 36, borderRadius: "50%", background: "rgba(255,255,255,0.85)",
             border: "none", cursor: "pointer", fontSize: 13, color: "#333",
             display: "flex", alignItems: "center", justifyContent: "center",
             opacity: 0, transition: "opacity 0.15s",

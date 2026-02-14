@@ -746,16 +746,16 @@ export function ListingDetail({
                         <div style={{ display: "flex", gap: 16 }}>
                           <div>
                             {/* Nights stepper */}
-                            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
                               <button
                                 onClick={() => setPreviewNights(Math.max(1, n - 1))}
                                 disabled={n <= 1}
                                 aria-label="Fewer nights"
                                 style={{
-                                  width: 22, height: 22, borderRadius: "50%",
+                                  width: 36, height: 36, borderRadius: "50%",
                                   border: "1.5px solid var(--color-coral)",
                                   background: "transparent", color: "var(--color-coral)",
-                                  fontSize: 14, lineHeight: 1, fontWeight: 700,
+                                  fontSize: 18, lineHeight: 1, fontWeight: 700,
                                   cursor: n > 1 ? "pointer" : "default",
                                   opacity: n > 1 ? 1 : 0.3,
                                   display: "flex", alignItems: "center", justifyContent: "center",
@@ -764,17 +764,17 @@ export function ListingDetail({
                               >
                                 &minus;
                               </button>
-                              <span className="font-mono" style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text)", minWidth: 16, textAlign: "center" as const }}>
+                              <span className="font-mono" style={{ fontSize: 16, fontWeight: 700, color: "var(--color-text)", minWidth: 20, textAlign: "center" as const }}>
                                 {n}
                               </span>
                               <button
                                 onClick={() => setPreviewNights(n + 1)}
                                 aria-label="More nights"
                                 style={{
-                                  width: 22, height: 22, borderRadius: "50%",
+                                  width: 36, height: 36, borderRadius: "50%",
                                   border: "1.5px solid var(--color-coral)",
                                   background: "transparent", color: "var(--color-coral)",
-                                  fontSize: 14, lineHeight: 1, fontWeight: 700,
+                                  fontSize: 18, lineHeight: 1, fontWeight: 700,
                                   cursor: "pointer",
                                   display: "flex", alignItems: "center", justifyContent: "center",
                                   padding: 0, fontFamily: "var(--font-mono)",
@@ -782,7 +782,7 @@ export function ListingDetail({
                               >
                                 +
                               </button>
-                              <span className="font-mono" style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.04em", color: "var(--color-text-light)" }}>
+                              <span className="font-mono" style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.04em", color: "var(--color-text-light)" }}>
                                 nights
                               </span>
                             </div>
@@ -914,6 +914,7 @@ export function ListingDetail({
               )}
             </div>
 
+
             {/* Reactions */}
             <div style={{ marginTop: 12 }}>
               <ReactionBar
@@ -995,10 +996,10 @@ export function ListingDetail({
                 disabled={submitting || !commentText.trim()}
                 aria-label="Send"
                 style={{
-                  width: 32, height: 32, borderRadius: "50%", border: "none", cursor: "pointer",
+                  width: 40, height: 40, borderRadius: "50%", border: "none", cursor: "pointer",
                   display: "flex", alignItems: "center", justifyContent: "center",
                   background: commentText.trim() ? "var(--color-coral)" : "var(--color-border-dark)",
-                  color: "#fff", fontSize: 14, fontWeight: 700,
+                  color: "#fff", fontSize: 16, fontWeight: 700,
                   transition: "background 0.15s",
                   flexShrink: 0,
                   opacity: submitting ? 0.5 : 1,

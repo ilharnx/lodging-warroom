@@ -110,12 +110,12 @@ function Stepper({ label, value, min, max, onChange }: {
   label: string; value: number; min: number; max: number; onChange: (v: number) => void;
 }) {
   const btnStyle = (disabled: boolean): React.CSSProperties => ({
-    width: 32, height: 32, borderRadius: "50%",
+    width: 40, height: 40, borderRadius: "50%",
     border: "1px solid var(--color-border-dark)",
     background: disabled ? "var(--color-bg)" : "#fff",
     color: disabled ? "var(--color-text-light)" : "var(--color-text)",
     cursor: disabled ? "default" : "pointer",
-    fontSize: 16, fontWeight: 600, fontFamily: "inherit",
+    fontSize: 18, fontWeight: 600, fontFamily: "inherit",
     display: "flex", alignItems: "center", justifyContent: "center",
     padding: 0,
   });

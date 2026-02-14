@@ -176,12 +176,12 @@ function StepperRow({ label, value, min, max, onChange }: {
   label: string; value: number; min: number; max: number; onChange: (v: number) => void;
 }) {
   const btn = (disabled: boolean): React.CSSProperties => ({
-    width: 36, height: 36, borderRadius: "50%",
+    width: 44, height: 44, borderRadius: "50%",
     border: "1px solid var(--color-border-dark)",
     background: disabled ? "var(--color-bg)" : "#fff",
     color: disabled ? "var(--color-text-light)" : "var(--color-text)",
     cursor: disabled ? "default" : "pointer",
-    fontSize: 18, fontWeight: 600, fontFamily: "inherit",
+    fontSize: 20, fontWeight: 600, fontFamily: "inherit",
     display: "flex", alignItems: "center", justifyContent: "center",
     padding: 0,
   });
