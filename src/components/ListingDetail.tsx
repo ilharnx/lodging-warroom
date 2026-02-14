@@ -309,6 +309,7 @@ export function ListingDetail({
   const [saving, setSaving] = useState(false);
   const [showAllAmenities, setShowAllAmenities] = useState(false);
   const [showDescription, setShowDescription] = useState(false);
+  const [showOverflow, setShowOverflow] = useState(false);
   const [previewNights, setPreviewNights] = useState(nights);
   const panelRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number>(0);
@@ -485,25 +486,89 @@ export function ListingDetail({
           >
             &larr; Back to list
           </button>
-          <a
-            href={listing.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              fontSize: 12,
-              fontWeight: 600,
-              color: "var(--color-coral)",
-              textDecoration: "none",
-              padding: isMobile ? "8px 14px" : "4px 10px",
-              border: "1px solid var(--color-coral-border)",
-              borderRadius: 6,
-              minHeight: isMobile ? 44 : undefined,
-              display: "flex",
-              alignItems: "center",
-            }}
-          >
-            View on {sourceLabel(listing.source)} &#8599;
-          </a>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <a
+              href={listing.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                fontSize: 12,
+                fontWeight: 600,
+                color: "var(--color-coral)",
+                textDecoration: "none",
+                padding: isMobile ? "8px 14px" : "4px 10px",
+                border: "1px solid var(--color-coral-border)",
+                borderRadius: 6,
+                minHeight: isMobile ? 44 : undefined,
+                display: "flex",
+                alignItems: "center",
+              }}
+            >
+              View on {sourceLabel(listing.source)} &#8599;
+            </a>
+            {/* Overflow menu */}
+            <div style={{ position: "relative" }}>
+              <button
+                onClick={() => setShowOverflow(!showOverflow)}
+                style={{
+                  width: isMobile ? 44 : 32, height: isMobile ? 44 : 32,
+                  borderRadius: 6, border: "1px solid var(--color-border-dark)",
+                  background: showOverflow ? "var(--color-panel)" : "transparent",
+                  cursor: "pointer", fontSize: 16, color: "var(--color-text-mid)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontFamily: "inherit", transition: "all 0.15s",
+                  letterSpacing: 2,
+                }}
+                aria-label="More options"
+              >
+                &middot;&middot;&middot;
+              </button>
+              {showOverflow && (
+                <>
+                  <div
+                    style={{ position: "fixed", inset: 0, zIndex: 49 }}
+                    onClick={() => setShowOverflow(false)}
+                  />
+                  <div style={{
+                    position: "absolute", top: "100%", right: 0, marginTop: 4,
+                    background: "var(--color-card)", border: "1px solid var(--color-border-dark)",
+                    borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.1)",
+                    minWidth: 160, zIndex: 50, overflow: "hidden",
+                  }}>
+                    <button
+                      onClick={() => { setEditing(true); setShowOverflow(false); }}
+                      style={{
+                        width: "100%", padding: "10px 14px", fontSize: 13,
+                        background: "none", border: "none", cursor: "pointer",
+                        fontFamily: "inherit", color: "var(--color-text)",
+                        textAlign: "left" as const, display: "block",
+                        transition: "background 0.1s",
+                      }}
+                      onMouseOver={(e) => (e.currentTarget.style.background = "var(--color-bg)")}
+                      onMouseOut={(e) => (e.currentTarget.style.background = "none")}
+                    >
+                      Edit listing
+                    </button>
+                    <button
+                      onClick={() => { setShowOverflow(false); deleteListing(); }}
+                      style={{
+                        width: "100%", padding: "10px 14px", fontSize: 13,
+                        background: "none", border: "none", cursor: "pointer",
+                        fontFamily: "inherit", color: "var(--color-red)",
+                        textAlign: "left" as const, display: "block",
+                        borderTop: "1px solid var(--color-border)",
+                        transition: "background 0.1s",
+                      }}
+                      onMouseOver={(e) => (e.currentTarget.style.background = "rgba(185,28,28,0.04)")}
+                      onMouseOut={(e) => (e.currentTarget.style.background = "none")}
+                    >
+                      Remove listing
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Scrollable content */}
@@ -554,61 +619,51 @@ export function ListingDetail({
 
           {/* Header info */}
           <div style={{ padding: "20px 20px 16px" }}>
-            <div style={{ display: "flex", alignItems: "start", gap: 10 }}>
-              <span
-                className={`shrink-0 mt-1 px-2.5 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wide font-mono ${sourceColor(
-                  listing.source
-                )}`}
-              >
-                {sourceLabel(listing.source)}
-              </span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                {editing ? (
-                  <input
-                    type="text"
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    style={{
-                      width: "100%",
-                      fontSize: 18,
-                      fontWeight: 700,
-                      background: "var(--color-bg)",
-                      border: "1px solid var(--color-border-dark)",
-                      borderRadius: 8,
-                      padding: "6px 12px",
-                      color: "var(--color-text)",
-                      fontFamily: "inherit",
-                    }}
-                    placeholder="Listing name"
-                  />
-                ) : (
-                  <h2 className="font-heading" style={{
+            <div>
+              {editing ? (
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  style={{
+                    width: "100%",
                     fontSize: 18,
-                    fontWeight: 600,
-                    color: isGenericName ? "var(--color-text-mid)" : "var(--color-text)",
-                    lineHeight: 1.3,
-                    margin: 0,
-                  }}>
-                    {listing.name || "Untitled Listing"}
-                  </h2>
-                )}
-                <p style={{ fontSize: 13, color: "var(--color-text-mid)", marginTop: 4, margin: 0 }}>
-                  {listing.neighborhood || listing.address || getDomain(listing.url)}
-                </p>
-              </div>
-              {listing.rating != null && listing.rating > 0 && (
-                <div style={{ textAlign: "right", flexShrink: 0 }}>
-                  <div className="font-mono" style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)" }}>
+                    fontWeight: 700,
+                    background: "var(--color-bg)",
+                    border: "1px solid var(--color-border-dark)",
+                    borderRadius: 8,
+                    padding: "6px 12px",
+                    color: "var(--color-text)",
+                    fontFamily: "inherit",
+                  }}
+                  placeholder="Listing name"
+                />
+              ) : (
+                <h2 className="font-heading" style={{
+                  fontSize: 18,
+                  fontWeight: 600,
+                  color: isGenericName ? "var(--color-text-mid)" : "var(--color-text)",
+                  lineHeight: 1.3,
+                  margin: 0,
+                }}>
+                  {listing.name || "Untitled Listing"}
+                </h2>
+              )}
+              <p style={{ fontSize: 13, color: "var(--color-text-mid)", marginTop: 4, margin: 0 }}>
+                {listing.neighborhood || listing.address || getDomain(listing.url)}
+                {listing.rating != null && listing.rating > 0 && (
+                  <span className="font-mono" style={{ fontSize: 12 }}>
+                    {" \u00B7 "}
                     <span style={{ color: "#D4A017" }}>&#9733;</span>{" "}
                     {listing.rating}
-                  </div>
-                  {listing.reviewCount != null && listing.reviewCount > 0 && (
-                    <div className="font-mono" style={{ fontSize: 11, color: "var(--color-text-mid)" }}>
-                      {listing.reviewCount.toLocaleString()} reviews
-                    </div>
-                  )}
-                </div>
-              )}
+                    {listing.reviewCount != null && listing.reviewCount > 0 && (
+                      <span style={{ color: "var(--color-text-muted)" }}>
+                        {" "}({listing.reviewCount.toLocaleString()})
+                      </span>
+                    )}
+                  </span>
+                )}
+              </p>
             </div>
 
             {/* Scrape status */}
@@ -886,54 +941,48 @@ export function ListingDetail({
               )}
             </div>
 
-            {/* Edit controls */}
-            <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 6 }}>
-              {editing ? (
-                <>
-                  <button
-                    onClick={saveEdits}
-                    disabled={saving}
-                    style={{ padding: "5px 12px", fontSize: 12, fontWeight: 600, background: "var(--color-coral)", color: "#fff", borderRadius: 6, border: "none", cursor: "pointer", fontFamily: "inherit", opacity: saving ? 0.5 : 1 }}
-                  >
-                    {saving ? "Saving..." : "Save"}
-                  </button>
-                  <button
-                    onClick={() => setEditing(false)}
-                    style={{ padding: "5px 12px", fontSize: 12, color: "var(--color-text-mid)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}
-                  >
-                    Cancel
-                  </button>
-                </>
-              ) : (
+            {/* Save/Cancel when editing */}
+            {editing && (
+              <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 6 }}>
                 <button
-                  onClick={() => setEditing(true)}
-                  style={{ padding: "5px 12px", fontSize: 12, fontWeight: 500, background: "var(--color-panel)", border: "1px solid var(--color-border-dark)", color: "var(--color-text-mid)", borderRadius: 6, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}
+                  onClick={saveEdits}
+                  disabled={saving}
+                  style={{ padding: "5px 12px", fontSize: 12, fontWeight: 600, background: "var(--color-coral)", color: "#fff", borderRadius: 6, border: "none", cursor: "pointer", fontFamily: "inherit", opacity: saving ? 0.5 : 1 }}
                 >
-                  Edit
+                  {saving ? "Saving..." : "Save"}
                 </button>
-              )}
-            </div>
+                <button
+                  onClick={() => setEditing(false)}
+                  style={{ padding: "5px 12px", fontSize: 12, color: "var(--color-text-mid)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
 
-
-            {/* Reactions */}
-            <div style={{ marginTop: 12 }}>
-              <ReactionBar
-                votes={listing.votes}
-                userName={userName}
-                mode="full"
-                onReact={onReact}
-                onRemoveReaction={onRemoveReaction}
-                onNeedName={onNeedName}
-              />
+          {/* Reactions */}
+          <div style={{ padding: "0 20px 16px" }}>
+            <ReactionBar
+              votes={listing.votes}
+              userName={userName}
+              mode="full"
+              onReact={onReact}
+              onRemoveReaction={onRemoveReaction}
+              onNeedName={onNeedName}
+            />
             </div>
           </div>
 
-          {/* Discussion — group chat style */}
+          {/* Comments */}
           <div style={{ padding: "0 20px 16px" }}>
-            <h3 className="font-mono" style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", marginBottom: 10 }}>
-              Discussion ({listing.comments.length})
-            </h3>
-
+            {listing.comments.length > 0 && (
+              <>
+              <h3 className="font-mono" style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", marginBottom: 10 }}>
+                Comments
+              </h3>
+            </>
+            )}
             {listing.comments.length > 0 && (
               <div style={{ display: "flex", flexDirection: "column", gap: 2, marginBottom: 10 }}>
                 {listing.comments.map((comment) => {
@@ -1292,37 +1341,8 @@ export function ListingDetail({
             </div>
           )}
 
-          {/* Footer */}
-          <div style={{
-            borderTop: isMobile ? undefined : "1px solid var(--color-border-dark)",
-            padding: isMobile ? "0 20px 24px" : "12px 20px",
-            display: "flex",
-            justifyContent: isMobile ? "center" : "flex-end",
-          }}>
-            <button
-              onClick={deleteListing}
-              style={{
-                padding: isMobile ? "12px" : "6px 14px",
-                fontSize: 13,
-                color: "var(--color-red)",
-                background: isMobile ? "rgba(185,28,28,0.06)" : "none",
-                border: "none",
-                cursor: "pointer",
-                fontFamily: "inherit",
-                borderRadius: isMobile ? 10 : 6,
-                transition: "all 0.15s",
-                width: isMobile ? "100%" : undefined,
-                fontWeight: isMobile ? 500 : undefined,
-              }}
-              onMouseOver={(e) => (e.currentTarget.style.background = "rgba(185,28,28,0.06)")}
-              onMouseOut={(e) => { if (!isMobile) e.currentTarget.style.background = "none"; }}
-            >
-              Remove listing
-            </button>
-          </div>
-
-          {/* Mobile: extra bottom padding for safe area */}
-          {isMobile && <div style={{ height: 20 }} />}
+          {/* Bottom spacer */}
+          <div style={{ height: 20 }} />
         </div>
       </div>
 
