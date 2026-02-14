@@ -961,19 +961,18 @@ function TripCard({ trip }: { trip: Trip }) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {/* Photo header — always a real photo */}
-      <div style={{ position: "relative", overflow: "hidden" }}>
-        {/* Background photo */}
+      {/* Photo header — fixed height, photo fills completely */}
+      <div style={{ position: "relative", height: 140, overflow: "hidden" }}>
+        {/* Background photo — fills the container edge-to-edge */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={coverPhoto}
           alt=""
           className="trip-card-ken-burns"
           style={{
-            position: "absolute",
-            inset: "-10%",
-            width: "120%",
-            height: "120%",
+            display: "block",
+            width: "100%",
+            height: "100%",
             objectFit: "cover",
           }}
         />
@@ -985,8 +984,14 @@ function TripCard({ trip }: { trip: Trip }) {
           background: "linear-gradient(to top, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.1) 60%)",
         }} />
 
-        {/* Text content on top of gradient */}
-        <div style={{ position: "relative", padding: "20px 20px 16px" }}>
+        {/* Trip name pinned to bottom-left of the photo */}
+        <div style={{
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          padding: "12px 20px",
+        }}>
           <h3 style={{
             fontSize: 18,
             fontWeight: 600,
@@ -998,47 +1003,13 @@ function TripCard({ trip }: { trip: Trip }) {
           }}>
             {trip.name}
           </h3>
-          <p style={{
-            fontSize: 13,
-            fontWeight: 400,
-            color: "rgba(255,255,255,0.85)",
-            margin: 0,
-            marginTop: 3,
-            textShadow: "0 1px 3px rgba(0,0,0,0.3)",
-          }}>
-            {trip.destination}
-          </p>
-          <p style={{
-            fontSize: 12,
-            fontWeight: 400,
-            color: "rgba(255,255,255,0.7)",
-            margin: 0,
-            marginTop: 4,
-            textShadow: "0 1px 3px rgba(0,0,0,0.3)",
-            fontStyle: trip.checkIn ? "normal" : "italic",
-          }}>
-            {dateLabel}
-          </p>
-          {daysUntilTrip != null && daysUntilTrip > 0 && (
-            <p className="font-mono" style={{
-              fontSize: 12,
-              fontWeight: 400,
-              color: "rgba(255,255,255,0.75)",
-              margin: 0,
-              marginTop: 4,
-              letterSpacing: 0.3,
-              textShadow: "0 1px 3px rgba(0,0,0,0.3)",
-            }}>
-              &#9728;&#65039; {daysUntilTrip}d away
-            </p>
-          )}
         </div>
 
         {/* Unsplash attribution */}
         {attribution && (
           <div style={{
             position: "absolute",
-            bottom: 4,
+            top: 6,
             right: 8,
             fontSize: 8,
             color: "rgba(255,255,255,0.4)",
@@ -1067,11 +1038,41 @@ function TripCard({ trip }: { trip: Trip }) {
         />
       </div>
 
-      {/* Body */}
+      {/* Body — destination, dates, countdown, avatars, activity */}
       <div style={{ padding: "14px 20px 16px" }}>
+        {/* Destination + dates + countdown */}
+        <p style={{
+          fontSize: 13,
+          fontWeight: 500,
+          color: "var(--color-text)",
+          margin: 0,
+        }}>
+          {trip.destination}
+        </p>
+        <p style={{
+          fontSize: 12,
+          color: "var(--color-text-mid)",
+          margin: 0,
+          marginTop: 2,
+          fontStyle: trip.checkIn ? "normal" : "italic",
+        }}>
+          {dateLabel}
+        </p>
+        {daysUntilTrip != null && daysUntilTrip > 0 && (
+          <p className="font-mono" style={{
+            fontSize: 11,
+            color: "var(--color-text-light)",
+            margin: 0,
+            marginTop: 3,
+            letterSpacing: 0.3,
+          }}>
+            &#9728;&#65039; {daysUntilTrip}d away
+          </p>
+        )}
+
         {/* Member avatar row */}
         {members.length > 0 && (
-          <div style={{ display: "flex", alignItems: "center", marginBottom: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", marginTop: 10 }}>
             <div style={{ display: "flex" }}>
               {members.slice(0, 6).map((name, i) => (
                 <div
@@ -1126,6 +1127,7 @@ function TripCard({ trip }: { trip: Trip }) {
           display: "flex",
           alignItems: "center",
           gap: 8,
+          marginTop: 10,
         }}>
           <p style={{
             fontSize: 13,
