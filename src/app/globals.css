@@ -244,9 +244,15 @@ a:focus:not(:focus-visible) {
   display: flex;
   flex-direction: column;
   will-change: top;
+  touch-action: none;
   transition: top 0.35s cubic-bezier(0.32, 0.72, 0, 1),
               border-radius 0.35s cubic-bezier(0.32, 0.72, 0, 1),
               box-shadow 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* When sheet is full, let content scroll naturally */
+.mobile-bottom-sheet[data-full="true"] .sheet-content {
+  touch-action: pan-y;
 }
 
 .mobile-bottom-sheet[data-full="true"] {
@@ -261,16 +267,20 @@ a:focus:not(:focus-visible) {
 .mobile-bottom-sheet .sheet-handle {
   display: flex;
   justify-content: center;
-  padding: 12px 0 8px;
+  align-items: center;
+  min-height: 44px;
+  padding: 16px 0 12px;
   cursor: grab;
   flex-shrink: 0;
   touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .mobile-bottom-sheet .sheet-handle-bar {
-  width: 36px;
-  height: 4px;
-  border-radius: 2px;
+  width: 40px;
+  height: 5px;
+  border-radius: 3px;
   background: var(--color-text-light);
 }
 
@@ -278,6 +288,8 @@ a:focus:not(:focus-visible) {
   flex: 1;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 /* Sheet collapsed state — show a peek strip */
@@ -514,6 +526,11 @@ body.mobile-detail-open {
     width: 0;
   }
 
+  /* Prevent iOS zoom on input focus — inputs must be ≥16px */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+
   /* Price markers on mobile — larger touch target */
   .price-marker {
     padding: 6px 14px;
@@ -521,5 +538,12 @@ body.mobile-detail-open {
     min-height: 36px;
     display: flex;
     align-items: center;
+  }
+
+  /* Prevent page-level overscroll/bounce */
+  html, body {
+    overscroll-behavior: none;
+    overflow: hidden;
+    height: 100%;
   }
 }

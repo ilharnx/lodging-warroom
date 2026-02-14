@@ -1132,12 +1132,13 @@ export default function TripPage({
   // Mobile bottom sheet state — three positions: full (0%), half (50%), collapsed (88%)
   const sheetRef = useRef<HTMLDivElement>(null);
   const sheetContentRef = useRef<HTMLDivElement>(null);
-  const sheetDragStart = useRef<{ y: number; sheetTop: number } | null>(null);
+  const sheetDragStart = useRef<{ y: number; sheetTop: number; time: number } | null>(null);
   const sheetGestureMode = useRef<"expand" | "collapse" | "handle" | null>(null);
+  const sheetLastTouch = useRef<{ y: number; time: number } | null>(null);
   const [sheetTop, setSheetTop] = useState(50); // percentage from top
+  const [sheetDragging, setSheetDragging] = useState(false);
   const isSheetFull = sheetTop <= 3;
   const isSheetCollapsed = sheetTop >= 80;
-  const isSheetDragging = sheetDragStart.current !== null && sheetGestureMode.current !== null;
 
   // Dismiss mini preview when sheet leaves collapsed
   useEffect(() => {
@@ -1369,6 +1370,26 @@ export default function TripPage({
   function closeDetail() {
     setDetailListing(null);
     document.body.classList.remove("mobile-detail-open");
+  }
+
+  /** Snap sheet with velocity: fast flick overrides positional thresholds */
+  function snapSheet(velocity: number) {
+    // velocity in %/ms — positive = moving down, negative = moving up
+    const FLICK_THRESHOLD = 0.15; // %/ms
+    setSheetTop((prev) => {
+      if (Math.abs(velocity) > FLICK_THRESHOLD) {
+        // Fast flick — snap in direction of movement
+        if (velocity < 0) {
+          // Swiping up — go to next higher position
+          return prev > 60 ? 50 : 0;
+        } else {
+          // Swiping down — go to next lower position
+          return prev < 25 ? 50 : 88;
+        }
+      }
+      // Slow drag — snap to nearest
+      return prev < 25 ? 0 : prev < 70 ? 50 : 88;
+    });
   }
 
   if (loading) {
@@ -2021,41 +2042,58 @@ export default function TripPage({
               {mapView}
             </div>
 
-            {/* Bottom sheet — two positions: half (50%) and full (0%) */}
+            {/* Bottom sheet — three positions: full (0%), half (50%), collapsed (88%) */}
             <div
               ref={sheetRef}
               className="mobile-bottom-sheet"
               data-full={isSheetFull}
               data-collapsed={isSheetCollapsed}
-              data-dragging={isSheetDragging}
+              data-dragging={sheetDragging}
               style={{ top: `${sheetTop}%` }}
             >
-              {/* Handle — always allows drag */}
+              {/* Handle — generous 44px touch target, always allows drag */}
               <div
                 className="sheet-handle"
                 onTouchStart={(e) => {
-                  sheetDragStart.current = { y: e.touches[0].clientY, sheetTop };
+                  const now = Date.now();
+                  sheetDragStart.current = { y: e.touches[0].clientY, sheetTop, time: now };
+                  sheetLastTouch.current = { y: e.touches[0].clientY, time: now };
                   sheetGestureMode.current = "handle";
+                  setSheetDragging(true);
                 }}
                 onTouchMove={(e) => {
                   if (!sheetDragStart.current) return;
                   e.preventDefault();
+                  const now = Date.now();
+                  const touchY = e.touches[0].clientY;
+                  sheetLastTouch.current = { y: touchY, time: now };
                   const containerHeight = sheetRef.current?.parentElement?.clientHeight || window.innerHeight;
-                  const deltaPct = ((e.touches[0].clientY - sheetDragStart.current.y) / containerHeight) * 100;
+                  const deltaPct = ((touchY - sheetDragStart.current.y) / containerHeight) * 100;
                   setSheetTop(Math.max(0, Math.min(88, sheetDragStart.current.sheetTop + deltaPct)));
                 }}
                 onTouchEnd={() => {
                   if (!sheetDragStart.current) return;
+                  // Calculate velocity
+                  const last = sheetLastTouch.current;
+                  const start = sheetDragStart.current;
+                  const containerHeight = sheetRef.current?.parentElement?.clientHeight || window.innerHeight;
+                  let velocity = 0;
+                  if (last && last.time > start.time) {
+                    const dt = last.time - start.time;
+                    const dy = ((last.y - start.y) / containerHeight) * 100;
+                    velocity = dy / dt;
+                  }
                   sheetDragStart.current = null;
                   sheetGestureMode.current = null;
-                  // Snap to nearest of 0%, 50%, 88%
-                  setSheetTop((prev) => prev < 25 ? 0 : prev < 70 ? 50 : 88);
+                  sheetLastTouch.current = null;
+                  setSheetDragging(false);
+                  snapSheet(velocity);
                 }}
               >
                 <div className="sheet-handle-bar" />
               </div>
 
-              {/* Scrollable content — scroll drives expand/collapse */}
+              {/* Scrollable content */}
               <div
                 ref={(el) => {
                   sheetContentRef.current = el;
@@ -2064,40 +2102,47 @@ export default function TripPage({
                   }
                 }}
                 className="sheet-content"
-                style={{ overflowY: isSheetFull && !isSheetDragging ? "auto" : "hidden" }}
+                style={{
+                  overflowY: isSheetFull && !sheetDragging ? "auto" : "hidden",
+                  touchAction: isSheetFull && !sheetDragging ? "pan-y" : "none",
+                }}
                 onTouchStart={(e) => {
-                  sheetDragStart.current = { y: e.touches[0].clientY, sheetTop };
+                  const now = Date.now();
+                  sheetDragStart.current = { y: e.touches[0].clientY, sheetTop, time: now };
+                  sheetLastTouch.current = { y: e.touches[0].clientY, time: now };
                   sheetGestureMode.current = null; // decide on first move
                 }}
                 onTouchMove={(e) => {
                   if (!sheetDragStart.current) return;
-                  const deltaY = e.touches[0].clientY - sheetDragStart.current.y;
+                  const touchY = e.touches[0].clientY;
+                  const deltaY = touchY - sheetDragStart.current.y;
                   const startTop = sheetDragStart.current.sheetTop;
 
-                  // Decide gesture mode once on first significant movement
+                  // Decide gesture mode once on first significant movement (8px dead zone)
                   if (sheetGestureMode.current === null) {
-                    if (Math.abs(deltaY) < 4) return;
+                    if (Math.abs(deltaY) < 8) return;
                     const contentEl = sheetContentRef.current;
 
                     if (startTop > 3) {
-                      // Sheet at half or collapsed
-                      if (deltaY < 0) {
-                        sheetGestureMode.current = "expand";
-                      } else {
-                        // Swipe down — collapse further
-                        sheetGestureMode.current = "collapse";
-                      }
+                      // Sheet at half or collapsed — any vertical swipe drags the sheet
+                      sheetGestureMode.current = deltaY < 0 ? "expand" : "collapse";
+                      setSheetDragging(true);
                     } else {
-                      // Sheet at full — pull down at scroll top collapses
+                      // Sheet at full — only pull-down at scroll-top collapses
                       if (contentEl && contentEl.scrollTop <= 0 && deltaY > 0) {
                         sheetGestureMode.current = "collapse";
+                        setSheetDragging(true);
                       } else {
-                        // Normal scroll — release the gesture
+                        // Normal scroll — release the gesture completely
                         sheetDragStart.current = null;
                         return;
                       }
                     }
                   }
+
+                  // Track velocity
+                  const now = Date.now();
+                  sheetLastTouch.current = { y: touchY, time: now };
 
                   // Move the sheet
                   e.preventDefault();
@@ -2109,12 +2154,25 @@ export default function TripPage({
                   if (!sheetDragStart.current || !sheetGestureMode.current) {
                     sheetDragStart.current = null;
                     sheetGestureMode.current = null;
+                    sheetLastTouch.current = null;
+                    setSheetDragging(false);
                     return;
+                  }
+                  // Calculate velocity
+                  const last = sheetLastTouch.current;
+                  const start = sheetDragStart.current;
+                  const containerHeight = sheetRef.current?.parentElement?.clientHeight || window.innerHeight;
+                  let velocity = 0;
+                  if (last && last.time > start.time) {
+                    const dt = last.time - start.time;
+                    const dy = ((last.y - start.y) / containerHeight) * 100;
+                    velocity = dy / dt;
                   }
                   sheetDragStart.current = null;
                   sheetGestureMode.current = null;
-                  // Snap to nearest of 0%, 50%, 88%
-                  setSheetTop((prev) => prev < 25 ? 0 : prev < 70 ? 50 : 88);
+                  sheetLastTouch.current = null;
+                  setSheetDragging(false);
+                  snapSheet(velocity);
                 }}
               >
                 {sidebarContent}

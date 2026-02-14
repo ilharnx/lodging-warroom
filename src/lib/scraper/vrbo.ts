@@ -8,20 +8,7 @@ import { extractVrboId } from "./detect";
 export async function scrapeVrbo(url: string): Promise<ScrapedListing> {
   const externalId = extractVrboId(url);
 
-  // Strategy 1: Try the Expedia BFF property API (fastest, most reliable)
-  if (externalId) {
-    try {
-      const apiResult = await fetchVrboBff(externalId, url);
-      if (apiResult && apiResult.name && apiResult.name.length > 3) {
-        console.log(`VRBO BFF API success for ${externalId}: "${apiResult.name}", ${apiResult.photos?.length || 0} photos`);
-        return apiResult;
-      }
-    } catch (err) {
-      console.error("VRBO BFF API attempt failed:", err);
-    }
-  }
-
-  // Strategy 2: Scrape the HTML page (desktop UA)
+  // Strategy 1: Scrape the HTML page (most proven approach)
   try {
     const response = await fetch(url, {
       headers: browserHeaders(url),
@@ -36,16 +23,21 @@ export async function scrapeVrbo(url: string): Promise<ScrapedListing> {
 
     // Detect Cloudflare/bot challenge pages
     if (isChallengeResponse(html)) {
-      console.warn("VRBO returned a challenge page — trying mobile UA...");
+      console.warn("VRBO returned a challenge page, will try fallbacks...");
       throw new Error("Challenge page detected");
     }
 
-    return parseVrboHtml(html, url, externalId);
+    const result = parseVrboHtml(html, url, externalId);
+    if (result.name && result.name.length > 3) {
+      return result;
+    }
+    // If HTML gave us partial data, continue to fallbacks
+    console.log("VRBO HTML scrape returned partial data, trying fallbacks...");
   } catch (error) {
     console.error("VRBO HTML scrape error:", error);
   }
 
-  // Strategy 3: Try mobile user agent (simpler HTML, less blocking)
+  // Strategy 2: Try mobile user agent (simpler HTML, less blocking)
   try {
     const response = await fetch(url, {
       headers: mobileHeaders(),
@@ -55,11 +47,27 @@ export async function scrapeVrbo(url: string): Promise<ScrapedListing> {
     if (response.ok) {
       const html = await response.text();
       if (!isChallengeResponse(html)) {
-        return parseVrboHtml(html, url, externalId);
+        const result = parseVrboHtml(html, url, externalId);
+        if (result.name && result.name.length > 3) {
+          return result;
+        }
       }
     }
   } catch (err) {
     console.error("VRBO mobile UA attempt failed:", err);
+  }
+
+  // Strategy 3: Try the Expedia BFF property API as last resort
+  if (externalId) {
+    try {
+      const apiResult = await fetchVrboBff(externalId, url);
+      if (apiResult && apiResult.name && apiResult.name.length > 3) {
+        console.log(`VRBO BFF API success for ${externalId}: "${apiResult.name}"`);
+        return apiResult;
+      }
+    } catch (err) {
+      console.error("VRBO BFF API attempt failed:", err);
+    }
   }
 
   // Final fallback
