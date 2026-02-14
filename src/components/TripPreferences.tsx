@@ -13,6 +13,10 @@ interface TripPreferencesProps {
   userName: string;
   userEmoji: string;
   onProfileChange: (name: string, emoji: string) => void;
+  adults: number;
+  kids: number;
+  nights: number;
+  onTripSettingsChange: (updates: { adults?: number; kids?: number; nights?: number }) => void;
 }
 
 const AVATAR_EMOJI = [
@@ -102,6 +106,31 @@ function ChipGrid({
   );
 }
 
+function Stepper({ label, value, min, max, onChange }: {
+  label: string; value: number; min: number; max: number; onChange: (v: number) => void;
+}) {
+  const btnStyle = (disabled: boolean): React.CSSProperties => ({
+    width: 32, height: 32, borderRadius: "50%",
+    border: "1px solid var(--color-border-dark)",
+    background: disabled ? "var(--color-bg)" : "#fff",
+    color: disabled ? "var(--color-text-light)" : "var(--color-text)",
+    cursor: disabled ? "default" : "pointer",
+    fontSize: 16, fontWeight: 600, fontFamily: "inherit",
+    display: "flex", alignItems: "center", justifyContent: "center",
+    padding: 0,
+  });
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0" }}>
+      <span style={{ fontSize: 14, color: "var(--color-text-mid)" }}>{label}</span>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <button type="button" onClick={() => { if (value > min) onChange(value - 1); }} disabled={value <= min} style={btnStyle(value <= min)}>-</button>
+        <span className="font-mono" style={{ fontSize: 14, fontWeight: 600, minWidth: 24, textAlign: "center" }}>{value}</span>
+        <button type="button" onClick={() => { if (value < max) onChange(value + 1); }} disabled={value >= max} style={btnStyle(value >= max)}>+</button>
+      </div>
+    </div>
+  );
+}
+
 export function TripPreferences({
   tripId,
   initial,
@@ -111,6 +140,10 @@ export function TripPreferences({
   userName,
   userEmoji,
   onProfileChange,
+  adults,
+  kids,
+  nights,
+  onTripSettingsChange,
 }: TripPreferencesProps) {
   const prefs = initial || EMPTY_PREFERENCES;
   const [vibe, setVibe] = useState<Vibe | null>(prefs.vibe);
@@ -254,6 +287,17 @@ export function TripPreferences({
                 </button>
               ))}
             </div>
+          </div>
+        </div>
+
+        {/* Trip details */}
+        <div style={{ ...sectionStyle, paddingBottom: 24, borderBottom: "1px solid var(--color-border-dark)" }}>
+          <span style={labelStyle}>Trip details</span>
+          <h2 style={titleStyle}>Group size &amp; duration</h2>
+          <div style={{ maxWidth: 280 }}>
+            <Stepper label="Adults" value={adults} min={1} max={20} onChange={(v) => onTripSettingsChange({ adults: v })} />
+            <Stepper label="Kids" value={kids} min={0} max={20} onChange={(v) => onTripSettingsChange({ kids: v })} />
+            <Stepper label="Nights" value={nights} min={1} max={30} onChange={(v) => onTripSettingsChange({ nights: v })} />
           </div>
         </div>
 

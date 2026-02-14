@@ -219,7 +219,6 @@ export default function TripPage({
   const [nameInput, setNameInput] = useState("");
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
   const [showPreferences, setShowPreferences] = useState(false);
-  const [editingTripSettings, setEditingTripSettings] = useState(false);
   const [mobileTab, setMobileTab] = useState<"list" | "map">("list");
   const isMobile = useIsMobile();
   const sidebarRef = useRef<HTMLDivElement>(null);
@@ -441,6 +440,16 @@ export default function TripPage({
   const sidebarWidth = isDetailOpen ? 300 : 380;
   const tripPrefs: TripPreferencesType | null = trip.preferences || null;
 
+  // Trip date formatting for header
+  const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const checkInDate = trip.checkIn ? new Date(trip.checkIn) : null;
+  const tripMonthLabel = checkInDate
+    ? `${MONTHS[checkInDate.getMonth()]} \u2018${String(checkInDate.getFullYear()).slice(-2)}`
+    : null;
+  const daysUntilTrip = checkInDate
+    ? Math.ceil((checkInDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    : null;
+
   if (showPreferences) {
     return (
       <TripPreferences
@@ -460,6 +469,10 @@ export default function TripPage({
           setUserEmoji(emoji);
           setStoredEmoji(emoji);
         }}
+        adults={trip.adults}
+        kids={trip.kids}
+        nights={trip.nights || 7}
+        onTripSettingsChange={updateTripSettings}
       />
     );
   }
@@ -663,7 +676,7 @@ export default function TripPage({
           gap: 8,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 6 : 12, minWidth: 0, flex: 1 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 6 : 10, minWidth: 0, flex: 1 }}>
           <a
             href="/"
             style={{
@@ -677,9 +690,6 @@ export default function TripPage({
           >
             Stay
           </a>
-          {!isMobile && (
-            <span style={{ color: "var(--color-text-light)", fontSize: 13 }}>/</span>
-          )}
           <h1
             style={{
               fontSize: isMobile ? 14 : 16,
@@ -690,48 +700,29 @@ export default function TripPage({
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
             }}
           >
-            {isMobile ? trip.destination : trip.name}
+            {trip.destination}
+            {tripMonthLabel && (
+              <span style={{ color: "var(--color-text-mid)", fontWeight: 400, fontSize: isMobile ? 13 : 14 }}>
+                {" \u00B7 "}{tripMonthLabel}
+              </span>
+            )}
           </h1>
-          {!isMobile && (
-            <span style={{ fontSize: 14, color: "var(--color-text-mid)" }}>
-              {trip.destination}
+          {daysUntilTrip != null && daysUntilTrip > 0 && (
+            <span
+              className="font-mono"
+              style={{
+                fontSize: 12, fontWeight: 600, color: "var(--color-text-mid)",
+                whiteSpace: "nowrap", flexShrink: 0,
+              }}
+            >
+              {"\u2600\uFE0F"} {daysUntilTrip}d
             </span>
           )}
-          <div style={{ position: "relative", flexShrink: 0 }}>
-            <button
-              onClick={() => setEditingTripSettings(!editingTripSettings)}
-              style={{
-                fontSize: 12, color: "var(--color-text-muted)",
-                background: editingTripSettings ? "var(--color-panel)" : "transparent",
-                border: "1px solid", borderColor: editingTripSettings ? "var(--color-border-dark)" : "transparent",
-                borderRadius: 6, padding: isMobile ? "4px 6px" : "3px 8px", cursor: "pointer", fontFamily: "inherit",
-                transition: "all 0.15s",
-                whiteSpace: "nowrap",
-              }}
-              onMouseOver={(e) => { if (!editingTripSettings) e.currentTarget.style.borderColor = "var(--color-border-dark)"; }}
-              onMouseOut={(e) => { if (!editingTripSettings) e.currentTarget.style.borderColor = "transparent"; }}
-            >
-              {trip.adults}{isMobile ? "a" : " adults"}{trip.kids > 0 ? `, ${trip.kids}${isMobile ? "k" : " kids"}` : ""}{trip.nights ? ` · ${trip.nights}n` : ""}
-              <span style={{ marginLeft: 4, fontSize: 10 }}>&#9998;</span>
-            </button>
-            {editingTripSettings && (
-              <>
-                <div style={{ position: "fixed", inset: 0, zIndex: 49 }} onClick={() => setEditingTripSettings(false)} />
-                <div style={{
-                  position: "absolute", top: "100%", left: isMobile ? "auto" : 0, right: isMobile ? 0 : "auto", marginTop: 4,
-                  background: "#fff", border: "1px solid var(--color-border-dark)",
-                  borderRadius: 10, padding: 16, boxShadow: "0 8px 24px rgba(0,0,0,0.1)",
-                  zIndex: 50, width: 220,
-                }}>
-                  <StepperRow label="Adults" value={trip.adults} min={1} max={20} onChange={(v) => updateTripSettings({ adults: v })} />
-                  <StepperRow label="Kids" value={trip.kids} min={0} max={20} onChange={(v) => updateTripSettings({ kids: v })} />
-                  <StepperRow label="Nights" value={trip.nights || 7} min={1} max={30} onChange={(v) => updateTripSettings({ nights: v })} />
-                </div>
-              </>
-            )}
-          </div>
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 4 : 8, flexShrink: 0 }}>
