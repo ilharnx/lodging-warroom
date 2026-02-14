@@ -46,6 +46,7 @@ export async function GET() {
         adults: true,
         kids: true,
         checkIn: true,
+        checkOut: true,
         coverPhotoUrl: true,
         coverPhotoAttribution: true,
         createdAt: true,

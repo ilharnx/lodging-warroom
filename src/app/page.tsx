@@ -34,6 +34,7 @@ interface Trip {
   adults: number;
   kids: number;
   checkIn: string | null;
+  checkOut: string | null;
   coverPhotoUrl: string | null;
   coverPhotoAttribution: string | null;
   createdAt: string;
@@ -96,7 +97,19 @@ function getMembers(trip: Trip): string[] {
   return Array.from(names);
 }
 
-function getActivityStatus(trip: Trip): string {
+function relativeTime(dateStr: string): string {
+  const ms = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(ms / 60000);
+  if (mins < 1) return "now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d ago`;
+  return `${Math.floor(days / 7)}w ago`;
+}
+
+function getActivityStatus(trip: Trip): { text: string; time: string | null } {
   // Find most recent activity
   const allComments = trip.listings.flatMap((l) => l.comments);
   const allVotes = trip.listings.flatMap((l) => l.votes);
@@ -109,10 +122,11 @@ function getActivityStatus(trip: Trip): string {
 
   if (recentListings.length > 0) {
     const adder = recentListings[0].addedBy;
+    const time = relativeTime(recentListings[0].createdAt);
     if (recentListings.length === 1) {
-      return `${adder} added a new place`;
+      return { text: `${adder} added a new place`, time };
     }
-    return `${adder} added ${recentListings.length} new places`;
+    return { text: `${adder} added ${recentListings.length} new places`, time };
   }
 
   // Check for recent comments
@@ -122,7 +136,10 @@ function getActivityStatus(trip: Trip): string {
     )[0];
     const age = Date.now() - new Date(latest.createdAt).getTime();
     if (age < 24 * 60 * 60 * 1000) {
-      return `${latest.userName}: "${latest.text.slice(0, 40)}${latest.text.length > 40 ? "..." : ""}"`;
+      return {
+        text: `${latest.userName}: "${latest.text.slice(0, 40)}${latest.text.length > 40 ? "..." : ""}"`,
+        time: relativeTime(latest.createdAt),
+      };
     }
   }
 
@@ -131,11 +148,17 @@ function getActivityStatus(trip: Trip): string {
   const voters = new Set(allVotes.map((v) => v.userName));
   const nonVoters = members.filter((m) => !voters.has(m));
   if (nonVoters.length > 0 && members.length > 1) {
-    return `waiting on ${nonVoters[0]} to vote`;
+    return { text: `waiting on ${nonVoters[0]} to vote`, time: null };
   }
 
-  // Fallback
-  return `${trip.listings.length} place${trip.listings.length !== 1 ? "s" : ""} saved`;
+  // Fallback — most recent listing creation as timestamp
+  const latestListing = trip.listings.length > 0
+    ? trip.listings.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
+    : null;
+  return {
+    text: `${trip.listings.length} place${trip.listings.length !== 1 ? "s" : ""} saved`,
+    time: latestListing ? relativeTime(latestListing.createdAt) : null,
+  };
 }
 
 export default function Home() {
@@ -432,8 +455,17 @@ export default function Home() {
                       color: "var(--color-text-mid)",
                       fontFamily: "var(--font-heading)",
                       fontStyle: "italic",
+                      margin: 0,
                     }}>
                       Where to next?
+                    </p>
+                    <p style={{
+                      fontSize: 13,
+                      color: "var(--color-text-muted)",
+                      margin: 0,
+                      marginTop: 4,
+                    }}>
+                      Start planning your next trip
                     </p>
                   </div>
                   </div>
@@ -847,12 +879,26 @@ export default function Home() {
 
 /* ── Trip Card ────────────────────────────────────────────── */
 
+function formatDateRange(checkIn: string | null, checkOut: string | null): string {
+  if (!checkIn) return "Dates not set";
+  const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const start = new Date(checkIn);
+  const startStr = `${MONTHS[start.getMonth()]} ${start.getDate()}`;
+  if (!checkOut) return startStr;
+  const end = new Date(checkOut);
+  // Same month → "May 10 – 17"
+  if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
+    return `${startStr} \u2013 ${end.getDate()}`;
+  }
+  return `${startStr} \u2013 ${MONTHS[end.getMonth()]} ${end.getDate()}`;
+}
+
 function TripCard({ trip }: { trip: Trip }) {
   const [hovered, setHovered] = useState(false);
   const [unsplashPhoto, setUnsplashPhoto] = useState<{ url: string; attribution: string } | null>(null);
   const flag = getFlag(trip.destination);
   const members = getMembers(trip);
-  const activityStatus = getActivityStatus(trip);
+  const activity = getActivityStatus(trip);
 
   // Countdown
   const checkInDate = trip.checkIn ? new Date(trip.checkIn) : null;
@@ -860,16 +906,15 @@ function TripCard({ trip }: { trip: Trip }) {
     ? Math.ceil((checkInDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
     : null;
 
-  // Determine cover photo: user upload > first listing photo > Unsplash
-  const firstListingPhoto = trip.listings.find((l) => l.photos.length > 0)?.photos[0]?.url;
-  const coverPhoto = trip.coverPhotoUrl || firstListingPhoto || unsplashPhoto?.url || null;
-  const attribution = trip.coverPhotoAttribution || (unsplashPhoto && !trip.coverPhotoUrl && !firstListingPhoto ? unsplashPhoto.attribution : null);
+  // Photo priority: user upload > Unsplash > gradient fallback (NO listing photos)
+  const coverPhoto = trip.coverPhotoUrl || unsplashPhoto?.url || null;
+  const attribution = trip.coverPhotoAttribution || (unsplashPhoto && !trip.coverPhotoUrl ? unsplashPhoto.attribution : null);
 
-  // Fetch Unsplash fallback if no other photo
+  // Fetch Unsplash fallback if no user-uploaded cover
   useEffect(() => {
-    if (trip.coverPhotoUrl || firstListingPhoto) return;
+    if (trip.coverPhotoUrl) return;
     let cancelled = false;
-    fetch(`/api/unsplash?q=${encodeURIComponent(trip.destination)}`)
+    fetch(`/api/unsplash?q=${encodeURIComponent(trip.destination + " beach")}`)
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
         if (!cancelled && data?.url) {
@@ -878,7 +923,9 @@ function TripCard({ trip }: { trip: Trip }) {
       })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [trip.coverPhotoUrl, firstListingPhoto, trip.destination]);
+  }, [trip.coverPhotoUrl, trip.destination]);
+
+  const dateLabel = formatDateRange(trip.checkIn, trip.checkOut);
 
   return (
     <a
@@ -918,71 +965,72 @@ function TripCard({ trip }: { trip: Trip }) {
                 objectFit: "cover",
               }}
             />
-            {/* Dark gradient overlay for text readability */}
+            {/* Dark gradient overlay — non-negotiable for text readability */}
             <div style={{
               position: "absolute",
               inset: 0,
-              background: "linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.45) 100%)",
+              background: "linear-gradient(to top, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.1) 60%)",
             }} />
           </>
         ) : (
-          <>
-            <div
-              className="trip-card-ken-burns"
-              style={{
-                position: "absolute",
-                inset: "-10%",
-                background: "linear-gradient(135deg, #FCEEE8 0%, #F7E4D8 40%, #EDE7E0 100%)",
-              }}
-            />
-            <svg
-              style={{ position: "absolute", bottom: 0, left: "-5%", width: "110%", height: "40%" }}
-              viewBox="0 0 400 100"
-              preserveAspectRatio="none"
-              fill="#fff"
-            >
-              <path className="trip-card-wave-a" d="M0 50C60 35 140 65 200 45S320 55 400 42L400 100H0Z" opacity="0.06" />
-              <path className="trip-card-wave-b" d="M0 62C80 48 160 72 240 55S360 68 400 58L400 100H0Z" opacity="0.08" />
-              <path className="trip-card-wave-c" d="M0 72C50 60 130 82 210 68S330 78 400 70L400 100H0Z" opacity="0.1" />
-            </svg>
-          </>
+          /* Solid warm gradient fallback when no photo is available */
+          <div
+            className="trip-card-ken-burns"
+            style={{
+              position: "absolute",
+              inset: "-10%",
+              background: "linear-gradient(135deg, #4A8B9E 0%, #8BC4A0 100%)",
+            }}
+          />
         )}
 
         {/* Content on top */}
         <div style={{ position: "relative", padding: "20px 20px 16px" }}>
           <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-            <span style={{ fontSize: 26, lineHeight: 1, textShadow: coverPhoto ? "0 1px 3px rgba(0,0,0,0.3)" : "none" }}>{flag}</span>
+            <span style={{ fontSize: 26, lineHeight: 1, textShadow: "0 1px 3px rgba(0,0,0,0.3)" }}>{flag}</span>
             <div style={{ flex: 1, minWidth: 0 }}>
               <h3 style={{
                 fontSize: 18,
                 fontWeight: 600,
-                color: coverPhoto ? "#fff" : "var(--color-text)",
+                color: "#fff",
                 margin: 0,
                 lineHeight: 1.25,
                 fontFamily: "var(--font-heading)",
-                textShadow: coverPhoto ? "0 1px 4px rgba(0,0,0,0.3)" : "none",
+                textShadow: "0 1px 4px rgba(0,0,0,0.3)",
               }}>
                 {trip.name}
               </h3>
               <p style={{
                 fontSize: 13,
-                color: coverPhoto ? "rgba(255,255,255,0.85)" : "var(--color-text-mid)",
+                color: "rgba(255,255,255,0.85)",
                 margin: 0,
                 marginTop: 3,
-                textShadow: coverPhoto ? "0 1px 3px rgba(0,0,0,0.3)" : "none",
+                textShadow: "0 1px 3px rgba(0,0,0,0.3)",
               }}>
                 {trip.destination}
+              </p>
+
+              {/* Trip dates */}
+              <p style={{
+                fontSize: 12,
+                color: "rgba(255,255,255,0.7)",
+                margin: 0,
+                marginTop: 4,
+                textShadow: "0 1px 3px rgba(0,0,0,0.3)",
+                fontStyle: trip.checkIn ? "normal" : "italic",
+              }}>
+                {dateLabel}
               </p>
 
               {/* Countdown */}
               {daysUntilTrip != null && daysUntilTrip > 0 && (
                 <p className="font-mono" style={{
                   fontSize: 12,
-                  color: coverPhoto ? "rgba(255,255,255,0.75)" : "var(--color-text-mid)",
+                  color: "rgba(255,255,255,0.75)",
                   margin: 0,
-                  marginTop: 6,
+                  marginTop: 4,
                   letterSpacing: 0.3,
-                  textShadow: coverPhoto ? "0 1px 3px rgba(0,0,0,0.3)" : "none",
+                  textShadow: "0 1px 3px rgba(0,0,0,0.3)",
                 }}>
                   &#9728;&#65039; {daysUntilTrip}d away
                 </p>
@@ -1078,18 +1126,36 @@ function TripCard({ trip }: { trip: Trip }) {
           </div>
         )}
 
-        {/* Activity status */}
-        <p style={{
-          fontSize: 13,
-          color: "var(--color-text-mid)",
-          margin: 0,
-          lineHeight: 1.4,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
+        {/* Activity status with timestamp */}
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
         }}>
-          {activityStatus}
-        </p>
+          <p style={{
+            fontSize: 13,
+            color: "var(--color-text-mid)",
+            margin: 0,
+            lineHeight: 1.4,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            flex: 1,
+            minWidth: 0,
+          }}>
+            {activity.text}
+          </p>
+          {activity.time && (
+            <span className="font-mono" style={{
+              fontSize: 11,
+              color: "var(--color-text-light)",
+              whiteSpace: "nowrap",
+              flexShrink: 0,
+            }}>
+              {activity.time}
+            </span>
+          )}
+        </div>
 
         {/* Hover CTA */}
         <div
