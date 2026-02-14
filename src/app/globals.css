@@ -243,30 +243,132 @@ a:focus:not(:focus-visible) {
   z-index: 30;
   display: flex;
   flex-direction: column;
-  will-change: transform;
+  will-change: top;
+  touch-action: none;
+  transition: top 0.35s cubic-bezier(0.32, 0.72, 0, 1),
+              border-radius 0.35s cubic-bezier(0.32, 0.72, 0, 1),
+              box-shadow 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* When sheet is full, let content scroll naturally */
+.mobile-bottom-sheet[data-full="true"] .sheet-content {
+  touch-action: pan-y;
+}
+
+.mobile-bottom-sheet[data-full="true"] {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.mobile-bottom-sheet[data-dragging="true"] {
+  transition: none;
 }
 
 .mobile-bottom-sheet .sheet-handle {
   display: flex;
   justify-content: center;
-  padding: 12px 0 8px;
+  align-items: center;
+  min-height: 44px;
+  padding: 16px 0 12px;
   cursor: grab;
   flex-shrink: 0;
   touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .mobile-bottom-sheet .sheet-handle-bar {
-  width: 36px;
-  height: 4px;
-  border-radius: 2px;
+  width: 40px;
+  height: 5px;
+  border-radius: 3px;
   background: var(--color-text-light);
 }
 
 .mobile-bottom-sheet .sheet-content {
   flex: 1;
-  overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Sheet collapsed state — show a peek strip */
+.mobile-bottom-sheet[data-collapsed="true"] {
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -2px 10px rgba(0,0,0,0.06);
+}
+
+/* Floating Map pill button — visible when list covers the map */
+.mobile-map-pill {
+  position: fixed;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%) translateY(0);
+  z-index: 46;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  background: #FDFBF7;
+  color: var(--color-text);
+  border: 1px solid var(--color-border-dark);
+  border-radius: 20px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s var(--ease-spring), opacity 0.2s;
+  animation: mapPillIn 0.25s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.mobile-map-pill:active {
+  transform: translateX(-50%) scale(0.95);
+}
+
+@keyframes mapPillIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Mobile mini preview card — Airbnb-style floating card */
+.mobile-mini-preview {
+  position: fixed;
+  bottom: calc(16px + env(safe-area-inset-bottom) + 90px);
+  left: 12px;
+  right: 12px;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+  animation: miniPreviewIn 0.2s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.mobile-mini-preview:active {
+  transform: scale(0.98);
+}
+
+@keyframes miniPreviewIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Mobile bottom sheet for detail panel */
@@ -424,6 +526,11 @@ body.mobile-detail-open {
     width: 0;
   }
 
+  /* Prevent iOS zoom on input focus — inputs must be ≥16px */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+
   /* Price markers on mobile — larger touch target */
   .price-marker {
     padding: 6px 14px;
@@ -431,5 +538,12 @@ body.mobile-detail-open {
     min-height: 36px;
     display: flex;
     align-items: center;
+  }
+
+  /* Prevent page-level overscroll/bounce */
+  html, body {
+    overscroll-behavior: none;
+    overflow: hidden;
+    height: 100%;
   }
 }

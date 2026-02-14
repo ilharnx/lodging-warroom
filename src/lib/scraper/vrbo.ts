@@ -8,6 +8,7 @@ import { extractVrboId } from "./detect";
 export async function scrapeVrbo(url: string): Promise<ScrapedListing> {
   const externalId = extractVrboId(url);
 
+  // Strategy 1: Scrape the HTML page (most proven approach)
   try {
     const response = await fetch(url, {
       headers: browserHeaders(url),
@@ -19,25 +20,198 @@ export async function scrapeVrbo(url: string): Promise<ScrapedListing> {
     }
 
     const html = await response.text();
-    return parseVrboHtml(html, url, externalId);
+
+    // Detect Cloudflare/bot challenge pages
+    if (isChallengeResponse(html)) {
+      console.warn("VRBO returned a challenge page, will try fallbacks...");
+      throw new Error("Challenge page detected");
+    }
+
+    const result = parseVrboHtml(html, url, externalId);
+    if (result.name && result.name.length > 3) {
+      return result;
+    }
+    // If HTML gave us partial data, continue to fallbacks
+    console.log("VRBO HTML scrape returned partial data, trying fallbacks...");
   } catch (error) {
-    console.error("VRBO scrape error:", error);
-    // Try to extract what we can from the URL itself
-    return vrboFallback(url, externalId);
+    console.error("VRBO HTML scrape error:", error);
   }
+
+  // Strategy 2: Try mobile user agent (simpler HTML, less blocking)
+  try {
+    const response = await fetch(url, {
+      headers: mobileHeaders(),
+      redirect: "follow",
+    });
+
+    if (response.ok) {
+      const html = await response.text();
+      if (!isChallengeResponse(html)) {
+        const result = parseVrboHtml(html, url, externalId);
+        if (result.name && result.name.length > 3) {
+          return result;
+        }
+      }
+    }
+  } catch (err) {
+    console.error("VRBO mobile UA attempt failed:", err);
+  }
+
+  // Strategy 3: Try the Expedia BFF property API as last resort
+  if (externalId) {
+    try {
+      const apiResult = await fetchVrboBff(externalId, url);
+      if (apiResult && apiResult.name && apiResult.name.length > 3) {
+        console.log(`VRBO BFF API success for ${externalId}: "${apiResult.name}"`);
+        return apiResult;
+      }
+    } catch (err) {
+      console.error("VRBO BFF API attempt failed:", err);
+    }
+  }
+
+  // Final fallback
+  return vrboFallback(url, externalId);
+}
+
+/** Try fetching property data from Expedia's BFF API endpoint */
+async function fetchVrboBff(propertyId: string, originalUrl: string): Promise<ScrapedListing> {
+  // Expedia/Vrbo uses this endpoint to render property pages server-side
+  const apiUrl = `https://www.vrbo.com/api/v1/property/${propertyId}`;
+  const graphqlUrl = "https://www.vrbo.com/graphql";
+
+  const result: ScrapedListing = {
+    name: "",
+    source: "vrbo",
+    externalId: propertyId,
+    lat: 0,
+    lng: 0,
+  };
+
+  // Try the property info endpoint first
+  try {
+    const res = await fetch(apiUrl, {
+      headers: {
+        ...browserHeaders(originalUrl),
+        Accept: "application/json",
+      },
+      redirect: "follow",
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.propertyName || data.name || data.headline) {
+        result.name = data.propertyName || data.name || data.headline;
+        if (data.description) result.description = data.description;
+        if (data.latitude) result.lat = Number(data.latitude);
+        if (data.longitude) result.lng = Number(data.longitude);
+        if (data.bedrooms) result.bedrooms = Number(data.bedrooms);
+        if (data.bathrooms) result.bathrooms = Number(data.bathrooms);
+        if (data.averageRating) result.rating = Number(data.averageRating);
+        if (data.reviewCount) result.reviewCount = Number(data.reviewCount);
+        if (data.price?.amount) result.perNight = Number(data.price.amount);
+        if (data.images) {
+          result.photos = data.images
+            .slice(0, 20)
+            .map((img: { url?: string; uri?: string }) => ({ url: img.url || img.uri }))
+            .filter((p: { url?: string }) => p.url);
+        }
+        return result;
+      }
+    }
+  } catch {
+    /* continue to GraphQL attempt */
+  }
+
+  // Try the GraphQL endpoint (Vrbo/Expedia property details query)
+  try {
+    const res = await fetch(graphqlUrl, {
+      method: "POST",
+      headers: {
+        ...browserHeaders(originalUrl),
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "client-info": "blossom-flex-ui",
+      },
+      body: JSON.stringify([{
+        operationName: "PropertyOffersSummary",
+        variables: { propertyId, searchCriteria: { primary: { dateRange: null, rooms: [{ adults: 2 }] } } },
+        query: `query PropertyOffersSummary($propertyId: String!, $searchCriteria: PropertySearchCriteriaInput) {
+          propertyOffers(propertyId: $propertyId, searchCriteria: $searchCriteria) {
+            listing {
+              propertyName
+              headline
+              description
+              bedrooms
+              bathrooms
+              sleeps
+              propertyType
+              images { url description }
+              address { addressLine city stateProvinceCode countryCode }
+              geoCode { latitude longitude }
+              averageRating
+              reviewCount
+            }
+            offers { pricePerNight { amount currency } totalPrice { amount currency } }
+          }
+        }`,
+      }]),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const listing = data?.[0]?.data?.propertyOffers?.listing;
+      const offers = data?.[0]?.data?.propertyOffers?.offers;
+
+      if (listing?.propertyName || listing?.headline) {
+        result.name = listing.propertyName || listing.headline;
+        if (listing.description) result.description = listing.description;
+        if (listing.geoCode) {
+          result.lat = Number(listing.geoCode.latitude);
+          result.lng = Number(listing.geoCode.longitude);
+        }
+        if (listing.bedrooms) result.bedrooms = Number(listing.bedrooms);
+        if (listing.bathrooms) result.bathrooms = Number(listing.bathrooms);
+        if (listing.averageRating) result.rating = Number(listing.averageRating);
+        if (listing.reviewCount) result.reviewCount = Number(listing.reviewCount);
+        if (listing.images) {
+          result.photos = listing.images
+            .slice(0, 20)
+            .map((img: { url: string; description?: string }) => ({ url: img.url, caption: img.description }))
+            .filter((p: { url?: string }) => p.url);
+        }
+        if (listing.address) {
+          const addr = listing.address;
+          const parts = [addr.addressLine, addr.city, addr.stateProvinceCode].filter(Boolean);
+          result.address = parts.join(", ");
+          if (addr.city) result.neighborhood = addr.city;
+        }
+        if (offers?.[0]?.pricePerNight?.amount) {
+          result.perNight = Number(offers[0].pricePerNight.amount);
+        } else if (offers?.[0]?.totalPrice?.amount) {
+          result.totalCost = Number(offers[0].totalPrice.amount);
+        }
+        return result;
+      }
+    }
+  } catch {
+    /* GraphQL attempt failed */
+  }
+
+  // Return empty — let the caller try HTML scraping
+  throw new Error("BFF API returned no useful data");
 }
 
 function browserHeaders(url: string): Record<string, string> {
   return {
     "User-Agent":
-      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
     Accept:
       "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.9",
     "Accept-Encoding": "gzip, deflate, br",
     "Cache-Control": "no-cache",
     Pragma: "no-cache",
-    "Sec-Ch-Ua": '"Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"',
+    "Sec-Ch-Ua": '"Chromium";v="131", "Not_A Brand";v="24", "Google Chrome";v="131"',
     "Sec-Ch-Ua-Mobile": "?0",
     "Sec-Ch-Ua-Platform": '"macOS"',
     "Sec-Fetch-Dest": "document",
@@ -47,6 +221,35 @@ function browserHeaders(url: string): Record<string, string> {
     "Upgrade-Insecure-Requests": "1",
     Referer: new URL(url).origin + "/",
   };
+}
+
+function mobileHeaders(): Record<string, string> {
+  return {
+    "User-Agent":
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.2 Mobile/15E148 Safari/604.1",
+    Accept:
+      "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+  };
+}
+
+/** Detect if the response is a Cloudflare challenge or bot detection page */
+function isChallengeResponse(html: string): boolean {
+  const challengeSignals = [
+    "cf-browser-verification",
+    "challenge-platform",
+    "cf_chl_opt",
+    "Just a moment",
+    "Checking your browser",
+    "Enable JavaScript and cookies",
+    "Access denied",
+    "Pardon Our Interruption",
+  ];
+  const lower = html.slice(0, 5000).toLowerCase();
+  return challengeSignals.some((sig) => lower.includes(sig.toLowerCase()));
 }
 
 function parseVrboHtml(
@@ -66,13 +269,13 @@ function parseVrboHtml(
   const ogTitle = extractMeta(html, "og:title");
   const ogDesc = extractMeta(html, "og:description");
   const ogImage = extractMeta(html, "og:image");
-  const ogUrl = extractMeta(html, "og:url");
 
   if (ogTitle) {
     result.name = ogTitle
       .replace(/\s*\|.*$/, "") // Remove "| VRBO" suffix
       .replace(/\s*-\s*VRBO.*$/i, "")
       .replace(/\s*-\s*Vrbo.*$/i, "")
+      .replace(/\s*-\s*Expedia.*$/i, "")
       .trim();
   }
 
@@ -90,6 +293,7 @@ function parseVrboHtml(
         .replace(/\s*\|.*$/, "")
         .replace(/\s*-\s*VRBO.*$/i, "")
         .replace(/\s*-\s*Vrbo.*$/i, "")
+        .replace(/\s*-\s*Expedia.*$/i, "")
         .replace(/\s+/g, " ")
         .trim();
     }
@@ -118,10 +322,17 @@ function parseVrboHtml(
     const script = match[1];
     if (script.length < 100 || script.length > 5_000_000) continue;
 
-    // Look for window.__NEXT_DATA__ or similar
-    if (script.includes("__NEXT_DATA__") || script.includes("__REDUX_STATE__")) {
+    // Look for window.__NEXT_DATA__, __REDUX_STATE__, or Expedia-specific patterns
+    if (
+      script.includes("__NEXT_DATA__") ||
+      script.includes("__REDUX_STATE__") ||
+      script.includes("__INITIAL_STATE__") ||
+      script.includes("window.__CONFIG__")
+    ) {
       try {
-        const jsonStr = script.match(/(?:__NEXT_DATA__|__REDUX_STATE__)\s*=\s*({[\s\S]+})/);
+        const jsonStr = script.match(
+          /(?:__NEXT_DATA__|__REDUX_STATE__|__INITIAL_STATE__|window\.__CONFIG__)\s*=\s*({[\s\S]+?});?\s*(?:<\/script>|$)/
+        );
         if (jsonStr) {
           const data = JSON.parse(jsonStr[1]);
           extractFromEmbeddedJson(data, result);
@@ -132,7 +343,7 @@ function parseVrboHtml(
     }
 
     // Look for property data patterns
-    if (script.includes('"propertyName"') || script.includes('"headline"')) {
+    if (script.includes('"propertyName"') || script.includes('"headline"') || script.includes('"listingName"')) {
       extractFromRawScript(script, result);
     }
   }
@@ -175,11 +386,13 @@ function parseVrboHtml(
     const imgUrls = new Set<string>();
     if (result.photos?.[0]) imgUrls.add(result.photos[0].url);
 
-    // VRBO uses specific image CDN patterns
+    // VRBO/Expedia uses specific image CDN patterns
     const imgPatterns = [
       /https:\/\/images\.trvl-media\.com\/lodging\/[^"'\s]+/g,
+      /https:\/\/images\.trvl-media\.com\/hotels\/[^"'\s]+/g,
       /https:\/\/a0\.muscache\.com\/[^"'\s]+/g,
       /https:\/\/[^"'\s]*\.vrbo\.com\/[^"'\s]*\.(?:jpg|jpeg|png|webp)[^"'\s]*/gi,
+      /https:\/\/[^"'\s]*\.expedia\.com\/[^"'\s]*\.(?:jpg|jpeg|png|webp)[^"'\s]*/gi,
     ];
 
     for (const pattern of imgPatterns) {
@@ -187,7 +400,7 @@ function parseVrboHtml(
       for (const m of matches) {
         if (imgUrls.size >= 20) break;
         const imgUrl = m[0].replace(/&amp;/g, "&");
-        if (!imgUrl.includes("pixel") && !imgUrl.includes("1x1")) {
+        if (!imgUrl.includes("pixel") && !imgUrl.includes("1x1") && !imgUrl.includes("favicon")) {
           imgUrls.add(imgUrl);
         }
       }
@@ -207,6 +420,7 @@ function parseVrboHtml(
       /"pricePerNight":\s*{\s*"amount":\s*([\d.]+)/,
       /"amount":\s*([\d.]+).*?"qualifier":\s*"PER_NIGHT"/,
       /"nightly":\s*([\d.]+)/,
+      /"leadPrice":\s*{\s*"amount":\s*([\d.]+)/,
     ];
 
     for (const pattern of pricePatterns) {
@@ -316,7 +530,8 @@ function extractFromJsonLd(
     typeStr.includes("VacationRental") ||
     typeStr.includes("House") ||
     typeStr.includes("Apartment") ||
-    typeStr.includes("Accommodation");
+    typeStr.includes("Accommodation") ||
+    typeStr.includes("Product");
 
   if (isLodging) {
     if (ld.name && typeof ld.name === "string" && !result.name) {
@@ -379,7 +594,7 @@ function extractFromEmbeddedJson(
 
   // Extract property name
   if (!result.name) {
-    const nameMatch = str.match(/"(?:propertyName|headline|title)":\s*"([^"]{5,200})"/);
+    const nameMatch = str.match(/"(?:propertyName|headline|title|listingName)":\s*"([^"]{5,200})"/);
     if (nameMatch) {
       result.name = nameMatch[1];
     }
@@ -397,7 +612,7 @@ function extractFromEmbeddedJson(
 
   // Extract price
   if (!result.perNight) {
-    const priceMatch = str.match(/"(?:price|amount|nightly)":\s*([\d.]+)/);
+    const priceMatch = str.match(/"(?:price|amount|nightly|pricePerNight)":\s*([\d.]+)/);
     if (priceMatch) {
       const price = parseFloat(priceMatch[1]);
       if (price > 10 && price < 100000) {
@@ -405,11 +620,34 @@ function extractFromEmbeddedJson(
       }
     }
   }
+
+  // Extract bedrooms/bathrooms from embedded data
+  if (result.bedrooms == null) {
+    const brMatch = str.match(/"bedrooms?":\s*(\d+)/);
+    if (brMatch) result.bedrooms = parseInt(brMatch[1]);
+  }
+  if (result.bathrooms == null) {
+    const baMatch = str.match(/"bathrooms?":\s*([\d.]+)/);
+    if (baMatch) result.bathrooms = parseFloat(baMatch[1]);
+  }
+
+  // Extract images from embedded data
+  if (!result.photos || result.photos.length <= 1) {
+    const imageUrls: string[] = [];
+    const imgRegex = /"(?:url|uri|imageUrl)":\s*"(https:\/\/images\.trvl-media\.com\/[^"]+)"/g;
+    let imgMatch;
+    while ((imgMatch = imgRegex.exec(str)) && imageUrls.length < 20) {
+      imageUrls.push(imgMatch[1]);
+    }
+    if (imageUrls.length > 0) {
+      result.photos = imageUrls.map((u) => ({ url: u }));
+    }
+  }
 }
 
 function extractFromRawScript(script: string, result: ScrapedListing): void {
   if (!result.name) {
-    const nameMatch = script.match(/"(?:propertyName|headline)":\s*"([^"]{5,200})"/);
+    const nameMatch = script.match(/"(?:propertyName|headline|listingName)":\s*"([^"]{5,200})"/);
     if (nameMatch) {
       result.name = nameMatch[1];
     }
@@ -424,7 +662,8 @@ function vrboNameFromUrl(url: string, externalId: string | null): string {
     for (const part of parts) {
       // Skip numeric-only parts and known path segments
       if (/^\d+$/.test(part)) continue;
-      if (["vacation-rentals", "en-us", "vacation-rental", "p"].includes(part.toLowerCase())) continue;
+      if (/^p\d+$/i.test(part)) continue; // Skip p-prefixed IDs
+      if (["vacation-rentals", "vacation-rental", "en-us", "en-gb", "p", "travel", "stays"].includes(part.toLowerCase())) continue;
       // Convert kebab-case to title case
       const name = part
         .replace(/[-_]/g, " ")
