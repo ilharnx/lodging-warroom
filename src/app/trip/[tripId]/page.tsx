@@ -6,7 +6,7 @@ import { ListingCard } from "@/components/ListingCard";
 import { ListingDetail } from "@/components/ListingDetail";
 import { AddListingModal } from "@/components/AddListingModal";
 import { FilterBar } from "@/components/FilterBar";
-import { BudgetRangeBar } from "@/components/BudgetRangeBar";
+
 import { TripPreferences } from "@/components/TripPreferences";
 import { computeBudgetRange } from "@/lib/budget";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -469,6 +469,7 @@ export default function TripPage({
           <ListingCard
             listing={listing}
             adults={trip.adults}
+            nights={trip.nights || 7}
             isSelected={selectedId === listing.id}
             isHovered={hoveredId === listing.id}
             userName={userName}
@@ -490,6 +491,7 @@ export default function TripPage({
     <ListingDetail
       listing={detailListing}
       adults={trip.adults}
+      nights={trip.nights || 7}
       userName={userName}
       onClose={closeDetail}
       onRefresh={fetchTrip}
@@ -669,19 +671,6 @@ export default function TripPage({
 
       {/* Filter bar */}
       <FilterBar filters={filters} onChange={setFilters} isMobile={isMobile} />
-
-      {/* Budget range bar — hide on mobile map tab */}
-      {budgetRange && (!isMobile || mobileTab === "list") && (
-        <BudgetRangeBar
-          range={budgetRange}
-          listings={listings}
-          hoveredId={hoveredId}
-          adults={trip.adults}
-          nights={trip.nights}
-          onNightsChange={(n) => updateTripSettings({ nights: n })}
-          isMobile={isMobile}
-        />
-      )}
 
       {/* Main content */}
       {isMobile ? (
