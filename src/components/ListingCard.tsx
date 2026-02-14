@@ -14,6 +14,13 @@ interface Vote {
   value: number;
 }
 
+interface Comment {
+  id: string;
+  userName: string;
+  text: string;
+  createdAt: string;
+}
+
 interface Listing {
   id: string;
   name: string;
@@ -42,6 +49,7 @@ interface Listing {
   description: string | null;
   photos: Photo[];
   votes: Vote[];
+  comments: Comment[];
   amenities: unknown;
 }
 
@@ -69,6 +77,19 @@ function formatPrice(amount: number | null, currency: string = "USD"): string {
     currency,
     maximumFractionDigits: 0,
   }).format(amount);
+}
+
+const USER_COLORS = [
+  "#E05A47", "#3D67FF", "#4A9E6B", "#D4A843", "#8B5CF6",
+  "#0891B2", "#DB2777", "#EA580C", "#6D28D9", "#059669",
+];
+
+function getUserColor(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return USER_COLORS[Math.abs(hash) % USER_COLORS.length];
 }
 
 function Badge({ source }: { source: string }) {
@@ -393,6 +414,50 @@ export function ListingCard({
             &#128118; {listing.kidNotes || "Kid-friendly"}
           </div>
         )}
+
+        {/* Comment preview */}
+        {listing.comments && listing.comments.length > 0 && (() => {
+          const latest = listing.comments[0];
+          const color = getUserColor(latest.userName);
+          const initial = latest.userName.charAt(0).toUpperCase();
+          const extraCount = listing.comments.length - 1;
+          return (
+            <div
+              style={{
+                marginTop: 8, padding: "6px 8px",
+                background: "var(--color-bg)", borderRadius: 8,
+                display: "flex", alignItems: "center", gap: 6,
+                overflow: "hidden",
+              }}
+            >
+              <div style={{
+                width: 20, height: 20, borderRadius: "50%", flexShrink: 0,
+                background: color, color: "#fff",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 10, fontWeight: 700,
+              }}>
+                {initial}
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 700, color, flexShrink: 0 }}>
+                {latest.userName}:
+              </span>
+              <span style={{
+                fontSize: 11, color: "var(--color-text-mid)", flex: 1, minWidth: 0,
+                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+              }}>
+                {latest.text}
+              </span>
+              {extraCount > 0 && (
+                <span className="font-mono" style={{
+                  fontSize: 10, color: "var(--color-text-muted)", flexShrink: 0,
+                  fontWeight: 600,
+                }}>
+                  +{extraCount}
+                </span>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Actions */}
         <div style={{
