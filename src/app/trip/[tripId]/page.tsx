@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, use } from "react";
+import { useState, useEffect, useCallback, useRef, use } from "react";
 import dynamic from "next/dynamic";
 import { ListingCard } from "@/components/ListingCard";
 import { ListingDetail } from "@/components/ListingDetail";
@@ -155,12 +155,18 @@ export default function TripPage({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [detailListing, setDetailListing] = useState<Listing | null>(null);
+  const detailListingRef = useRef<Listing | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [userName, setUserName] = useState("");
   const [showNamePrompt, setShowNamePrompt] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
   const [showPreferences, setShowPreferences] = useState(false);
+
+  // Keep ref in sync so fetchTrip can read it without a dependency
+  useEffect(() => {
+    detailListingRef.current = detailListing;
+  }, [detailListing]);
 
   // Load trip data
   const fetchTrip = useCallback(async () => {
@@ -172,9 +178,10 @@ export default function TripPage({
         setFetchError(null);
 
         // If detail panel is open, refresh the listing data
-        if (detailListing) {
+        const currentDetail = detailListingRef.current;
+        if (currentDetail) {
           const updated = data.listings.find(
-            (l: Listing) => l.id === detailListing.id
+            (l: Listing) => l.id === currentDetail.id
           );
           if (updated) setDetailListing(updated);
         }
@@ -188,7 +195,7 @@ export default function TripPage({
     } finally {
       setLoading(false);
     }
-  }, [tripId, detailListing]);
+  }, [tripId]);
 
   // Initial load + polling
   useEffect(() => {
