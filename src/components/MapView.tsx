@@ -3,8 +3,6 @@
 import { useRef, useEffect, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import type { BudgetRange } from "@/lib/budget";
-import { getPriceTier } from "@/lib/budget";
 
 interface Listing {
   id: string;
@@ -25,7 +23,7 @@ interface MapViewProps {
   onSelect: (id: string) => void;
   onHover: (id: string | null) => void;
   adults: number;
-  budgetRange: BudgetRange | null;
+  nights: number;
 }
 
 export default function MapView({
@@ -36,7 +34,7 @@ export default function MapView({
   onSelect,
   onHover,
   adults,
-  budgetRange,
+  nights,
 }: MapViewProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -94,30 +92,22 @@ export default function MapView({
     listings.forEach((listing) => {
       if (listing.lat === 0 && listing.lng === 0) return;
 
-      const price = listing.totalCost
-        ? `$${(listing.totalCost / 1000).toFixed(1)}k`
-        : listing.perNight
-          ? `$${Math.round(listing.perNight)}/n`
-          : "?";
-
-      const listingPrice = listing.perNight || listing.totalCost;
-      const tier = getPriceTier(listingPrice, budgetRange);
+      // Per-person-per-night price for pin labels
+      let price = "?";
+      if (listing.perNight && adults > 0) {
+        price = `$${Math.round(listing.perNight / adults)}`;
+      } else if (listing.totalCost && nights > 0 && adults > 0) {
+        price = `$${Math.round(listing.totalCost / nights / adults)}`;
+      }
 
       const existing = markers.current.get(listing.id);
       if (existing) {
         existing.el.textContent = price;
         existing.marker.setLngLat([listing.lng, listing.lat]);
-        // Update budget class
-        existing.el.classList.remove("budget-low", "budget-high");
-        if (tier === "low") existing.el.classList.add("budget-low");
-        if (tier === "high") existing.el.classList.add("budget-high");
       } else {
         const el = document.createElement("div");
         el.className = "price-marker";
         el.textContent = price;
-
-        if (tier === "low") el.classList.add("budget-low");
-        if (tier === "high") el.classList.add("budget-high");
 
         el.addEventListener("click", () => onSelect(listing.id));
         el.addEventListener("mouseenter", () => onHover(listing.id));
@@ -130,7 +120,7 @@ export default function MapView({
         markers.current.set(listing.id, { marker, el });
       }
     });
-  }, [listings, noToken, onSelect, onHover, adults, budgetRange]);
+  }, [listings, noToken, onSelect, onHover, adults, nights]);
 
   // Track user map interaction to suppress flyTo during drags/zooms
   useEffect(() => {

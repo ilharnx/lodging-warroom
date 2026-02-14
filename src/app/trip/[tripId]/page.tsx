@@ -8,7 +8,7 @@ import { AddListingModal } from "@/components/AddListingModal";
 import { FilterBar } from "@/components/FilterBar";
 
 import { TripPreferences } from "@/components/TripPreferences";
-import { computeBudgetRange } from "@/lib/budget";
+// budget range no longer used on cards/map
 import { useIsMobile } from "@/hooks/useIsMobile";
 import type { FilterState, KitchenType, TripPreferences as TripPreferencesType, ReactionType } from "@/types";
 
@@ -219,9 +219,14 @@ export default function TripPage({
   const [nameInput, setNameInput] = useState("");
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
   const [showPreferences, setShowPreferences] = useState(false);
-  const [mobileTab, setMobileTab] = useState<"list" | "map">("list");
   const isMobile = useIsMobile();
   const sidebarRef = useRef<HTMLDivElement>(null);
+
+  // Mobile bottom sheet state
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const sheetContentRef = useRef<HTMLDivElement>(null);
+  const sheetDragStart = useRef<{ y: number; sheetTop: number } | null>(null);
+  const [sheetTop, setSheetTop] = useState(60); // percentage from top (60% = map gets 60%)
 
   // Keep ref in sync so fetchTrip can read it without a dependency
   useEffect(() => {
@@ -434,7 +439,7 @@ export default function TripPage({
 
   const listings: Listing[] = trip.listings || [];
   const filtered = applyFilters(listings, filters);
-  const budgetRange = computeBudgetRange(listings);
+  const nights = trip.nights || 7;
 
   const isDetailOpen = detailListing !== null;
   const sidebarWidth = isDetailOpen ? 300 : 380;
@@ -547,20 +552,13 @@ export default function TripPage({
               <ListingCard
                 listing={listing}
                 adults={trip.adults}
-                nights={trip.nights || 7}
+                nights={nights}
                 isSelected={selectedId === listing.id}
                 isHovered={hoveredId === listing.id}
-                userName={userName}
                 index={indexOffset + i}
                 onSelect={() => openDetail(listing)}
-                onViewDetail={() => openDetail(listing)}
-                onReact={(reactionType) => handleReact(listing.id, reactionType)}
-                onRemoveReaction={() => handleRemoveVote(listing.id)}
-                onRescrape={() => handleRescrape(listing.id)}
                 onMouseEnter={() => setHoveredId(listing.id)}
                 onMouseLeave={() => setHoveredId(null)}
-                onNightsChange={(n) => updateTripSettings({ nights: n })}
-                budgetRange={budgetRange}
               />
             </div>
           ))}
@@ -630,7 +628,7 @@ export default function TripPage({
     <ListingDetail
       listing={detailListing}
       adults={trip.adults}
-      nights={trip.nights || 7}
+      nights={nights}
       userName={userName}
       onClose={closeDetail}
       onRefresh={fetchTrip}
@@ -638,11 +636,28 @@ export default function TripPage({
       onReact={(reactionType) => handleReact(detailListing.id, reactionType)}
       onRemoveReaction={() => handleRemoveVote(detailListing.id)}
       onRescrape={() => handleRescrape(detailListing.id)}
-      budgetRange={budgetRange}
+      budgetRange={null}
       hasPreferences={!!tripPrefs}
       isMobile={isMobile}
     />
   );
+
+  function handleMapPinSelect(id: string) {
+    setSelectedId(id);
+    const listing = listings.find((l: Listing) => l.id === id);
+    if (listing) openDetail(listing);
+
+    // On mobile, scroll the card into view in the sheet and expand if collapsed
+    if (isMobile) {
+      setSheetTop((prev) => prev > 70 ? 55 : prev);
+      setTimeout(() => {
+        const cardEl = document.getElementById(`listing-${id}`);
+        if (cardEl && sheetContentRef.current) {
+          cardEl.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 100);
+    }
+  }
 
   const mapView = (
     <MapView
@@ -650,14 +665,10 @@ export default function TripPage({
       center={[trip.centerLng, trip.centerLat]}
       selectedId={selectedId}
       hoveredId={hoveredId}
-      onSelect={(id) => {
-        setSelectedId(id);
-        const listing = listings.find((l: Listing) => l.id === id);
-        if (listing) openDetail(listing);
-      }}
+      onSelect={handleMapPinSelect}
       onHover={setHoveredId}
       adults={trip.adults}
-      budgetRange={budgetRange}
+      nights={nights}
     />
   );
 
@@ -811,17 +822,69 @@ export default function TripPage({
       {/* Main content */}
       {isMobile ? (
         <>
-          {/* Mobile: single view */}
+          {/* Mobile: map + draggable bottom sheet */}
           <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
-            {mobileTab === "list" ? (
-              <div ref={sidebarRef} style={{ height: "100%", overflowY: "auto", background: "var(--color-bg)" }}>
+            {/* Map fills the space */}
+            <div style={{ position: "absolute", inset: 0 }}>
+              {mapView}
+            </div>
+
+            {/* Draggable bottom sheet */}
+            <div
+              ref={sheetRef}
+              className="mobile-bottom-sheet"
+              style={{ top: `${sheetTop}%` }}
+              onTouchStart={(e) => {
+                // Only drag from handle area (first 40px) or when content is scrolled to top
+                const touch = e.touches[0];
+                const sheetEl = sheetRef.current;
+                const contentEl = sheetContentRef.current;
+                if (!sheetEl) return;
+
+                const sheetRect = sheetEl.getBoundingClientRect();
+                const touchYInSheet = touch.clientY - sheetRect.top;
+                const isHandle = touchYInSheet < 40;
+                const isScrolledToTop = !contentEl || contentEl.scrollTop <= 0;
+
+                if (isHandle || isScrolledToTop) {
+                  sheetDragStart.current = { y: touch.clientY, sheetTop };
+                }
+              }}
+              onTouchMove={(e) => {
+                if (!sheetDragStart.current) return;
+                const touch = e.touches[0];
+                const deltaY = touch.clientY - sheetDragStart.current.y;
+                const containerHeight = sheetRef.current?.parentElement?.clientHeight || window.innerHeight;
+                const deltaPct = (deltaY / containerHeight) * 100;
+                const newTop = Math.max(5, Math.min(85, sheetDragStart.current.sheetTop + deltaPct));
+                setSheetTop(newTop);
+              }}
+              onTouchEnd={() => {
+                if (!sheetDragStart.current) return;
+                sheetDragStart.current = null;
+                // Snap to nearest position: collapsed (85%), split (55%), expanded (10%)
+                setSheetTop((prev) => {
+                  if (prev < 30) return 10;
+                  if (prev > 70) return 85;
+                  return 55;
+                });
+              }}
+            >
+              <div className="sheet-handle">
+                <div className="sheet-handle-bar" />
+              </div>
+              <div
+                ref={(el) => {
+                  sheetContentRef.current = el;
+                  if (isMobile && el) {
+                    sidebarRef.current = el;
+                  }
+                }}
+                className="sheet-content"
+              >
                 {sidebarContent}
               </div>
-            ) : (
-              <div style={{ height: "100%", position: "relative" }}>
-                {mapView}
-              </div>
-            )}
+            </div>
           </div>
 
           {/* Mobile FAB for adding listings */}
@@ -832,22 +895,6 @@ export default function TripPage({
           >
             +
           </button>
-
-          {/* Mobile tab bar */}
-          <div className="mobile-tab-bar">
-            <button
-              className={mobileTab === "list" ? "active" : ""}
-              onClick={() => setMobileTab("list")}
-            >
-              List ({filtered.length})
-            </button>
-            <button
-              className={mobileTab === "map" ? "active" : ""}
-              onClick={() => setMobileTab("map")}
-            >
-              Map
-            </button>
-          </div>
 
           {/* Mobile detail sheet */}
           {detailPanel}

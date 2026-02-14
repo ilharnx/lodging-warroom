@@ -120,21 +120,13 @@ body {
   z-index: 20 !important;
 }
 
-/* Budget-context pin variants */
-.price-marker.budget-low {
-  border-color: #7BAFD4;
+/* Photo carousel arrows — visible on card hover */
+.listing-card:hover .carousel-arrow {
+  opacity: 0.9 !important;
 }
-.price-marker.budget-low:hover,
-.price-marker.budget-low.hovered {
-  border-color: var(--color-coral);
-}
-
-.price-marker.budget-high {
-  border-color: var(--color-yellow);
-}
-.price-marker.budget-high:hover,
-.price-marker.budget-high.hovered {
-  border-color: var(--color-coral);
+.carousel-arrow:hover {
+  opacity: 1 !important;
+  transform: translateY(-50%) scale(1.1);
 }
 
 /* Heading font — Fraunces serif */
@@ -239,33 +231,43 @@ a:focus:not(:focus-visible) {
 
 /* ── Mobile styles ───────────────────────────────────────── */
 
-/* Mobile tab bar */
-.mobile-tab-bar {
+/* Mobile bottom sheet — draggable card list over map */
+.mobile-bottom-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--color-bg);
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+  z-index: 30;
   display: flex;
-  background: #fff;
-  border-top: 1px solid var(--color-border-dark);
-  padding: 6px 12px calc(6px + env(safe-area-inset-bottom));
-  gap: 8px;
+  flex-direction: column;
+  transition: none;
+  touch-action: none;
+  will-change: transform;
+}
+
+.mobile-bottom-sheet .sheet-handle {
+  display: flex;
+  justify-content: center;
+  padding: 10px 0 6px;
+  cursor: grab;
   flex-shrink: 0;
 }
 
-.mobile-tab-bar button {
-  flex: 1;
-  padding: 10px 0;
-  font-size: 13px;
-  font-weight: 600;
-  font-family: inherit;
-  border: none;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.15s;
-  background: transparent;
-  color: var(--color-text-muted);
+.mobile-bottom-sheet .sheet-handle-bar {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-text-light);
 }
 
-.mobile-tab-bar button.active {
-  background: var(--color-coral);
-  color: #fff;
+.mobile-bottom-sheet .sheet-content {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 /* Mobile bottom sheet for detail panel */
@@ -291,9 +293,9 @@ a:focus:not(:focus-visible) {
 /* Mobile FAB (floating action button) */
 .mobile-fab {
   position: fixed;
-  bottom: calc(72px + env(safe-area-inset-bottom));
+  bottom: calc(16px + env(safe-area-inset-bottom));
   right: 16px;
-  z-index: 40;
+  z-index: 45;
   width: 56px;
   height: 56px;
   border-radius: 50%;
