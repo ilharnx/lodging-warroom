@@ -984,7 +984,6 @@ export function ListingDetail({
               onRemoveReaction={onRemoveReaction}
               onNeedName={onNeedName}
             />
-            </div>
           </div>
 
           {/* Comments */}
