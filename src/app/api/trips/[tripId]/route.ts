@@ -16,6 +16,10 @@ export async function GET(
         nights: true, checkIn: true, checkOut: true,
         coverPhotoUrl: true, coverPhotoAttribution: true,
         createdAt: true,
+        travelers: {
+          select: { id: true, name: true, color: true, isCreator: true, createdAt: true },
+          orderBy: { createdAt: "asc" },
+        },
         listings: {
           select: {
             id: true, tripId: true, url: true, source: true, externalId: true,

@@ -17,13 +17,27 @@ export async function POST(
       );
     }
 
-    const listing = await prisma.listing.findUnique({ where: { id: listingId } });
+    const listing = await prisma.listing.findUnique({
+      where: { id: listingId },
+      select: { id: true, tripId: true },
+    });
     if (!listing) {
       return NextResponse.json({ error: "Listing not found" }, { status: 404 });
     }
 
+    // Try to resolve travelerId from cookie
+    let travelerId: string | null = null;
+    const cookieToken = request.cookies.get(`stay_traveler_${listing.tripId}`)?.value;
+    if (cookieToken) {
+      const traveler = await prisma.traveler.findUnique({
+        where: { token: cookieToken },
+        select: { id: true },
+      });
+      if (traveler) travelerId = traveler.id;
+    }
+
     const comment = await prisma.comment.create({
-      data: { listingId, userName, text },
+      data: { listingId, userName, text, travelerId },
     });
 
     return NextResponse.json(comment, { status: 201 });

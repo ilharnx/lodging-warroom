@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { TRAVELER_COLORS, getNextColor } from "@/lib/traveler-colors";
 
 interface TripVote {
   userName: string;
@@ -27,6 +28,13 @@ interface TripListing {
   comments: TripComment[];
 }
 
+interface TripTraveler {
+  id: string;
+  name: string;
+  color: string;
+  isCreator: boolean;
+}
+
 interface Trip {
   id: string;
   name: string;
@@ -38,6 +46,7 @@ interface Trip {
   coverPhotoUrl: string | null;
   coverPhotoAttribution: string | null;
   createdAt: string;
+  travelers?: TripTraveler[];
   listings: TripListing[];
 }
 
@@ -87,14 +96,24 @@ function getUserColor(name: string): string {
   return USER_COLORS[Math.abs(hash) % USER_COLORS.length];
 }
 
-function getMembers(trip: Trip): string[] {
+function getMembers(trip: Trip): TripTraveler[] {
+  // Prefer real travelers from the database
+  if (trip.travelers && trip.travelers.length > 0) {
+    return trip.travelers;
+  }
+  // Fallback: derive from activity (for legacy trips without travelers)
   const names = new Set<string>();
   trip.listings.forEach((l) => {
     if (l.addedBy) names.add(l.addedBy);
     l.votes.forEach((v) => names.add(v.userName));
     l.comments.forEach((c) => names.add(c.userName));
   });
-  return Array.from(names);
+  return Array.from(names).map((name, i) => ({
+    id: name,
+    name,
+    color: TRAVELER_COLORS[i % TRAVELER_COLORS.length],
+    isCreator: i === 0,
+  }));
 }
 
 function relativeTime(dateStr: string): string {
@@ -146,9 +165,15 @@ function getActivityStatus(trip: Trip): { text: string; time: string | null } {
   // Check who hasn't voted yet
   const members = getMembers(trip);
   const voters = new Set(allVotes.map((v) => v.userName));
-  const nonVoters = members.filter((m) => !voters.has(m));
+  const nonVoters = members.filter((m) => !voters.has(m.name));
   if (nonVoters.length > 0 && members.length > 1) {
-    return { text: `waiting on ${nonVoters[0]} to vote`, time: null };
+    if (nonVoters.length === 1) {
+      return { text: `Waiting on ${nonVoters[0].name}`, time: null };
+    }
+    if (nonVoters.length === 2) {
+      return { text: `Waiting on ${nonVoters[0].name} and ${nonVoters[1].name}`, time: null };
+    }
+    return { text: `Waiting on ${nonVoters[0].name} and ${nonVoters.length - 1} others`, time: null };
   }
 
   // Fallback — most recent listing creation as timestamp
@@ -171,6 +196,9 @@ export default function Home() {
     checkIn: "",
     checkOut: "",
   });
+  const [formTravelers, setFormTravelers] = useState<{ name: string; color: string }[]>([]);
+  const [travelerInput, setTravelerInput] = useState("");
+  const [creatorNameInput, setCreatorNameInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -201,8 +229,24 @@ export default function Home() {
 
   function openCreateModal() {
     setForm({ name: "", destination: "", checkIn: "", checkOut: "" });
+    setFormTravelers([]);
+    setTravelerInput("");
+    setCreatorNameInput("");
     setCreateStep(1);
     setShowCreate(true);
+  }
+
+  function addTraveler(name: string) {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    if (formTravelers.some((t) => t.name.toLowerCase() === trimmed.toLowerCase())) return;
+    const usedColors = formTravelers.map((t) => t.color);
+    const color = getNextColor(usedColors);
+    setFormTravelers([...formTravelers, { name: trimmed, color }]);
+  }
+
+  function removeTraveler(index: number) {
+    setFormTravelers(formTravelers.filter((_, i) => i !== index));
   }
 
   function handleChipPick(dest: string) {
@@ -251,13 +295,14 @@ export default function Home() {
           destination: form.destination,
           centerLat,
           centerLng,
-          adults: 2,
+          adults: formTravelers.length > 0 ? formTravelers.length : 2,
           kids: 0,
           checkIn: form.checkIn || null,
           checkOut: form.checkOut || null,
           nights: dateNights,
           coverPhotoUrl,
           coverPhotoAttribution,
+          travelers: formTravelers.length > 0 ? formTravelers : undefined,
         }),
       });
       if (res.ok) {
@@ -525,7 +570,7 @@ export default function Home() {
               }}>
                 {/* Step dots */}
                 <div style={{ display: "flex", gap: 6 }}>
-                  {[1, 2, 3].map((s) => (
+                  {[1, 2, 3, 4].map((s) => (
                     <div
                       key={s}
                       style={{
@@ -822,8 +867,7 @@ export default function Home() {
                         Back
                       </button>
                       <button
-                        onClick={() => createTrip()}
-                        disabled={creating}
+                        onClick={() => setCreateStep(4)}
                         style={{
                           flex: 1,
                           padding: "14px 16px",
@@ -833,22 +877,20 @@ export default function Home() {
                           color: "#fff",
                           borderRadius: 10,
                           border: "none",
-                          cursor: creating ? "default" : "pointer",
+                          cursor: "pointer",
                           fontFamily: "inherit",
                           transition: "all 0.15s",
-                          opacity: creating ? 0.6 : 1,
                           boxShadow: "0 4px 14px rgba(224,90,71,0.25)",
                         }}
                       >
-                        {creating ? "Creating..." : "Let\u2019s go"}
+                        Next
                       </button>
                     </div>
 
-                    {/* Skip for now */}
+                    {/* Skip dates */}
                     {!form.checkIn && !form.checkOut && (
                       <button
-                        onClick={() => createTrip()}
-                        disabled={creating}
+                        onClick={() => setCreateStep(4)}
                         style={{
                           display: "block",
                           width: "100%",
@@ -865,6 +907,259 @@ export default function Home() {
                       >
                         Skip for now
                       </button>
+                    )}
+                  </div>
+                )}
+
+                {/* Step 4 — Who's coming? */}
+                {createStep === 4 && (
+                  <div>
+                    {formTravelers.length === 0 ? (
+                      <>
+                        <h2 style={{
+                          fontSize: 22,
+                          fontWeight: 600,
+                          fontFamily: "var(--font-heading)",
+                          fontStyle: "italic",
+                          color: "var(--color-text)",
+                          margin: 0,
+                          marginBottom: 6,
+                        }}>
+                          What&rsquo;s your name?
+                        </h2>
+                        <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: 0, marginBottom: 20 }}>
+                          You&rsquo;ll be the trip organizer.
+                        </p>
+                        <input
+                          type="text"
+                          autoFocus
+                          placeholder="e.g. Sarah"
+                          value={creatorNameInput}
+                          onChange={(e) => setCreatorNameInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && creatorNameInput.trim()) {
+                              e.preventDefault();
+                              addTraveler(creatorNameInput.trim());
+                              setCreatorNameInput("");
+                            }
+                          }}
+                          style={{
+                            width: "100%",
+                            padding: "14px 16px",
+                            background: "#fff",
+                            border: "1px solid var(--color-border-dark)",
+                            borderRadius: 10,
+                            color: "var(--color-text)",
+                            fontFamily: "inherit",
+                            fontSize: 16,
+                          }}
+                        />
+                        <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
+                          <button
+                            onClick={() => setCreateStep(3)}
+                            style={{
+                              padding: "14px 16px",
+                              fontSize: 15,
+                              fontWeight: 500,
+                              background: "var(--color-panel)",
+                              color: "var(--color-text-mid)",
+                              borderRadius: 10,
+                              border: "none",
+                              cursor: "pointer",
+                              fontFamily: "inherit",
+                            }}
+                          >
+                            Back
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (creatorNameInput.trim()) addTraveler(creatorNameInput.trim());
+                              setCreatorNameInput("");
+                            }}
+                            disabled={!creatorNameInput.trim()}
+                            style={{
+                              flex: 1,
+                              padding: "14px 16px",
+                              fontSize: 15,
+                              fontWeight: 600,
+                              background: creatorNameInput.trim() ? "var(--color-coral)" : "var(--color-panel)",
+                              color: creatorNameInput.trim() ? "#fff" : "var(--color-text-light)",
+                              borderRadius: 10,
+                              border: "none",
+                              cursor: creatorNameInput.trim() ? "pointer" : "default",
+                              fontFamily: "inherit",
+                              transition: "all 0.15s",
+                            }}
+                          >
+                            Next
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <h2 style={{
+                          fontSize: 22,
+                          fontWeight: 600,
+                          fontFamily: "var(--font-heading)",
+                          fontStyle: "italic",
+                          color: "var(--color-text)",
+                          margin: 0,
+                          marginBottom: 6,
+                        }}>
+                          Who else is coming?
+                        </h2>
+                        <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: 0, marginBottom: 16 }}>
+                          Add names and hit enter. You can always add more later.
+                        </p>
+
+                        {/* Traveler chips */}
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+                          {formTravelers.map((t, i) => (
+                            <div
+                              key={i}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 6,
+                                padding: "6px 12px",
+                                borderRadius: 20,
+                                background: `${t.color}26`,
+                                fontSize: 13,
+                                fontWeight: 500,
+                                color: t.color,
+                              }}
+                            >
+                              <div style={{
+                                width: 8,
+                                height: 8,
+                                borderRadius: "50%",
+                                background: t.color,
+                                flexShrink: 0,
+                              }} />
+                              {t.name}
+                              {i > 0 && (
+                                <button
+                                  onClick={() => removeTraveler(i)}
+                                  style={{
+                                    background: "none",
+                                    border: "none",
+                                    cursor: "pointer",
+                                    color: "var(--color-text-muted)",
+                                    fontSize: 14,
+                                    padding: 0,
+                                    marginLeft: 2,
+                                    lineHeight: 1,
+                                    fontFamily: "inherit",
+                                  }}
+                                >
+                                  &times;
+                                </button>
+                              )}
+                              {i === 0 && (
+                                <span style={{
+                                  fontSize: 10,
+                                  color: "var(--color-text-muted)",
+                                  fontWeight: 400,
+                                }}>
+                                  (you)
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Add more names */}
+                        <input
+                          type="text"
+                          autoFocus
+                          placeholder="Add a name..."
+                          value={travelerInput}
+                          onChange={(e) => setTravelerInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && travelerInput.trim()) {
+                              e.preventDefault();
+                              addTraveler(travelerInput.trim());
+                              setTravelerInput("");
+                            }
+                          }}
+                          style={{
+                            width: "100%",
+                            padding: "14px 16px",
+                            background: "#fff",
+                            border: "1px solid var(--color-border-dark)",
+                            borderRadius: 10,
+                            color: "var(--color-text)",
+                            fontFamily: "inherit",
+                            fontSize: 16,
+                          }}
+                        />
+
+                        <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
+                          <button
+                            onClick={() => setCreateStep(3)}
+                            style={{
+                              padding: "14px 16px",
+                              fontSize: 15,
+                              fontWeight: 500,
+                              background: "var(--color-panel)",
+                              color: "var(--color-text-mid)",
+                              borderRadius: 10,
+                              border: "none",
+                              cursor: "pointer",
+                              fontFamily: "inherit",
+                            }}
+                          >
+                            Back
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (travelerInput.trim()) addTraveler(travelerInput.trim());
+                              setTravelerInput("");
+                              createTrip();
+                            }}
+                            disabled={creating}
+                            style={{
+                              flex: 1,
+                              padding: "14px 16px",
+                              fontSize: 15,
+                              fontWeight: 600,
+                              background: "#C4725A",
+                              color: "#fff",
+                              borderRadius: 10,
+                              border: "none",
+                              cursor: creating ? "default" : "pointer",
+                              fontFamily: "inherit",
+                              transition: "all 0.15s",
+                              opacity: creating ? 0.6 : 1,
+                              boxShadow: "0 4px 14px rgba(196,114,90,0.25)",
+                            }}
+                          >
+                            {creating ? "Creating..." : "Let\u2019s go"}
+                          </button>
+                        </div>
+
+                        {/* Skip for now */}
+                        <button
+                          onClick={() => createTrip()}
+                          disabled={creating}
+                          style={{
+                            display: "block",
+                            width: "100%",
+                            textAlign: "center" as const,
+                            marginTop: 12,
+                            fontSize: 13,
+                            color: "var(--color-text-muted)",
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            fontFamily: "inherit",
+                            fontStyle: "italic",
+                            padding: 4,
+                          }}
+                        >
+                          Skip for now
+                        </button>
+                      </>
                     )}
                   </div>
                 )}
@@ -1092,15 +1387,15 @@ function TripCard({ trip }: { trip: Trip }) {
         {members.length > 0 && (
           <div style={{ display: "flex", alignItems: "center", marginBottom: 12 }}>
             <div style={{ display: "flex" }}>
-              {members.slice(0, 6).map((name, i) => (
+              {members.slice(0, 6).map((t, i) => (
                 <div
-                  key={name}
-                  title={name}
+                  key={t.id}
+                  title={t.name}
                   style={{
                     width: 28,
                     height: 28,
                     borderRadius: "50%",
-                    background: getUserColor(name),
+                    background: t.color,
                     color: "#fff",
                     display: "flex",
                     alignItems: "center",
@@ -1113,7 +1408,7 @@ function TripCard({ trip }: { trip: Trip }) {
                     zIndex: members.length - i,
                   }}
                 >
-                  {name.charAt(0).toUpperCase()}
+                  {t.name.charAt(0).toUpperCase()}
                 </div>
               ))}
               {members.length > 6 && (
@@ -1142,7 +1437,7 @@ function TripCard({ trip }: { trip: Trip }) {
               fontSize: 11,
               color: "var(--color-text-light)",
             }}>
-              {trip.adults + trip.kids} traveler{trip.adults + trip.kids !== 1 ? "s" : ""}
+              {members.length} traveler{members.length !== 1 ? "s" : ""}
             </span>
           </div>
         )}

@@ -26,18 +26,32 @@ export async function POST(
       );
     }
 
-    const listing = await prisma.listing.findUnique({ where: { id: listingId } });
+    const listing = await prisma.listing.findUnique({
+      where: { id: listingId },
+      select: { id: true, tripId: true },
+    });
     if (!listing) {
       return NextResponse.json({ error: "Listing not found" }, { status: 404 });
     }
 
     const value = REACTION_VALUE[reactionType] ?? 0;
 
+    // Try to resolve travelerId from cookie
+    let travelerId: string | null = null;
+    const cookieToken = request.cookies.get(`stay_traveler_${listing.tripId}`)?.value;
+    if (cookieToken) {
+      const traveler = await prisma.traveler.findUnique({
+        where: { token: cookieToken },
+        select: { id: true },
+      });
+      if (traveler) travelerId = traveler.id;
+    }
+
     // Upsert: update existing vote or create new
     const vote = await prisma.vote.upsert({
       where: { listingId_userName: { listingId, userName } },
-      update: { reactionType: reactionType as ReactionTypeEnum, value },
-      create: { listingId, userName, reactionType: reactionType as ReactionTypeEnum, value },
+      update: { reactionType: reactionType as ReactionTypeEnum, value, travelerId },
+      create: { listingId, userName, reactionType: reactionType as ReactionTypeEnum, value, travelerId },
     });
 
     // Return updated votes
