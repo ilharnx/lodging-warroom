@@ -966,12 +966,8 @@ function TripCard({ trip }: { trip: Trip }) {
         position: "relative",
         height: 110,
         overflow: "hidden",
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "flex-end",
-        padding: "16px 18px",
       }}>
-        {/* Background photo — abs positioned with bleed for ken-burns */}
+        {/* Background photo — abs positioned, slightly oversized for ken-burns bleed */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={coverPhoto}
@@ -979,7 +975,8 @@ function TripCard({ trip }: { trip: Trip }) {
           className="trip-card-ken-burns"
           style={{
             position: "absolute",
-            inset: -8,
+            top: -8,
+            left: -8,
             width: "calc(100% + 16px)",
             height: "calc(100% + 16px)",
             objectFit: "cover",
@@ -989,12 +986,21 @@ function TripCard({ trip }: { trip: Trip }) {
         {/* Dark gradient overlay */}
         <div style={{
           position: "absolute",
-          inset: 0,
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
           background: "linear-gradient(to top, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.05) 60%)",
         }} />
 
-        {/* Header content: name + destination */}
-        <div style={{ position: "relative", zIndex: 1 }}>
+        {/* Header content: name + destination, pinned to bottom */}
+        <div style={{
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          padding: "16px 18px",
+        }}>
           <h3 style={{
             fontSize: 20,
             fontWeight: 600,
@@ -1136,7 +1142,7 @@ function TripCard({ trip }: { trip: Trip }) {
               fontSize: 11,
               color: "var(--color-text-light)",
             }}>
-              {members.length} traveler{members.length !== 1 ? "s" : ""}
+              {trip.adults + trip.kids} traveler{trip.adults + trip.kids !== 1 ? "s" : ""}
             </span>
           </div>
         )}
