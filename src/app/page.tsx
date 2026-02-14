@@ -259,9 +259,14 @@ export default function Home() {
     <div className="min-h-screen" style={{ background: "var(--color-bg)" }}>
       <header style={{ borderBottom: "1px solid var(--color-border-dark)", padding: "16px 24px" }}>
         <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <h1 className="entrance entrance-d0" style={{ fontSize: 22, fontWeight: 600, color: "var(--color-coral)", fontFamily: "var(--font-heading)", letterSpacing: -0.5 }}>
-            stay.
-          </h1>
+          <div className="entrance entrance-d0" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <h1 style={{ fontSize: 22, fontWeight: 600, color: "#2E2A26", fontFamily: "var(--font-heading)", letterSpacing: -0.5, margin: 0 }}>
+              stay<span style={{ color: "#C4725A" }}>.</span>
+            </h1>
+            <span className="font-mono" style={{ fontSize: 9, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.1em", color: "#C4725A", background: "rgba(196,114,90,0.12)", borderRadius: 4, padding: "3px 8px" }}>
+              Alpha
+            </span>
+          </div>
           <button
             className="entrance entrance-d1"
             onClick={() => setShowCreate(true)}
@@ -1078,7 +1083,7 @@ function DashboardFooter() {
         letterSpacing: -0.5,
         margin: 0,
       }}>
-        stay.
+        stay<span style={{ color: "#C4725A", opacity: 0.6 }}>.</span>
       </p>
     </div>
   );

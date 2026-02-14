@@ -1153,13 +1153,19 @@ export default function TripPage({
             style={{
               fontSize: 16,
               fontWeight: 600,
-              color: "var(--color-coral)",
+              color: "#2E2A26",
               textDecoration: "none",
               fontFamily: "var(--font-heading)",
               flexShrink: 0,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
             }}
           >
-            Stay
+            stay<span style={{ color: "#C4725A" }}>.</span>
+            <span className="font-mono" style={{ fontSize: 9, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.1em", color: "#C4725A", background: "rgba(196,114,90,0.12)", borderRadius: 4, padding: "3px 8px" }}>
+              Alpha
+            </span>
           </a>
           <h1
             style={{
