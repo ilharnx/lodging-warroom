@@ -636,6 +636,7 @@ export default function TripPage({
       onReact={(reactionType) => handleReact(detailListing.id, reactionType)}
       onRemoveReaction={() => handleRemoveVote(detailListing.id)}
       onRescrape={() => handleRescrape(detailListing.id)}
+      onNightsChange={(n) => updateTripSettings({ nights: n })}
       budgetRange={null}
       hasPreferences={!!tripPrefs}
       isMobile={isMobile}

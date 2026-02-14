@@ -85,6 +85,7 @@ interface ListingDetailProps {
   onReact: (reactionType: ReactionType) => void;
   onRemoveReaction: () => void;
   onRescrape?: () => void;
+  onNightsChange?: (nights: number) => void;
   budgetRange?: BudgetRange | null;
   hasPreferences?: boolean;
   isMobile?: boolean;
@@ -282,6 +283,7 @@ export function ListingDetail({
   onReact,
   onRemoveReaction,
   onRescrape,
+  onNightsChange,
   budgetRange,
   hasPreferences,
   isMobile,
@@ -307,6 +309,7 @@ export function ListingDetail({
   const [saving, setSaving] = useState(false);
   const [showAllAmenities, setShowAllAmenities] = useState(false);
   const [showDescription, setShowDescription] = useState(false);
+  const [previewNights, setPreviewNights] = useState(nights);
   const panelRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number>(0);
 
@@ -727,33 +730,106 @@ export function ListingDetail({
                     </span>
                   </div>
 
-                  {/* Contextual breakdown: N nights + per person */}
+                  {/* Contextual breakdown: nights stepper + per person */}
                   {(() => {
+                    const n = previewNights;
+                    const isPreview = n !== nights;
                     const totalForStay = listing.perNight
-                      ? listing.perNight * nights
+                      ? listing.perNight * n
                       : listing.totalCost!;
                     const perPersonSplit = adults > 0 ? Math.round(totalForStay / adults) : null;
                     return (
                       <div style={{
-                        display: "flex", gap: 16, marginTop: 10, paddingTop: 10,
+                        marginTop: 10, paddingTop: 10,
                         borderTop: "1px solid var(--color-border-dark)",
                       }}>
-                        <div>
-                          <div className="font-mono" style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.04em", color: "var(--color-text-light)" }}>
-                            {nights} nights
-                          </div>
-                          <div className="font-mono" style={{ fontSize: 17, fontWeight: 700, marginTop: 2 }}>
-                            {formatPrice(totalForStay, listing.currency)}
-                          </div>
-                        </div>
-                        {perPersonSplit && adults > 1 && (
+                        <div style={{ display: "flex", gap: 16 }}>
                           <div>
-                            <div className="font-mono" style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.04em", color: "var(--color-text-light)" }}>
-                              Per person
+                            {/* Nights stepper */}
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                              <button
+                                onClick={() => setPreviewNights(Math.max(1, n - 1))}
+                                disabled={n <= 1}
+                                aria-label="Fewer nights"
+                                style={{
+                                  width: 22, height: 22, borderRadius: "50%",
+                                  border: "1.5px solid var(--color-coral)",
+                                  background: "transparent", color: "var(--color-coral)",
+                                  fontSize: 14, lineHeight: 1, fontWeight: 700,
+                                  cursor: n > 1 ? "pointer" : "default",
+                                  opacity: n > 1 ? 1 : 0.3,
+                                  display: "flex", alignItems: "center", justifyContent: "center",
+                                  padding: 0, fontFamily: "var(--font-mono)",
+                                }}
+                              >
+                                &minus;
+                              </button>
+                              <span className="font-mono" style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text)", minWidth: 16, textAlign: "center" as const }}>
+                                {n}
+                              </span>
+                              <button
+                                onClick={() => setPreviewNights(n + 1)}
+                                aria-label="More nights"
+                                style={{
+                                  width: 22, height: 22, borderRadius: "50%",
+                                  border: "1.5px solid var(--color-coral)",
+                                  background: "transparent", color: "var(--color-coral)",
+                                  fontSize: 14, lineHeight: 1, fontWeight: 700,
+                                  cursor: "pointer",
+                                  display: "flex", alignItems: "center", justifyContent: "center",
+                                  padding: 0, fontFamily: "var(--font-mono)",
+                                }}
+                              >
+                                +
+                              </button>
+                              <span className="font-mono" style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.04em", color: "var(--color-text-light)" }}>
+                                nights
+                              </span>
                             </div>
                             <div className="font-mono" style={{ fontSize: 17, fontWeight: 700, marginTop: 2 }}>
-                              {formatPrice(perPersonSplit, listing.currency)}
+                              {formatPrice(totalForStay, listing.currency)}
                             </div>
+                          </div>
+                          {perPersonSplit && adults > 1 && (
+                            <div>
+                              <div className="font-mono" style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.04em", color: "var(--color-text-light)" }}>
+                                Per person
+                              </div>
+                              <div className="font-mono" style={{ fontSize: 17, fontWeight: 700, marginTop: 2 }}>
+                                {formatPrice(perPersonSplit, listing.currency)}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        {/* Preview indicator + save link */}
+                        {isPreview && (
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+                            <span className="font-mono" style={{ fontSize: 10, color: "var(--color-text-muted)", fontStyle: "italic" }}>
+                              (preview)
+                            </span>
+                            {onNightsChange && (
+                              <button
+                                onClick={() => { onNightsChange(n); }}
+                                style={{
+                                  fontSize: 11, fontWeight: 600, color: "var(--color-coral)",
+                                  background: "none", border: "none", cursor: "pointer",
+                                  fontFamily: "inherit", padding: 0, textDecoration: "underline",
+                                  textUnderlineOffset: 2,
+                                }}
+                              >
+                                Save to trip
+                              </button>
+                            )}
+                            <button
+                              onClick={() => setPreviewNights(nights)}
+                              style={{
+                                fontSize: 11, color: "var(--color-text-muted)",
+                                background: "none", border: "none", cursor: "pointer",
+                                fontFamily: "inherit", padding: 0,
+                              }}
+                            >
+                              Reset
+                            </button>
                           </div>
                         )}
                       </div>
