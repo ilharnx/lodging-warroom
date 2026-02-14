@@ -310,7 +310,7 @@ function IdentityPicker({
           margin: 0,
           marginBottom: 8,
         }}>
-          new trip, who dis?
+          which one&rsquo;s you?
         </h2>
         <p style={{
           fontSize: 14,
@@ -1125,17 +1125,24 @@ export default function TripPage({
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
   const [showPreferences, setShowPreferences] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [miniPreview, setMiniPreview] = useState<Listing | null>(null);
   const isMobile = useIsMobile();
   const sidebarRef = useRef<HTMLDivElement>(null);
 
-  // Mobile bottom sheet state — two positions: half (50%) and full (0%)
+  // Mobile bottom sheet state — three positions: full (0%), half (50%), collapsed (88%)
   const sheetRef = useRef<HTMLDivElement>(null);
   const sheetContentRef = useRef<HTMLDivElement>(null);
   const sheetDragStart = useRef<{ y: number; sheetTop: number } | null>(null);
   const sheetGestureMode = useRef<"expand" | "collapse" | "handle" | null>(null);
   const [sheetTop, setSheetTop] = useState(50); // percentage from top
   const isSheetFull = sheetTop <= 3;
+  const isSheetCollapsed = sheetTop >= 80;
   const isSheetDragging = sheetDragStart.current !== null && sheetGestureMode.current !== null;
+
+  // Dismiss mini preview when sheet leaves collapsed
+  useEffect(() => {
+    if (!isSheetCollapsed) setMiniPreview(null);
+  }, [isSheetCollapsed]);
 
   // Keep ref in sync so fetchTrip can read it without a dependency
   useEffect(() => {
@@ -1197,6 +1204,7 @@ export default function TripPage({
   }, []);
 
   // Resolve traveler identity from cookie once trip loads
+  // Falls back to localStorage if cookie is lost (e.g. after deploy to new preview URL)
   useEffect(() => {
     if (!trip || identityChecked) return;
 
@@ -1210,21 +1218,55 @@ export default function TripPage({
       return;
     }
 
+    // Helper: finalize identity from a traveler object
+    function applyIdentity(traveler: Traveler) {
+      setCurrentTraveler(traveler);
+      setUserName(traveler.name);
+      setStoredName(traveler.name);
+      // Persist to localStorage so it survives domain/cookie changes
+      try { localStorage.setItem(`stay_identity_${tripId}`, traveler.id); } catch {}
+    }
+
+    // Helper: try to auto-reclaim from localStorage
+    async function tryLocalStorageFallback(): Promise<boolean> {
+      try {
+        const savedId = localStorage.getItem(`stay_identity_${tripId}`);
+        if (!savedId) return false;
+        // Verify the traveler still exists by matching against trip data
+        const match = travelers.find((t) => t.id === savedId);
+        if (!match) return false;
+        // Re-claim to refresh the cookie
+        const res = await fetch(`/api/trips/${tripId}/claim`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ travelerId: savedId }),
+        });
+        if (res.ok) {
+          const t = await res.json();
+          applyIdentity(t);
+          return true;
+        }
+      } catch {}
+      return false;
+    }
+
     // Resolve from server (reads cookie server-side)
     fetch(`/api/trips/${tripId}/me`)
       .then((r) => r.ok ? r.json() : { traveler: null })
-      .then((data: { traveler: Traveler | null }) => {
+      .then(async (data: { traveler: Traveler | null }) => {
         if (data.traveler) {
-          setCurrentTraveler(data.traveler);
-          setUserName(data.traveler.name);
-          setStoredName(data.traveler.name);
+          applyIdentity(data.traveler);
+          setIdentityChecked(true);
         } else {
-          setShowIdentityPicker(true);
+          // Cookie missing — try localStorage fallback
+          const recovered = await tryLocalStorageFallback();
+          if (!recovered) setShowIdentityPicker(true);
+          setIdentityChecked(true);
         }
-        setIdentityChecked(true);
       })
-      .catch(() => {
-        setShowIdentityPicker(true);
+      .catch(async () => {
+        const recovered = await tryLocalStorageFallback();
+        if (!recovered) setShowIdentityPicker(true);
         setIdentityChecked(true);
       });
   }, [trip, tripId, identityChecked]);
@@ -1394,6 +1436,7 @@ export default function TripPage({
           setCurrentTraveler(traveler);
           setUserName(traveler.name);
           setStoredName(traveler.name);
+          try { localStorage.setItem(`stay_identity_${tripId}`, traveler.id); } catch {}
           setShowIdentityPicker(false);
           setShowNamePrompt(false);
         }}
@@ -1676,14 +1719,20 @@ export default function TripPage({
     setSelectedId(id);
 
     if (isMobile) {
-      // On mobile, ensure sheet is at half so the card is visible
-      setSheetTop((prev) => prev > 50 ? 50 : prev);
-      setTimeout(() => {
-        const cardEl = document.getElementById(`listing-${id}`);
-        if (cardEl) {
-          cardEl.scrollIntoView({ behavior: "smooth", block: "center" });
-        }
-      }, 100);
+      const listing = listings.find((l: Listing) => l.id === id);
+      if (isSheetCollapsed && listing) {
+        // When sheet is collapsed, show mini preview instead of pulling up the full list
+        setMiniPreview(listing);
+      } else {
+        // Ensure sheet is at least at half so the card is visible
+        setSheetTop((prev) => prev > 50 ? 50 : prev);
+        setTimeout(() => {
+          const cardEl = document.getElementById(`listing-${id}`);
+          if (cardEl) {
+            cardEl.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+        }, 100);
+      }
     } else {
       const listing = listings.find((l: Listing) => l.id === id);
       if (listing) openDetail(listing);
@@ -1881,20 +1930,22 @@ export default function TripPage({
               {userName}
             </span>
           )}
-          {/* Trip settings gear */}
-          <button
-            onClick={() => setShowSettings(true)}
-            style={{
-              width: isMobile ? 36 : 32, height: isMobile ? 36 : 32, borderRadius: "50%",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              background: "transparent", border: "1px solid var(--color-border-dark)",
-              cursor: "pointer", fontSize: 15, color: "var(--color-text-muted)",
-              fontFamily: "inherit", transition: "all 0.15s", flexShrink: 0,
-            }}
-            title="Trip settings"
-          >
-            &#9881;
-          </button>
+          {/* Trip settings gear — only visible to the trip creator */}
+          {(currentTraveler?.isCreator || tripTravelers.length === 0) && (
+            <button
+              onClick={() => setShowSettings(true)}
+              style={{
+                width: isMobile ? 36 : 32, height: isMobile ? 36 : 32, borderRadius: "50%",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                background: "transparent", border: "1px solid var(--color-border-dark)",
+                cursor: "pointer", fontSize: 15, color: "var(--color-text-muted)",
+                fontFamily: "inherit", transition: "all 0.15s", flexShrink: 0,
+              }}
+              title="Trip settings"
+            >
+              &#9881;
+            </button>
+          )}
           {isMobile ? (
             <button
               onClick={() => setShowPreferences(true)}
@@ -1975,6 +2026,7 @@ export default function TripPage({
               ref={sheetRef}
               className="mobile-bottom-sheet"
               data-full={isSheetFull}
+              data-collapsed={isSheetCollapsed}
               data-dragging={isSheetDragging}
               style={{ top: `${sheetTop}%` }}
             >
@@ -1990,13 +2042,14 @@ export default function TripPage({
                   e.preventDefault();
                   const containerHeight = sheetRef.current?.parentElement?.clientHeight || window.innerHeight;
                   const deltaPct = ((e.touches[0].clientY - sheetDragStart.current.y) / containerHeight) * 100;
-                  setSheetTop(Math.max(0, Math.min(50, sheetDragStart.current.sheetTop + deltaPct)));
+                  setSheetTop(Math.max(0, Math.min(88, sheetDragStart.current.sheetTop + deltaPct)));
                 }}
                 onTouchEnd={() => {
                   if (!sheetDragStart.current) return;
                   sheetDragStart.current = null;
                   sheetGestureMode.current = null;
-                  setSheetTop((prev) => (prev < 25 ? 0 : 50));
+                  // Snap to nearest of 0%, 50%, 88%
+                  setSheetTop((prev) => prev < 25 ? 0 : prev < 70 ? 50 : 88);
                 }}
               >
                 <div className="sheet-handle-bar" />
@@ -2027,12 +2080,12 @@ export default function TripPage({
                     const contentEl = sheetContentRef.current;
 
                     if (startTop > 3) {
-                      // Sheet at half — swipe up expands, swipe down does nothing
+                      // Sheet at half or collapsed
                       if (deltaY < 0) {
                         sheetGestureMode.current = "expand";
                       } else {
-                        sheetDragStart.current = null;
-                        return;
+                        // Swipe down — collapse further
+                        sheetGestureMode.current = "collapse";
                       }
                     } else {
                       // Sheet at full — pull down at scroll top collapses
@@ -2050,7 +2103,7 @@ export default function TripPage({
                   e.preventDefault();
                   const containerHeight = sheetRef.current?.parentElement?.clientHeight || window.innerHeight;
                   const deltaPct = (deltaY / containerHeight) * 100;
-                  setSheetTop(Math.max(0, Math.min(50, startTop + deltaPct)));
+                  setSheetTop(Math.max(0, Math.min(88, startTop + deltaPct)));
                 }}
                 onTouchEnd={() => {
                   if (!sheetDragStart.current || !sheetGestureMode.current) {
@@ -2060,13 +2113,73 @@ export default function TripPage({
                   }
                   sheetDragStart.current = null;
                   sheetGestureMode.current = null;
-                  setSheetTop((prev) => (prev < 25 ? 0 : 50));
+                  // Snap to nearest of 0%, 50%, 88%
+                  setSheetTop((prev) => prev < 25 ? 0 : prev < 70 ? 50 : 88);
                 }}
               >
                 {sidebarContent}
               </div>
             </div>
           </div>
+
+          {/* Mini preview card — Airbnb-style, shown when tapping a pin with sheet collapsed */}
+          {miniPreview && isSheetCollapsed && !detailListing && (
+            <div
+              className="mobile-mini-preview"
+              onClick={() => {
+                openDetail(miniPreview);
+                setMiniPreview(null);
+              }}
+            >
+              <div style={{ position: "relative", width: 80, height: 80, borderRadius: 10, overflow: "hidden", flexShrink: 0 }}>
+                {miniPreview.photos?.[0] ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={miniPreview.photos[0]}
+                    alt={miniPreview.title || "Listing"}
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  />
+                ) : (
+                  <div style={{ width: "100%", height: "100%", background: "var(--color-panel)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, opacity: 0.3 }}>
+                    &#127968;
+                  </div>
+                )}
+              </div>
+              <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 4 }}>
+                <h4 style={{
+                  margin: 0, fontSize: 14, fontWeight: 600, color: "var(--color-text)",
+                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                }}>
+                  {miniPreview.title || "Untitled"}
+                </h4>
+                {(miniPreview.totalCost || miniPreview.perNight) && (
+                  <p className="font-mono" style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>
+                    ${Math.round((miniPreview.totalCost || (miniPreview.perNight * nights)) / adults)}
+                    <span style={{ fontWeight: 400, fontSize: 11, color: "var(--color-text-muted)" }}>/person</span>
+                  </p>
+                )}
+                {miniPreview.bedrooms != null && (
+                  <p style={{ margin: 0, fontSize: 12, color: "var(--color-text-muted)" }}>
+                    {miniPreview.bedrooms} bed{miniPreview.bedrooms !== 1 ? "s" : ""}
+                    {miniPreview.bathrooms != null && ` \u00B7 ${miniPreview.bathrooms} bath`}
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={(e) => { e.stopPropagation(); setMiniPreview(null); }}
+                style={{
+                  position: "absolute", top: 8, right: 8,
+                  width: 24, height: 24, borderRadius: "50%",
+                  background: "rgba(0,0,0,0.06)", border: "none",
+                  cursor: "pointer", fontSize: 14, color: "var(--color-text-muted)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  lineHeight: 1, padding: 0,
+                }}
+              >
+                &times;
+              </button>
+            </div>
+          )}
 
           {/* Floating Map pill — visible when list covers the map */}
           {isSheetFull && !detailListing && (

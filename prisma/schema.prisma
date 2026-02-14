@@ -35,6 +35,8 @@ model Traveler {
   color     String
   token     String   @unique @default(cuid())
   isCreator Boolean  @default(false)
+  claimedIp String?
+  claimedAt DateTime?
   createdAt DateTime @default(now())
   votes     Vote[]
   comments  Comment[]

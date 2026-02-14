@@ -25,6 +25,15 @@ export async function POST(
       return NextResponse.json({ error: "Traveler not found" }, { status: 404 });
     }
 
+    // Log IP and claim timestamp
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+      || request.headers.get("x-real-ip")
+      || null;
+    await prisma.traveler.update({
+      where: { id: travelerId },
+      data: { claimedIp: ip, claimedAt: new Date() },
+    });
+
     // Set the cookie and return the traveler
     const response = NextResponse.json(traveler);
     response.cookies.set(`stay_traveler_${tripId}`, traveler.token, {
