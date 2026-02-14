@@ -40,8 +40,7 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
     onChange({
       sources: [], priceMin: 0, priceMax: Infinity,
       bedroomsMin: 0, bathroomsMin: 0, kitchen: [],
-      kidFriendlyOnly: false, beachDistance: "",
-      ratingMin: 0, hasPool: false, sortBy: "recent",
+      beachDistance: "", ratingMin: 0, sortBy: "recent",
     });
   }
 
@@ -109,16 +108,6 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
             {label}
           </button>
         ))}
-
-        <span style={{ color: "#DDD8D0", margin: "0 2px" }}>|</span>
-
-        {/* Quick filters */}
-        <button onClick={() => update({ hasPool: !filters.hasPool })} style={chip(filters.hasPool)}>
-          Pool
-        </button>
-        <button onClick={() => update({ kidFriendlyOnly: !filters.kidFriendlyOnly })} style={chip(filters.kidFriendlyOnly)}>
-          Kid-friendly
-        </button>
 
         {/* More filters toggle */}
         <button

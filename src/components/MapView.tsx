@@ -65,7 +65,11 @@ export default function MapView({
 
     map.current.addControl(new mapboxgl.NavigationControl(), "bottom-right");
 
+    const ro = new ResizeObserver(() => map.current?.resize());
+    ro.observe(mapContainer.current);
+
     return () => {
+      ro.disconnect();
       map.current?.remove();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -145,7 +149,7 @@ export default function MapView({
       if (listing && listing.lat !== 0) {
         map.current.flyTo({
           center: [listing.lng, listing.lat],
-          duration: 800,
+          duration: 600,
         });
       }
     }

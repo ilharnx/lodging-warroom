@@ -36,10 +36,8 @@ const defaultFilters: FilterState = {
   bedroomsMin: 0,
   bathroomsMin: 0,
   kitchen: [],
-  kidFriendlyOnly: false,
   beachDistance: "",
   ratingMin: 0,
-  hasPool: false,
   sortBy: "recent",
 };
 
@@ -82,22 +80,6 @@ function applyFilters(listings: Listing[], filters: FilterState): Listing[] {
     );
   }
 
-  if (filters.kidFriendlyOnly) {
-    result = result.filter((l) => l.kidFriendly);
-  }
-
-  if (filters.hasPool) {
-    result = result.filter((l) => {
-      const amenities: string[] = Array.isArray(l.amenities)
-        ? l.amenities
-        : [];
-      return amenities.some(
-        (a) =>
-          a.toLowerCase().includes("pool") &&
-          !a.toLowerCase().includes("pool table")
-      );
-    });
-  }
 
   if (filters.ratingMin > 0) {
     result = result.filter(
@@ -141,6 +123,31 @@ function applyFilters(listings: Listing[], filters: FilterState): Listing[] {
   return result;
 }
 
+function StepperRow({ label, value, min, max, onChange }: {
+  label: string; value: number; min: number; max: number; onChange: (v: number) => void;
+}) {
+  const btn = (disabled: boolean): React.CSSProperties => ({
+    width: 28, height: 28, borderRadius: "50%",
+    border: "1px solid var(--color-border-dark)",
+    background: disabled ? "var(--color-bg)" : "#fff",
+    color: disabled ? "var(--color-text-light)" : "var(--color-text)",
+    cursor: disabled ? "default" : "pointer",
+    fontSize: 16, fontWeight: 600, fontFamily: "inherit",
+    display: "flex", alignItems: "center", justifyContent: "center",
+    padding: 0,
+  });
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0" }}>
+      <span style={{ fontSize: 13, color: "var(--color-text-mid)" }}>{label}</span>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <button onClick={() => { if (value > min) onChange(value - 1); }} disabled={value <= min} style={btn(value <= min)}>-</button>
+        <span className="font-mono" style={{ fontSize: 14, fontWeight: 600, minWidth: 24, textAlign: "center" }}>{value}</span>
+        <button onClick={() => { if (value < max) onChange(value + 1); }} disabled={value >= max} style={btn(value >= max)}>+</button>
+      </div>
+    </div>
+  );
+}
+
 export default function TripPage({
   params: paramsPromise,
 }: {
@@ -162,6 +169,8 @@ export default function TripPage({
   const [nameInput, setNameInput] = useState("");
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
   const [showPreferences, setShowPreferences] = useState(false);
+  const [editingTripSettings, setEditingTripSettings] = useState(false);
+  const sidebarRef = useRef<HTMLDivElement>(null);
 
   // Keep ref in sync so fetchTrip can read it without a dependency
   useEffect(() => {
@@ -223,6 +232,43 @@ export default function TripPage({
     }
   }, []);
 
+  // Scroll-to-center: fly map to the most visible card in the sidebar
+  useEffect(() => {
+    const sidebar = sidebarRef.current;
+    if (!sidebar) return;
+
+    const visibilityMap = new Map<string, number>();
+    let currentFocusedId: string | null = null;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          const id = entry.target.getAttribute("data-listing-id");
+          if (id) visibilityMap.set(id, entry.intersectionRatio);
+        });
+
+        let maxRatio = 0;
+        let maxId: string | null = null;
+        visibilityMap.forEach((ratio, id) => {
+          if (ratio > maxRatio) { maxRatio = ratio; maxId = id; }
+        });
+
+        if (maxId && maxRatio > 0.5 && maxId !== currentFocusedId) {
+          currentFocusedId = maxId;
+          // Only scroll-fly when no detail panel is open
+          if (!detailListingRef.current) {
+            setSelectedId(maxId);
+          }
+        }
+      },
+      { root: sidebar, threshold: [0, 0.25, 0.5, 0.75, 1.0] }
+    );
+
+    sidebar.querySelectorAll("[data-listing-id]").forEach((el) => observer.observe(el));
+
+    return () => observer.disconnect();
+  }, [trip]);
+
   function submitName(e: React.FormEvent) {
     e.preventDefault();
     if (!nameInput.trim()) return;
@@ -255,6 +301,15 @@ export default function TripPage({
 
   async function handleRescrape(listingId: string) {
     await fetch(`/api/listings/${listingId}/rescrape`, { method: "POST" });
+    fetchTrip();
+  }
+
+  async function updateTripSettings(updates: { adults?: number; kids?: number; nights?: number }) {
+    await fetch(`/api/trips/${tripId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updates),
+    });
     fetchTrip();
   }
 
@@ -326,7 +381,7 @@ export default function TripPage({
   const budgetRange = computeBudgetRange(listings);
 
   const isDetailOpen = detailListing !== null;
-  const sidebarWidth = isDetailOpen ? 320 : 420;
+  const sidebarWidth = isDetailOpen ? 300 : 380;
   const tripPrefs: TripPreferencesType | null = trip.preferences || null;
 
   if (showPreferences) {
@@ -390,9 +445,38 @@ export default function TripPage({
           <span style={{ fontSize: 14, color: "var(--color-text-mid)" }}>
             {trip.destination}
           </span>
-          <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
-            {trip.adults} adults{trip.kids > 0 ? `, ${trip.kids} kids` : ""}
-          </span>
+          <div style={{ position: "relative" }}>
+            <button
+              onClick={() => setEditingTripSettings(!editingTripSettings)}
+              style={{
+                fontSize: 12, color: "var(--color-text-muted)",
+                background: editingTripSettings ? "var(--color-panel)" : "transparent",
+                border: "1px solid", borderColor: editingTripSettings ? "var(--color-border-dark)" : "transparent",
+                borderRadius: 6, padding: "3px 8px", cursor: "pointer", fontFamily: "inherit",
+                transition: "all 0.15s",
+              }}
+              onMouseOver={(e) => { if (!editingTripSettings) e.currentTarget.style.borderColor = "var(--color-border-dark)"; }}
+              onMouseOut={(e) => { if (!editingTripSettings) e.currentTarget.style.borderColor = "transparent"; }}
+            >
+              {trip.adults} adults{trip.kids > 0 ? `, ${trip.kids} kids` : ""}{trip.nights ? ` · ${trip.nights}n` : ""}
+              <span style={{ marginLeft: 4, fontSize: 10 }}>&#9998;</span>
+            </button>
+            {editingTripSettings && (
+              <>
+                <div style={{ position: "fixed", inset: 0, zIndex: 49 }} onClick={() => setEditingTripSettings(false)} />
+                <div style={{
+                  position: "absolute", top: "100%", left: 0, marginTop: 4,
+                  background: "#fff", border: "1px solid var(--color-border-dark)",
+                  borderRadius: 10, padding: 16, boxShadow: "0 8px 24px rgba(0,0,0,0.1)",
+                  zIndex: 50, width: 220,
+                }}>
+                  <StepperRow label="Adults" value={trip.adults} min={1} max={20} onChange={(v) => updateTripSettings({ adults: v })} />
+                  <StepperRow label="Kids" value={trip.kids} min={0} max={20} onChange={(v) => updateTripSettings({ kids: v })} />
+                  <StepperRow label="Nights" value={trip.nights || 7} min={1} max={30} onChange={(v) => updateTripSettings({ nights: v })} />
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -463,35 +547,19 @@ export default function TripPage({
           hoveredId={hoveredId}
           adults={trip.adults}
           nights={trip.nights}
+          onNightsChange={(n) => updateTripSettings({ nights: n })}
         />
       )}
 
-      {/* Main content: Map + Sidebar */}
+      {/* Main content: Sidebar + Map + Detail */}
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-        {/* Map */}
-        <div style={{ flex: 1, position: "relative" }}>
-          <MapView
-            listings={filtered}
-            center={[trip.centerLng, trip.centerLat]}
-            selectedId={selectedId}
-            hoveredId={hoveredId}
-            onSelect={(id) => {
-              setSelectedId(id);
-              const listing = listings.find((l: Listing) => l.id === id);
-              if (listing) openDetail(listing);
-            }}
-            onHover={setHoveredId}
-            adults={trip.adults}
-            budgetRange={budgetRange}
-          />
-        </div>
-
-        {/* Listing sidebar */}
+        {/* Listing sidebar (LEFT) */}
         <div
+          ref={sidebarRef}
           style={{
             width: sidebarWidth,
             flexShrink: 0,
-            borderLeft: "1px solid var(--color-border-dark)",
+            borderRight: "1px solid var(--color-border-dark)",
             overflowY: "auto",
             background: "var(--color-bg)",
             transition: "width 0.25s var(--ease-spring)",
@@ -563,44 +631,63 @@ export default function TripPage({
               }}
             >
               {filtered.map((listing: Listing, index: number) => (
-                <ListingCard
-                  key={listing.id}
-                  listing={listing}
-                  adults={trip.adults}
-                  isSelected={selectedId === listing.id}
-                  isHovered={hoveredId === listing.id}
-                  userName={userName}
-                  index={index}
-                  onSelect={() => openDetail(listing)}
-                  onViewDetail={() => openDetail(listing)}
-                  onVote={(value) => handleVote(listing.id, value)}
-                  onRescrape={() => handleRescrape(listing.id)}
-                  onMouseEnter={() => setHoveredId(listing.id)}
-                  onMouseLeave={() => setHoveredId(null)}
-                  budgetRange={budgetRange}
-                />
+                <div key={listing.id} data-listing-id={listing.id}>
+                  <ListingCard
+                    listing={listing}
+                    adults={trip.adults}
+                    isSelected={selectedId === listing.id}
+                    isHovered={hoveredId === listing.id}
+                    userName={userName}
+                    index={index}
+                    onSelect={() => openDetail(listing)}
+                    onViewDetail={() => openDetail(listing)}
+                    onVote={(value) => handleVote(listing.id, value)}
+                    onRescrape={() => handleRescrape(listing.id)}
+                    onMouseEnter={() => setHoveredId(listing.id)}
+                    onMouseLeave={() => setHoveredId(null)}
+                    budgetRange={budgetRange}
+                  />
+                </div>
               ))}
             </div>
           )}
         </div>
-      </div>
 
-      {/* Detail panel */}
-      {detailListing && (
-        <ListingDetail
-          listing={detailListing}
-          adults={trip.adults}
-          userName={userName}
-          onClose={closeDetail}
-          onRefresh={fetchTrip}
-          onNeedName={() => setShowNamePrompt(true)}
-          onVote={(value) => handleVote(detailListing.id, value)}
-          onRemoveVote={() => handleRemoveVote(detailListing.id)}
-          onRescrape={() => handleRescrape(detailListing.id)}
-          budgetRange={budgetRange}
-          hasPreferences={!!tripPrefs}
-        />
-      )}
+        {/* Map (CENTER) */}
+        <div style={{ flex: 1, position: "relative" }}>
+          <MapView
+            listings={filtered}
+            center={[trip.centerLng, trip.centerLat]}
+            selectedId={selectedId}
+            hoveredId={hoveredId}
+            onSelect={(id) => {
+              setSelectedId(id);
+              const listing = listings.find((l: Listing) => l.id === id);
+              if (listing) openDetail(listing);
+            }}
+            onHover={setHoveredId}
+            adults={trip.adults}
+            budgetRange={budgetRange}
+          />
+        </div>
+
+        {/* Detail panel (RIGHT, inline) */}
+        {detailListing && (
+          <ListingDetail
+            listing={detailListing}
+            adults={trip.adults}
+            userName={userName}
+            onClose={closeDetail}
+            onRefresh={fetchTrip}
+            onNeedName={() => setShowNamePrompt(true)}
+            onVote={(value) => handleVote(detailListing.id, value)}
+            onRemoveVote={() => handleRemoveVote(detailListing.id)}
+            onRescrape={() => handleRescrape(detailListing.id)}
+            budgetRange={budgetRange}
+            hasPreferences={!!tripPrefs}
+          />
+        )}
+      </div>
 
       {/* Add listing modal */}
       {showAddModal && (

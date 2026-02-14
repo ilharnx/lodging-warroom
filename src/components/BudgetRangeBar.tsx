@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect, useRef } from "react";
 import type { BudgetRange } from "@/lib/budget";
 
 interface BudgetRangeBarProps {
@@ -8,6 +9,7 @@ interface BudgetRangeBarProps {
   hoveredId: string | null;
   adults: number;
   nights: number | null;
+  onNightsChange?: (nights: number) => void;
 }
 
 function formatPrice(amount: number): string {
@@ -18,13 +20,39 @@ function formatPrice(amount: number): string {
   }).format(amount);
 }
 
-export function BudgetRangeBar({ range, listings, hoveredId, adults, nights }: BudgetRangeBarProps) {
+export function BudgetRangeBar({ range, listings, hoveredId, adults, nights, onNightsChange }: BudgetRangeBarProps) {
   const spread = range.max - range.min;
   if (spread <= 0) return null;
 
-  const nightsCount = nights || 7;
-  const totalAvg = range.avg * nightsCount;
+  const [localNights, setLocalNights] = useState(nights || 7);
+  const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Sync if prop changes externally
+  useEffect(() => {
+    setLocalNights(nights || 7);
+  }, [nights]);
+
+  function handleNightsChange(value: number) {
+    setLocalNights(value);
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      onNightsChange?.(value);
+    }, 500);
+  }
+
+  const totalAvg = range.avg * localNights;
   const perPersonAvg = adults > 0 ? Math.round(totalAvg / adults) : totalAvg;
+
+  const stepBtn = (disabled: boolean): React.CSSProperties => ({
+    width: 20, height: 20, borderRadius: "50%",
+    border: "1px solid var(--color-border-dark)",
+    background: disabled ? "var(--color-bg)" : "#fff",
+    color: disabled ? "var(--color-text-light)" : "var(--color-text)",
+    cursor: disabled ? "default" : "pointer",
+    fontSize: 13, fontWeight: 600, fontFamily: "inherit",
+    display: "flex", alignItems: "center", justifyContent: "center",
+    padding: 0, lineHeight: 1,
+  });
 
   return (
     <div style={{
@@ -34,17 +62,35 @@ export function BudgetRangeBar({ range, listings, hoveredId, adults, nights }: B
       flexShrink: 0,
     }}>
       {/* Stats row */}
-      <div style={{ display: "flex", gap: 16, marginBottom: 8, fontSize: 12, color: "var(--color-text-mid)" }}>
+      <div style={{ display: "flex", gap: 16, marginBottom: 8, fontSize: 12, color: "var(--color-text-mid)", alignItems: "center" }}>
         <span>
           Avg <span className="font-mono" style={{ fontWeight: 600, color: "var(--color-text)" }}>{formatPrice(range.avg)}</span>/night
         </span>
         <span>
-          ~<span className="font-mono" style={{ fontWeight: 600, color: "var(--color-text)" }}>{formatPrice(totalAvg)}</span> for {nightsCount} nights
+          ~<span className="font-mono" style={{ fontWeight: 600, color: "var(--color-text)" }}>{formatPrice(totalAvg)}</span> for {localNights} nights
         </span>
         {adults > 1 && (
           <span>
             ~<span className="font-mono" style={{ fontWeight: 600, color: "var(--color-text)" }}>{formatPrice(perPersonAvg)}</span>/person
           </span>
+        )}
+        {onNightsChange && (
+          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 5 }}>
+            <button
+              onClick={() => handleNightsChange(Math.max(1, localNights - 1))}
+              disabled={localNights <= 1}
+              style={stepBtn(localNights <= 1)}
+            >-</button>
+            <span className="font-mono" style={{ fontSize: 12, fontWeight: 600, minWidth: 18, textAlign: "center" }}>
+              {localNights}
+            </span>
+            <button
+              onClick={() => handleNightsChange(Math.min(30, localNights + 1))}
+              disabled={localNights >= 30}
+              style={stepBtn(localNights >= 30)}
+            >+</button>
+            <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>nights</span>
+          </div>
         )}
       </div>
 

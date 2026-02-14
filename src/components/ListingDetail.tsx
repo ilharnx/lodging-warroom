@@ -402,27 +402,19 @@ export function ListingDetail({
 
   return (
     <>
-      {/* Overlay */}
-      <div
-        className="fixed inset-0 z-40 animate-fade-in"
-        style={{ background: "rgba(0,0,0,0.4)", backdropFilter: "blur(2px)" }}
-        onClick={onClose}
-      />
-
-      {/* Slide-in Panel */}
+      {/* Inline detail panel */}
       <div
         ref={panelRef}
-        role="dialog"
-        aria-modal="true"
+        role="complementary"
         aria-label={listing.name}
-        className="fixed top-0 right-0 bottom-0 z-50 animate-slide-in-right"
         style={{
-          width: "min(420px, 100vw)",
+          width: 420,
+          flexShrink: 0,
           background: "var(--color-card)",
           borderLeft: "1px solid var(--color-border-dark)",
-          boxShadow: "-8px 0 30px rgba(0,0,0,0.1)",
           display: "flex",
           flexDirection: "column",
+          overflowY: "auto",
         }}
       >
         {/* Panel header */}

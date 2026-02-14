@@ -115,9 +115,7 @@ export interface FilterState {
   bedroomsMin: number;
   bathroomsMin: number;
   kitchen: KitchenType[];
-  kidFriendlyOnly: boolean;
   beachDistance: string;
   ratingMin: number;
-  hasPool: boolean;
   sortBy: "price_asc" | "votes_desc" | "rating" | "recent";
 }
