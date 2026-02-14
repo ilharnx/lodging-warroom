@@ -243,7 +243,19 @@ a:focus:not(:focus-visible) {
   z-index: 30;
   display: flex;
   flex-direction: column;
-  will-change: transform;
+  will-change: top;
+  transition: top 0.35s cubic-bezier(0.32, 0.72, 0, 1),
+              border-radius 0.35s cubic-bezier(0.32, 0.72, 0, 1),
+              box-shadow 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.mobile-bottom-sheet[data-full="true"] {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.mobile-bottom-sheet[data-dragging="true"] {
+  transition: none;
 }
 
 .mobile-bottom-sheet .sheet-handle {
@@ -264,9 +276,47 @@ a:focus:not(:focus-visible) {
 
 .mobile-bottom-sheet .sheet-content {
   flex: 1;
-  overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
+}
+
+/* Floating Map pill button — visible when list covers the map */
+.mobile-map-pill {
+  position: fixed;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%) translateY(0);
+  z-index: 46;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  background: #FDFBF7;
+  color: var(--color-text);
+  border: 1px solid var(--color-border-dark);
+  border-radius: 20px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s var(--ease-spring), opacity 0.2s;
+  animation: mapPillIn 0.25s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.mobile-map-pill:active {
+  transform: translateX(-50%) scale(0.95);
+}
+
+@keyframes mapPillIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 }
 
 /* Mobile bottom sheet for detail panel */

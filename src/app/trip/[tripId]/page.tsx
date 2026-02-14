@@ -1128,11 +1128,14 @@ export default function TripPage({
   const isMobile = useIsMobile();
   const sidebarRef = useRef<HTMLDivElement>(null);
 
-  // Mobile bottom sheet state
+  // Mobile bottom sheet state — two positions: half (50%) and full (0%)
   const sheetRef = useRef<HTMLDivElement>(null);
   const sheetContentRef = useRef<HTMLDivElement>(null);
   const sheetDragStart = useRef<{ y: number; sheetTop: number } | null>(null);
-  const [sheetTop, setSheetTop] = useState(60); // percentage from top (60% = map gets 60%)
+  const sheetGestureMode = useRef<"expand" | "collapse" | "handle" | null>(null);
+  const [sheetTop, setSheetTop] = useState(50); // percentage from top
+  const isSheetFull = sheetTop <= 3;
+  const isSheetDragging = sheetDragStart.current !== null && sheetGestureMode.current !== null;
 
   // Keep ref in sync so fetchTrip can read it without a dependency
   useEffect(() => {
@@ -1673,8 +1676,8 @@ export default function TripPage({
     setSelectedId(id);
 
     if (isMobile) {
-      // On mobile, don't open full-screen detail — just expand sheet and scroll to card
-      setSheetTop((prev) => prev > 70 ? 55 : prev);
+      // On mobile, ensure sheet is at half so the card is visible
+      setSheetTop((prev) => prev > 50 ? 50 : prev);
       setTimeout(() => {
         const cardEl = document.getElementById(`listing-${id}`);
         if (cardEl) {
@@ -1960,53 +1963,46 @@ export default function TripPage({
       {/* Main content */}
       {isMobile ? (
         <>
-          {/* Mobile: map + draggable bottom sheet */}
+          {/* Mobile: map + Airbnb-style bottom sheet */}
           <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
             {/* Map fills the space */}
             <div style={{ position: "absolute", inset: 0 }}>
               {mapView}
             </div>
 
-            {/* Draggable bottom sheet */}
+            {/* Bottom sheet — two positions: half (50%) and full (0%) */}
             <div
               ref={sheetRef}
               className="mobile-bottom-sheet"
-              style={{
-                top: `${sheetTop}%`,
-                transition: sheetDragStart.current ? "none" : "top 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
-              }}
+              data-full={isSheetFull}
+              data-dragging={isSheetDragging}
+              style={{ top: `${sheetTop}%` }}
             >
-              {/* Handle — only this element initiates drag */}
+              {/* Handle — always allows drag */}
               <div
                 className="sheet-handle"
                 onTouchStart={(e) => {
-                  const touch = e.touches[0];
-                  sheetDragStart.current = { y: touch.clientY, sheetTop };
+                  sheetDragStart.current = { y: e.touches[0].clientY, sheetTop };
+                  sheetGestureMode.current = "handle";
                 }}
                 onTouchMove={(e) => {
                   if (!sheetDragStart.current) return;
                   e.preventDefault();
-                  const touch = e.touches[0];
                   const containerHeight = sheetRef.current?.parentElement?.clientHeight || window.innerHeight;
-                  const deltaPct = ((touch.clientY - sheetDragStart.current.y) / containerHeight) * 100;
-                  const newTop = Math.max(5, Math.min(85, sheetDragStart.current.sheetTop + deltaPct));
-                  setSheetTop(newTop);
+                  const deltaPct = ((e.touches[0].clientY - sheetDragStart.current.y) / containerHeight) * 100;
+                  setSheetTop(Math.max(0, Math.min(50, sheetDragStart.current.sheetTop + deltaPct)));
                 }}
                 onTouchEnd={() => {
                   if (!sheetDragStart.current) return;
                   sheetDragStart.current = null;
-                  // Snap to nearest position: collapsed (85%), split (55%), expanded (10%)
-                  setSheetTop((prev) => {
-                    if (prev < 30) return 10;
-                    if (prev > 70) return 85;
-                    return 55;
-                  });
+                  sheetGestureMode.current = null;
+                  setSheetTop((prev) => (prev < 25 ? 0 : 50));
                 }}
               >
                 <div className="sheet-handle-bar" />
               </div>
 
-              {/* Scrollable content — pull down to collapse when at scroll top */}
+              {/* Scrollable content — scroll drives expand/collapse */}
               <div
                 ref={(el) => {
                   sheetContentRef.current = el;
@@ -2015,35 +2011,56 @@ export default function TripPage({
                   }
                 }}
                 className="sheet-content"
+                style={{ overflowY: isSheetFull && !isSheetDragging ? "auto" : "hidden" }}
                 onTouchStart={(e) => {
-                  const contentEl = sheetContentRef.current;
-                  // Only allow pull-down-to-collapse when scrolled to top
-                  if (contentEl && contentEl.scrollTop <= 0) {
-                    sheetDragStart.current = { y: e.touches[0].clientY, sheetTop };
-                  }
+                  sheetDragStart.current = { y: e.touches[0].clientY, sheetTop };
+                  sheetGestureMode.current = null; // decide on first move
                 }}
                 onTouchMove={(e) => {
                   if (!sheetDragStart.current) return;
                   const deltaY = e.touches[0].clientY - sheetDragStart.current.y;
-                  // Only drag down (collapse), not up — let scroll handle up
-                  if (deltaY <= 0) {
-                    sheetDragStart.current = null;
-                    return;
+                  const startTop = sheetDragStart.current.sheetTop;
+
+                  // Decide gesture mode once on first significant movement
+                  if (sheetGestureMode.current === null) {
+                    if (Math.abs(deltaY) < 4) return;
+                    const contentEl = sheetContentRef.current;
+
+                    if (startTop > 3) {
+                      // Sheet at half — swipe up expands, swipe down does nothing
+                      if (deltaY < 0) {
+                        sheetGestureMode.current = "expand";
+                      } else {
+                        sheetDragStart.current = null;
+                        return;
+                      }
+                    } else {
+                      // Sheet at full — pull down at scroll top collapses
+                      if (contentEl && contentEl.scrollTop <= 0 && deltaY > 0) {
+                        sheetGestureMode.current = "collapse";
+                      } else {
+                        // Normal scroll — release the gesture
+                        sheetDragStart.current = null;
+                        return;
+                      }
+                    }
                   }
+
+                  // Move the sheet
                   e.preventDefault();
                   const containerHeight = sheetRef.current?.parentElement?.clientHeight || window.innerHeight;
                   const deltaPct = (deltaY / containerHeight) * 100;
-                  const newTop = Math.max(5, Math.min(85, sheetDragStart.current.sheetTop + deltaPct));
-                  setSheetTop(newTop);
+                  setSheetTop(Math.max(0, Math.min(50, startTop + deltaPct)));
                 }}
                 onTouchEnd={() => {
-                  if (!sheetDragStart.current) return;
+                  if (!sheetDragStart.current || !sheetGestureMode.current) {
+                    sheetDragStart.current = null;
+                    sheetGestureMode.current = null;
+                    return;
+                  }
                   sheetDragStart.current = null;
-                  setSheetTop((prev) => {
-                    if (prev < 30) return 10;
-                    if (prev > 70) return 85;
-                    return 55;
-                  });
+                  sheetGestureMode.current = null;
+                  setSheetTop((prev) => (prev < 25 ? 0 : 50));
                 }}
               >
                 {sidebarContent}
@@ -2051,14 +2068,30 @@ export default function TripPage({
             </div>
           </div>
 
+          {/* Floating Map pill — visible when list covers the map */}
+          {isSheetFull && !detailListing && (
+            <button
+              className="mobile-map-pill"
+              onClick={() => setSheetTop(50)}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
+                <circle cx="12" cy="10" r="3" />
+              </svg>
+              Map
+            </button>
+          )}
+
           {/* Mobile FAB for adding listings */}
-          <button
-            className="mobile-fab"
-            onClick={() => setShowAddModal(true)}
-            aria-label="Add listing"
-          >
-            +
-          </button>
+          {!isSheetFull && (
+            <button
+              className="mobile-fab"
+              onClick={() => setShowAddModal(true)}
+              aria-label="Add listing"
+            >
+              +
+            </button>
+          )}
 
           {/* Mobile detail sheet */}
           {detailPanel}
