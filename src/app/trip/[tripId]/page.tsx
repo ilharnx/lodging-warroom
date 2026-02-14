@@ -42,6 +42,45 @@ const defaultFilters: FilterState = {
   sortBy: "recent",
 };
 
+type ConsensusGroup = "into" | "deciding" | "not";
+
+interface GroupedListings {
+  into: Listing[];
+  deciding: Listing[];
+  not: Listing[];
+}
+
+const GROUP_META: Record<ConsensusGroup, { label: string; icon: string; color: string; bgColor: string }> = {
+  into:     { label: "Everyone\u2019s into these", icon: "\uD83D\uDD25", color: "var(--color-green)",      bgColor: "rgba(74,158,107,0.08)" },
+  deciding: { label: "Still deciding",             icon: "\uD83E\uDD14", color: "var(--color-yellow)",     bgColor: "rgba(212,168,67,0.08)" },
+  not:      { label: "Probably not",               icon: "\uD83D\uDC4B", color: "var(--color-text-muted)", bgColor: "rgba(0,0,0,0.03)" },
+};
+
+function computeConsensusGroups(listings: Listing[]): GroupedListings {
+  const groups: GroupedListings = { into: [], deciding: [], not: [] };
+  for (const listing of listings) {
+    const votes: { value: number }[] = listing.votes || [];
+    const total = votes.length;
+    const positive = votes.filter((v) => v.value > 0).length;
+    const negative = votes.filter((v) => v.value < 0).length;
+
+    // Edge cases: 0 or 1 reaction → "Still deciding"
+    if (total <= 1) {
+      groups.deciding.push(listing);
+    } else if (positive >= 2 && positive / total >= 0.5) {
+      // Majority positive (≥50%) with minimum 2 positive reactions
+      groups.into.push(listing);
+    } else if (negative / total >= 0.5) {
+      // Majority negative (≥50% pass reactions)
+      groups.not.push(listing);
+    } else {
+      // Mixed or tied → "Still deciding"
+      groups.deciding.push(listing);
+    }
+  }
+  return groups;
+}
+
 function applyFilters(listings: Listing[], filters: FilterState): Listing[] {
   let result = [...listings];
 
@@ -406,6 +445,96 @@ export default function TripPage({
     );
   }
 
+  // Consensus grouping — compute from reactions
+  const consensusGroups = computeConsensusGroups(filtered);
+  const hasMultipleGroups =
+    [consensusGroups.into, consensusGroups.deciding, consensusGroups.not]
+      .filter((g) => g.length > 0).length > 1;
+
+  function renderGroupSection(groupKey: ConsensusGroup, listings: Listing[], indexOffset: number) {
+    if (listings.length === 0) return null;
+    const meta = GROUP_META[groupKey];
+    return (
+      <div key={groupKey}>
+        {hasMultipleGroups && (
+          <div className="consensus-group-header" style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            padding: isMobile ? "10px 12px 4px" : "12px 14px 4px",
+            position: "sticky",
+            top: 0,
+            zIndex: 5,
+            background: "var(--color-bg)",
+          }}>
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "4px 10px",
+              borderRadius: 6,
+              background: meta.bgColor,
+            }}>
+              <span style={{ fontSize: 13 }}>{meta.icon}</span>
+              <span style={{
+                fontSize: 12,
+                fontWeight: 600,
+                fontFamily: "var(--font-heading)",
+                color: meta.color,
+                letterSpacing: "0.01em",
+              }}>
+                {meta.label}
+              </span>
+            </div>
+            <span style={{
+              fontSize: 11,
+              fontFamily: "var(--font-mono)",
+              color: "var(--color-text-light)",
+              fontWeight: 500,
+            }}>
+              {listings.length}
+            </span>
+            <div style={{
+              flex: 1,
+              height: 1,
+              background: "var(--color-border)",
+              marginLeft: 4,
+            }} />
+          </div>
+        )}
+        <div style={{
+          padding: isMobile ? "4px 8px 8px" : "4px 12px 12px",
+          display: "flex",
+          flexDirection: "column",
+          gap: isMobile ? 8 : 12,
+          opacity: groupKey === "not" ? 0.6 : 1,
+          transition: "opacity 0.2s",
+        }}>
+          {listings.map((listing: Listing, i: number) => (
+            <div key={listing.id} data-listing-id={listing.id}>
+              <ListingCard
+                listing={listing}
+                adults={trip.adults}
+                nights={trip.nights || 7}
+                isSelected={selectedId === listing.id}
+                isHovered={hoveredId === listing.id}
+                userName={userName}
+                index={indexOffset + i}
+                onSelect={() => openDetail(listing)}
+                onViewDetail={() => openDetail(listing)}
+                onVote={(value) => handleVote(listing.id, value)}
+                onRescrape={() => handleRescrape(listing.id)}
+                onMouseEnter={() => setHoveredId(listing.id)}
+                onMouseLeave={() => setHoveredId(null)}
+                budgetRange={budgetRange}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   // Shared sidebar content (used in both mobile list view and desktop sidebar)
   const sidebarContent = filtered.length === 0 ? (
     <div
@@ -456,34 +585,10 @@ export default function TripPage({
       )}
     </div>
   ) : (
-    <div
-      style={{
-        padding: isMobile ? 8 : 12,
-        display: "flex",
-        flexDirection: "column",
-        gap: isMobile ? 8 : 12,
-      }}
-    >
-      {filtered.map((listing: Listing, index: number) => (
-        <div key={listing.id} data-listing-id={listing.id}>
-          <ListingCard
-            listing={listing}
-            adults={trip.adults}
-            nights={trip.nights || 7}
-            isSelected={selectedId === listing.id}
-            isHovered={hoveredId === listing.id}
-            userName={userName}
-            index={index}
-            onSelect={() => openDetail(listing)}
-            onViewDetail={() => openDetail(listing)}
-            onVote={(value) => handleVote(listing.id, value)}
-            onRescrape={() => handleRescrape(listing.id)}
-            onMouseEnter={() => setHoveredId(listing.id)}
-            onMouseLeave={() => setHoveredId(null)}
-            budgetRange={budgetRange}
-          />
-        </div>
-      ))}
+    <div>
+      {renderGroupSection("into", consensusGroups.into, 0)}
+      {renderGroupSection("deciding", consensusGroups.deciding, consensusGroups.into.length)}
+      {renderGroupSection("not", consensusGroups.not, consensusGroups.into.length + consensusGroups.deciding.length)}
     </div>
   );
 

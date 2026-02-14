@@ -231,6 +231,12 @@ a:focus:not(:focus-visible) {
   outline: none;
 }
 
+/* ── Consensus group headers ─────────────────────────────── */
+.consensus-group-header {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
 /* ── Mobile styles ───────────────────────────────────────── */
 
 /* Mobile tab bar */
