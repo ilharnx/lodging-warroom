@@ -209,10 +209,11 @@ export default function Home() {
     <div className="min-h-screen" style={{ background: "var(--color-bg)" }}>
       <header style={{ borderBottom: "1px solid var(--color-border-dark)", padding: "16px 24px" }}>
         <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <h1 style={{ fontSize: 22, fontWeight: 600, color: "var(--color-coral)", fontFamily: "var(--font-heading)", letterSpacing: -0.5 }}>
+          <h1 className="entrance entrance-d0" style={{ fontSize: 22, fontWeight: 600, color: "var(--color-coral)", fontFamily: "var(--font-heading)", letterSpacing: -0.5 }}>
             stay.
           </h1>
           <button
+            className="entrance entrance-d1"
             onClick={() => setShowCreate(true)}
             style={{
               padding: "8px 16px",
@@ -267,7 +268,7 @@ export default function Home() {
         ) : trips.length === 0 && !showCreate ? (
           /* Empty state — warm and inviting */
           <div
-            className="text-center animate-fade-in"
+            className="text-center entrance entrance-d2"
             style={{
               maxWidth: 420,
               marginInline: "auto",
@@ -324,11 +325,17 @@ export default function Home() {
             {!showCreate && (
               <>
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {trips.map((trip) => (
-                    <TripCard key={trip.id} trip={trip} />
+                  {trips.map((trip, i) => (
+                    <div key={trip.id} className="entrance" style={{ animationDelay: `${240 + i * 120}ms` }}>
+                      <TripCard trip={trip} />
+                    </div>
                   ))}
 
                   {/* Create trip card — warm, inviting */}
+                  <div
+                    className="entrance"
+                    style={{ animationDelay: `${240 + trips.length * 120}ms` }}
+                  >
                   <div
                     role="button"
                     tabIndex={0}
@@ -382,6 +389,7 @@ export default function Home() {
                     }}>
                       Where to next?
                     </p>
+                  </div>
                   </div>
                 </div>
 
@@ -690,48 +698,67 @@ function TripCard({ trip }: { trip: Trip }) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {/* Warm gradient header */}
-      <div
-        style={{
-          padding: "20px 20px 16px",
-          background: "linear-gradient(135deg, #FCEEE8 0%, #F7E4D8 40%, #EDE7E0 100%)",
-          position: "relative",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-          <span style={{ fontSize: 26, lineHeight: 1 }}>{flag}</span>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <h3 style={{
-              fontSize: 18,
-              fontWeight: 600,
-              color: "var(--color-text)",
-              margin: 0,
-              lineHeight: 1.25,
-              fontFamily: "var(--font-heading)",
-            }}>
-              {trip.name}
-            </h3>
-            <p style={{
-              fontSize: 13,
-              color: "var(--color-text-mid)",
-              margin: 0,
-              marginTop: 3,
-            }}>
-              {trip.destination}
-            </p>
+      {/* Warm gradient header — Ken Burns + waves */}
+      <div style={{ position: "relative", overflow: "hidden" }}>
+        {/* Layer 1: Ken Burns gradient */}
+        <div
+          className="trip-card-ken-burns"
+          style={{
+            position: "absolute",
+            inset: "-10%",
+            background: "linear-gradient(135deg, #FCEEE8 0%, #F7E4D8 40%, #EDE7E0 100%)",
+          }}
+        />
 
-            {/* Countdown */}
-            {daysUntilTrip != null && daysUntilTrip > 0 && (
-              <p className="font-mono" style={{
-                fontSize: 12,
+        {/* Layer 2: SVG wave shapes — bottom third */}
+        <svg
+          style={{ position: "absolute", bottom: 0, left: "-5%", width: "110%", height: "40%" }}
+          viewBox="0 0 400 100"
+          preserveAspectRatio="none"
+          fill="#fff"
+        >
+          <path className="trip-card-wave-a" d="M0 50C60 35 140 65 200 45S320 55 400 42L400 100H0Z" opacity="0.06" />
+          <path className="trip-card-wave-b" d="M0 62C80 48 160 72 240 55S360 68 400 58L400 100H0Z" opacity="0.08" />
+          <path className="trip-card-wave-c" d="M0 72C50 60 130 82 210 68S330 78 400 70L400 100H0Z" opacity="0.1" />
+        </svg>
+
+        {/* Content on top */}
+        <div style={{ position: "relative", padding: "20px 20px 16px" }}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+            <span style={{ fontSize: 26, lineHeight: 1 }}>{flag}</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <h3 style={{
+                fontSize: 18,
+                fontWeight: 600,
+                color: "var(--color-text)",
+                margin: 0,
+                lineHeight: 1.25,
+                fontFamily: "var(--font-heading)",
+              }}>
+                {trip.name}
+              </h3>
+              <p style={{
+                fontSize: 13,
                 color: "var(--color-text-mid)",
                 margin: 0,
-                marginTop: 6,
-                letterSpacing: 0.3,
+                marginTop: 3,
               }}>
-                &#9728;&#65039; {daysUntilTrip}d away
+                {trip.destination}
               </p>
-            )}
+
+              {/* Countdown */}
+              {daysUntilTrip != null && daysUntilTrip > 0 && (
+                <p className="font-mono" style={{
+                  fontSize: 12,
+                  color: "var(--color-text-mid)",
+                  margin: 0,
+                  marginTop: 6,
+                  letterSpacing: 0.3,
+                }}>
+                  &#9728;&#65039; {daysUntilTrip}d away
+                </p>
+              )}
+            </div>
           </div>
         </div>
 
@@ -747,6 +774,7 @@ function TripCard({ trip }: { trip: Trip }) {
             transform: hovered ? "scaleX(1)" : "scaleX(0)",
             transformOrigin: "left",
             transition: "transform 0.25s var(--ease-spring)",
+            zIndex: 1,
           }}
         />
       </div>

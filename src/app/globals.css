@@ -320,6 +320,116 @@ body.mobile-detail-open {
   overflow: hidden;
 }
 
+/* ── Ambient topographic motion (Cosmos-inspired) ────────── */
+
+@keyframes topoFloat {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.topo-ambient {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.topo-ambient svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 200%;
+  height: 100%;
+  opacity: 0.035;
+  animation: topoFloat 50s linear infinite;
+  will-change: transform;
+}
+
+/* ── Trip card Ken Burns drift ───────────────────────────── */
+
+@keyframes kenBurnsDrift {
+  0%, 100% { transform: scale(1) translate(0, 0); }
+  50% { transform: scale(1.06) translate(-1.5%, -1%); }
+}
+
+.trip-card-ken-burns {
+  animation: kenBurnsDrift 20s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* ── Trip card wave shapes ───────────────────────────────── */
+
+@keyframes waveDriftA {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(-4%); }
+}
+
+@keyframes waveDriftB {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(3%); }
+}
+
+.trip-card-wave-a {
+  animation: waveDriftA 8s ease-in-out infinite;
+}
+
+.trip-card-wave-b {
+  animation: waveDriftB 5s ease-in-out infinite;
+}
+
+.trip-card-wave-c {
+  animation: waveDriftA 6.5s ease-in-out infinite reverse;
+}
+
+/* ── Cosmos-style staggered entrance ─────────────────────── */
+
+@keyframes entranceFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.entrance {
+  opacity: 0;
+  animation: entranceFadeUp 0.6s var(--ease-spring) both;
+}
+
+.entrance-d0 { animation-delay: 0ms; }
+.entrance-d1 { animation-delay: 120ms; }
+.entrance-d2 { animation-delay: 240ms; }
+.entrance-d3 { animation-delay: 360ms; }
+.entrance-d4 { animation-delay: 480ms; }
+.entrance-d5 { animation-delay: 600ms; }
+.entrance-d6 { animation-delay: 720ms; }
+.entrance-d7 { animation-delay: 840ms; }
+
+/* ── Reduced motion — disable all ambient/entrance anims ── */
+
+@media (prefers-reduced-motion: reduce) {
+  .topo-ambient svg {
+    animation: none;
+  }
+  .trip-card-ken-burns {
+    animation: none;
+  }
+  .trip-card-wave-a,
+  .trip-card-wave-b,
+  .trip-card-wave-c {
+    animation: none;
+  }
+  .entrance {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
 @media (max-width: 768px) {
   /* Hide desktop scrollbar */
   ::-webkit-scrollbar {
