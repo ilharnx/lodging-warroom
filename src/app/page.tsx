@@ -893,10 +893,12 @@ function formatDateRange(checkIn: string | null, checkOut: string | null): strin
   return `${startStr} \u2013 ${MONTHS[end.getMonth()]} ${end.getDate()}`;
 }
 
+// Fallback photo when Unsplash is not configured
+const PLACEHOLDER_PHOTO = "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600&h=200&fit=crop";
+
 function TripCard({ trip }: { trip: Trip }) {
   const [hovered, setHovered] = useState(false);
-  const [unsplashPhoto, setUnsplashPhoto] = useState<{ url: string; attribution: string } | null>(null);
-  const flag = getFlag(trip.destination);
+  const [unsplashPhoto, setUnsplashPhoto] = useState<{ url: string; attribution: string | null } | null>(null);
   const members = getMembers(trip);
   const activity = getActivityStatus(trip);
 
@@ -906,24 +908,36 @@ function TripCard({ trip }: { trip: Trip }) {
     ? Math.ceil((checkInDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
     : null;
 
-  // Photo priority: user upload > Unsplash > gradient fallback (NO listing photos)
-  const coverPhoto = trip.coverPhotoUrl || unsplashPhoto?.url || null;
-  const attribution = trip.coverPhotoAttribution || (unsplashPhoto && !trip.coverPhotoUrl ? unsplashPhoto.attribution : null);
-
-  // Fetch Unsplash fallback if no user-uploaded cover
+  // Fetch Unsplash photo if no user-uploaded cover
   useEffect(() => {
     if (trip.coverPhotoUrl) return;
     let cancelled = false;
-    fetch(`/api/unsplash?q=${encodeURIComponent(trip.destination + " beach")}`)
-      .then((r) => r.ok ? r.json() : null)
+    fetch(`/api/unsplash?q=${encodeURIComponent(trip.destination)}`)
+      .then((r) => {
+        if (r.ok) return r.json();
+        // Unsplash not configured or error — use placeholder
+        return null;
+      })
       .then((data) => {
-        if (!cancelled && data?.url) {
+        if (cancelled) return;
+        if (data?.url) {
           setUnsplashPhoto({ url: data.url, attribution: data.attribution });
+        } else {
+          // Use placeholder when Unsplash is unavailable
+          setUnsplashPhoto({ url: PLACEHOLDER_PHOTO, attribution: null });
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!cancelled) {
+          setUnsplashPhoto({ url: PLACEHOLDER_PHOTO, attribution: null });
+        }
+      });
     return () => { cancelled = true; };
   }, [trip.coverPhotoUrl, trip.destination]);
+
+  // Photo priority: user upload > Unsplash > placeholder
+  const coverPhoto = trip.coverPhotoUrl || unsplashPhoto?.url || PLACEHOLDER_PHOTO;
+  const attribution = trip.coverPhotoAttribution || unsplashPhoto?.attribution || null;
 
   const dateLabel = formatDateRange(trip.checkIn, trip.checkOut);
 
@@ -947,99 +961,80 @@ function TripCard({ trip }: { trip: Trip }) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {/* Photo header */}
+      {/* Photo header — always a real photo */}
       <div style={{ position: "relative", overflow: "hidden" }}>
-        {/* Photo or gradient fallback */}
-        {coverPhoto ? (
-          <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={coverPhoto}
-              alt=""
-              className="trip-card-ken-burns"
-              style={{
-                position: "absolute",
-                inset: "-10%",
-                width: "120%",
-                height: "120%",
-                objectFit: "cover",
-              }}
-            />
-            {/* Dark gradient overlay — non-negotiable for text readability */}
-            <div style={{
-              position: "absolute",
-              inset: 0,
-              background: "linear-gradient(to top, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.1) 60%)",
-            }} />
-          </>
-        ) : (
-          /* Solid warm gradient fallback when no photo is available */
-          <div
-            className="trip-card-ken-burns"
-            style={{
-              position: "absolute",
-              inset: "-10%",
-              background: "linear-gradient(135deg, #4A8B9E 0%, #8BC4A0 100%)",
-            }}
-          />
-        )}
+        {/* Background photo */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={coverPhoto}
+          alt=""
+          className="trip-card-ken-burns"
+          style={{
+            position: "absolute",
+            inset: "-10%",
+            width: "120%",
+            height: "120%",
+            objectFit: "cover",
+          }}
+        />
 
-        {/* Content on top */}
+        {/* Dark gradient overlay ON TOP of photo for text readability */}
+        <div style={{
+          position: "absolute",
+          inset: 0,
+          background: "linear-gradient(to top, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.1) 60%)",
+        }} />
+
+        {/* Text content on top of gradient */}
         <div style={{ position: "relative", padding: "20px 20px 16px" }}>
-          <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-            <span style={{ fontSize: 26, lineHeight: 1, textShadow: "0 1px 3px rgba(0,0,0,0.3)" }}>{flag}</span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <h3 style={{
-                fontSize: 18,
-                fontWeight: 600,
-                color: "#fff",
-                margin: 0,
-                lineHeight: 1.25,
-                fontFamily: "var(--font-heading)",
-                textShadow: "0 1px 4px rgba(0,0,0,0.3)",
-              }}>
-                {trip.name}
-              </h3>
-              <p style={{
-                fontSize: 13,
-                color: "rgba(255,255,255,0.85)",
-                margin: 0,
-                marginTop: 3,
-                textShadow: "0 1px 3px rgba(0,0,0,0.3)",
-              }}>
-                {trip.destination}
-              </p>
-
-              {/* Trip dates */}
-              <p style={{
-                fontSize: 12,
-                color: "rgba(255,255,255,0.7)",
-                margin: 0,
-                marginTop: 4,
-                textShadow: "0 1px 3px rgba(0,0,0,0.3)",
-                fontStyle: trip.checkIn ? "normal" : "italic",
-              }}>
-                {dateLabel}
-              </p>
-
-              {/* Countdown */}
-              {daysUntilTrip != null && daysUntilTrip > 0 && (
-                <p className="font-mono" style={{
-                  fontSize: 12,
-                  color: "rgba(255,255,255,0.75)",
-                  margin: 0,
-                  marginTop: 4,
-                  letterSpacing: 0.3,
-                  textShadow: "0 1px 3px rgba(0,0,0,0.3)",
-                }}>
-                  &#9728;&#65039; {daysUntilTrip}d away
-                </p>
-              )}
-            </div>
-          </div>
+          <h3 style={{
+            fontSize: 18,
+            fontWeight: 600,
+            color: "#fff",
+            margin: 0,
+            lineHeight: 1.25,
+            fontFamily: "var(--font-heading)",
+            textShadow: "0 1px 4px rgba(0,0,0,0.3)",
+          }}>
+            {trip.name}
+          </h3>
+          <p style={{
+            fontSize: 13,
+            fontWeight: 400,
+            color: "rgba(255,255,255,0.85)",
+            margin: 0,
+            marginTop: 3,
+            textShadow: "0 1px 3px rgba(0,0,0,0.3)",
+          }}>
+            {trip.destination}
+          </p>
+          <p style={{
+            fontSize: 12,
+            fontWeight: 400,
+            color: "rgba(255,255,255,0.7)",
+            margin: 0,
+            marginTop: 4,
+            textShadow: "0 1px 3px rgba(0,0,0,0.3)",
+            fontStyle: trip.checkIn ? "normal" : "italic",
+          }}>
+            {dateLabel}
+          </p>
+          {daysUntilTrip != null && daysUntilTrip > 0 && (
+            <p className="font-mono" style={{
+              fontSize: 12,
+              fontWeight: 400,
+              color: "rgba(255,255,255,0.75)",
+              margin: 0,
+              marginTop: 4,
+              letterSpacing: 0.3,
+              textShadow: "0 1px 3px rgba(0,0,0,0.3)",
+            }}>
+              &#9728;&#65039; {daysUntilTrip}d away
+            </p>
+          )}
         </div>
 
-        {/* Unsplash attribution — tiny, bottom-right corner */}
+        {/* Unsplash attribution */}
         {attribution && (
           <div style={{
             position: "absolute",
@@ -1074,9 +1069,9 @@ function TripCard({ trip }: { trip: Trip }) {
 
       {/* Body */}
       <div style={{ padding: "14px 20px 16px" }}>
-        {/* Member avatar pips */}
+        {/* Member avatar row */}
         {members.length > 0 && (
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", marginBottom: 10 }}>
             <div style={{ display: "flex" }}>
               {members.slice(0, 6).map((name, i) => (
                 <div
