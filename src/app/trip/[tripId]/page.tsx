@@ -8,8 +8,9 @@ import { AddListingModal } from "@/components/AddListingModal";
 import { FilterBar } from "@/components/FilterBar";
 
 import { TripPreferences } from "@/components/TripPreferences";
-import { computeBudgetRange } from "@/lib/budget";
+// budget range no longer used on cards/map
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { TRAVELER_COLORS, getNextColor } from "@/lib/traveler-colors";
 import type { FilterState, KitchenType, TripPreferences as TripPreferencesType, ReactionType } from "@/types";
 
 const MapView = dynamic(() => import("@/components/MapView"), { ssr: false });
@@ -19,7 +20,24 @@ type Trip = any;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Listing = any;
 
+interface Traveler {
+  id: string;
+  name: string;
+  color: string;
+  isCreator: boolean;
+}
+
 const POLL_INTERVAL = 4000;
+
+function getCookie(name: string): string | null {
+  if (typeof document === "undefined") return null;
+  const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
+  return match ? decodeURIComponent(match[2]) : null;
+}
+
+function clearCookie(name: string) {
+  document.cookie = `${name}=; path=/; max-age=0`;
+}
 
 function getStoredName(): string {
   if (typeof window === "undefined") return "";
@@ -28,6 +46,15 @@ function getStoredName(): string {
 
 function setStoredName(name: string) {
   localStorage.setItem("stay_username", name);
+}
+
+function getStoredEmoji(): string {
+  if (typeof window === "undefined") return "";
+  return localStorage.getItem("stay_emoji") || "";
+}
+
+function setStoredEmoji(emoji: string) {
+  localStorage.setItem("stay_emoji", emoji);
 }
 
 const defaultFilters: FilterState = {
@@ -167,12 +194,12 @@ function StepperRow({ label, value, min, max, onChange }: {
   label: string; value: number; min: number; max: number; onChange: (v: number) => void;
 }) {
   const btn = (disabled: boolean): React.CSSProperties => ({
-    width: 36, height: 36, borderRadius: "50%",
+    width: 44, height: 44, borderRadius: "50%",
     border: "1px solid var(--color-border-dark)",
     background: disabled ? "var(--color-bg)" : "#fff",
     color: disabled ? "var(--color-text-light)" : "var(--color-text)",
     cursor: disabled ? "default" : "pointer",
-    fontSize: 18, fontWeight: 600, fontFamily: "inherit",
+    fontSize: 20, fontWeight: 600, fontFamily: "inherit",
     display: "flex", alignItems: "center", justifyContent: "center",
     padding: 0,
   });
@@ -183,6 +210,880 @@ function StepperRow({ label, value, min, max, onChange }: {
         <button onClick={() => { if (value > min) onChange(value - 1); }} disabled={value <= min} style={btn(value <= min)}>-</button>
         <span className="font-mono" style={{ fontSize: 14, fontWeight: 600, minWidth: 24, textAlign: "center" }}>{value}</span>
         <button onClick={() => { if (value < max) onChange(value + 1); }} disabled={value >= max} style={btn(value >= max)}>+</button>
+      </div>
+    </div>
+  );
+}
+
+/* ── Identity Picker (full-screen interstitial) ────────── */
+
+function IdentityPicker({
+  trip,
+  travelers,
+  onClaim,
+}: {
+  trip: { id: string; name: string; destination: string; checkIn: string | null; checkOut: string | null };
+  travelers: Traveler[];
+  onClaim: (traveler: Traveler) => void;
+}) {
+  const [showJoinForm, setShowJoinForm] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [claiming, setClaiming] = useState<string | null>(null);
+
+  const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const checkInDate = trip.checkIn ? new Date(trip.checkIn) : null;
+  const checkOutDate = trip.checkOut ? new Date(trip.checkOut) : null;
+  const dateLabel = checkInDate
+    ? `${MONTHS[checkInDate.getMonth()]} ${checkInDate.getDate()}${checkOutDate ? ` \u2013 ${checkInDate.getMonth() === checkOutDate.getMonth() ? checkOutDate.getDate() : `${MONTHS[checkOutDate.getMonth()]} ${checkOutDate.getDate()}`}` : ""}`
+    : null;
+
+  async function handleClaim(travelerId: string) {
+    setClaiming(travelerId);
+    try {
+      const res = await fetch(`/api/trips/${trip.id}/claim`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ travelerId }),
+      });
+      if (res.ok) {
+        const traveler = await res.json();
+        onClaim(traveler);
+      }
+    } finally {
+      setClaiming(null);
+    }
+  }
+
+  async function handleJoin() {
+    if (!newName.trim()) return;
+    setClaiming("new");
+    try {
+      const usedColors = travelers.map((t) => t.color);
+      const color = getNextColor(usedColors);
+      const res = await fetch(`/api/trips/${trip.id}/travelers`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newName.trim(), color }),
+      });
+      if (res.ok) {
+        const newTraveler = await res.json();
+        await handleClaim(newTraveler.id);
+      }
+    } finally {
+      setClaiming(null);
+    }
+  }
+
+  return (
+    <div style={{
+      minHeight: "100dvh",
+      background: "#F5F0E8",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "40px 20px",
+    }}>
+      {/* Logo */}
+      <h1 style={{
+        fontSize: 24,
+        fontWeight: 600,
+        color: "#2E2A26",
+        fontFamily: "var(--font-heading)",
+        margin: 0,
+        marginBottom: 32,
+      }}>
+        stay<span style={{ color: "#C4725A" }}>.</span>
+      </h1>
+
+      {/* Trip info */}
+      <div style={{ textAlign: "center", marginBottom: 32, maxWidth: 360 }}>
+        <h2 style={{
+          fontSize: 22,
+          fontWeight: 600,
+          fontFamily: "var(--font-heading)",
+          color: "var(--color-text)",
+          margin: 0,
+          marginBottom: 8,
+        }}>
+          {trip.name}
+        </h2>
+        <p style={{
+          fontSize: 13,
+          color: "var(--color-text-muted)",
+          margin: 0,
+        }}>
+          {trip.destination}{dateLabel ? ` \u00B7 ${dateLabel}` : ""}
+        </p>
+      </div>
+
+      {/* Question */}
+      <p style={{
+        fontSize: 16,
+        color: "var(--color-text)",
+        fontWeight: 500,
+        marginBottom: 20,
+      }}>
+        Which traveler are you?
+      </p>
+
+      {/* Traveler cards */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%", maxWidth: 320 }}>
+        {travelers.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => handleClaim(t.id)}
+            disabled={claiming !== null}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 14,
+              padding: "14px 18px",
+              background: "#FDFBF7",
+              border: "1px solid #E8E2D8",
+              borderRadius: 12,
+              cursor: claiming ? "default" : "pointer",
+              fontFamily: "inherit",
+              transition: "all 0.15s var(--ease-spring)",
+              opacity: claiming && claiming !== t.id ? 0.5 : 1,
+            }}
+            onMouseOver={(e) => {
+              if (!claiming) {
+                e.currentTarget.style.transform = "translateY(-2px)";
+                e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.06)";
+              }
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.transform = "none";
+              e.currentTarget.style.boxShadow = "none";
+            }}
+          >
+            <div style={{
+              width: 32,
+              height: 32,
+              borderRadius: "50%",
+              background: t.color,
+              color: "#fff",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 14,
+              fontWeight: 600,
+              flexShrink: 0,
+            }}>
+              {t.name.charAt(0).toUpperCase()}
+            </div>
+            <span style={{
+              fontSize: 15,
+              fontWeight: 500,
+              color: "var(--color-text)",
+            }}>
+              {t.name}
+            </span>
+            {claiming === t.id && (
+              <span style={{ marginLeft: "auto", fontSize: 12, color: "var(--color-text-muted)" }}>...</span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* "Someone else?" */}
+      {!showJoinForm ? (
+        <button
+          onClick={() => setShowJoinForm(true)}
+          style={{
+            marginTop: 20,
+            fontSize: 14,
+            fontFamily: "var(--font-heading)",
+            fontStyle: "italic",
+            color: "#C4725A",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            padding: 4,
+          }}
+        >
+          Someone else?
+        </button>
+      ) : (
+        <div style={{ marginTop: 20, width: "100%", maxWidth: 320 }}>
+          <input
+            type="text"
+            autoFocus
+            placeholder="Your name..."
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && newName.trim()) {
+                e.preventDefault();
+                handleJoin();
+              }
+            }}
+            style={{
+              width: "100%",
+              padding: "12px 14px",
+              background: "#FDFBF7",
+              border: "1px solid #E8E2D8",
+              borderRadius: 10,
+              color: "var(--color-text)",
+              fontFamily: "inherit",
+              fontSize: 15,
+            }}
+          />
+          <button
+            onClick={handleJoin}
+            disabled={!newName.trim() || claiming !== null}
+            style={{
+              width: "100%",
+              marginTop: 10,
+              padding: "12px 16px",
+              fontSize: 14,
+              fontWeight: 600,
+              background: newName.trim() ? "#C4725A" : "var(--color-panel)",
+              color: newName.trim() ? "#fff" : "var(--color-text-light)",
+              borderRadius: 10,
+              border: "none",
+              cursor: newName.trim() ? "pointer" : "default",
+              fontFamily: "inherit",
+              transition: "all 0.15s",
+            }}
+          >
+            {claiming === "new" ? "Joining..." : "Join trip"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Trip Settings View ──────────────────────────────────── */
+
+interface TripSettingsProps {
+  trip: {
+    id: string;
+    name: string;
+    destination: string;
+    adults: number;
+    kids: number;
+    nights: number | null;
+    checkIn: string | null;
+    checkOut: string | null;
+    centerLat: number;
+    centerLng: number;
+    coverPhotoUrl: string | null;
+    coverPhotoAttribution: string | null;
+    travelers?: Traveler[];
+  };
+  onSave: (updates: {
+    name?: string; destination?: string;
+    adults?: number; kids?: number; nights?: number | null;
+    checkIn?: string | null; checkOut?: string | null;
+    centerLat?: number; centerLng?: number;
+    coverPhotoUrl?: string | null; coverPhotoAttribution?: string | null;
+  }) => Promise<void>;
+  onClose: () => void;
+  onRefresh: () => void;
+}
+
+function TripSettingsView({ trip, onSave, onClose, onRefresh }: TripSettingsProps) {
+  const [name, setName] = useState(trip.name);
+  const [destination, setDestination] = useState(trip.destination);
+  const [adults, setAdults] = useState(trip.adults);
+  const [kids, setKids] = useState(trip.kids);
+  const [coverPreview, setCoverPreview] = useState<string | null>(trip.coverPhotoUrl);
+  const [coverAttribution, setCoverAttribution] = useState<string | null>(trip.coverPhotoAttribution);
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverChanged, setCoverChanged] = useState(false);
+  const [checkIn, setCheckIn] = useState(
+    trip.checkIn ? new Date(trip.checkIn).toISOString().split("T")[0] : ""
+  );
+  const [checkOut, setCheckOut] = useState(
+    trip.checkOut ? new Date(trip.checkOut).toISOString().split("T")[0] : ""
+  );
+  const [saving, setSaving] = useState(false);
+  const [travelers, setTravelers] = useState<Traveler[]>(trip.travelers || []);
+  const [newTravelerName, setNewTravelerName] = useState("");
+  const [addingTraveler, setAddingTraveler] = useState(false);
+
+  async function handleAddTraveler() {
+    if (!newTravelerName.trim() || addingTraveler) return;
+    setAddingTraveler(true);
+    try {
+      const usedColors = travelers.map((t) => t.color);
+      const color = getNextColor(usedColors);
+      const res = await fetch(`/api/trips/${trip.id}/travelers`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newTravelerName.trim(), color }),
+      });
+      if (res.ok) {
+        const t = await res.json();
+        setTravelers([...travelers, t]);
+        setNewTravelerName("");
+        onRefresh();
+      }
+    } finally {
+      setAddingTraveler(false);
+    }
+  }
+
+  async function handleRemoveTraveler(travelerId: string) {
+    const res = await fetch(`/api/trips/${trip.id}/travelers?travelerId=${travelerId}`, {
+      method: "DELETE",
+    });
+    if (res.ok) {
+      setTravelers(travelers.filter((t) => t.id !== travelerId));
+      onRefresh();
+    }
+  }
+
+  const dateNights = checkIn && checkOut
+    ? Math.max(1, Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / (1000 * 60 * 60 * 24)))
+    : null;
+
+  const hasDates = !!(trip.checkIn || trip.checkOut);
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      // Geocode if destination changed
+      let geoUpdates: { centerLat?: number; centerLng?: number } = {};
+      if (destination.trim() !== trip.destination) {
+        try {
+          const geoRes = await fetch(`/api/geocode?q=${encodeURIComponent(destination.trim())}`);
+          if (geoRes.ok) {
+            const geo = await geoRes.json();
+            geoUpdates = { centerLat: geo.lat, centerLng: geo.lng };
+          }
+        } catch {}
+      }
+
+      // If user uploaded a new file, upload it
+      if (coverFile) {
+        const formData = new FormData();
+        formData.append("file", coverFile);
+        const uploadRes = await fetch(`/api/trips/${trip.id}/cover-photo`, {
+          method: "POST",
+          body: formData,
+        });
+        if (uploadRes.ok) {
+          const { coverPhotoUrl } = await uploadRes.json();
+          await onSave({
+            name: name.trim(), destination: destination.trim(),
+            adults, kids, checkIn: checkIn || null, checkOut: checkOut || null,
+            nights: dateNights, coverPhotoUrl, coverPhotoAttribution: null,
+            ...geoUpdates,
+          });
+          return;
+        }
+      }
+
+      await onSave({
+        name: name.trim(),
+        destination: destination.trim(),
+        adults,
+        kids,
+        checkIn: checkIn || null,
+        checkOut: checkOut || null,
+        nights: dateNights,
+        ...geoUpdates,
+        ...(coverChanged && !coverFile ? { coverPhotoUrl: coverPreview, coverPhotoAttribution: coverAttribution } : {}),
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function handleCoverUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCoverFile(file);
+    setCoverPreview(URL.createObjectURL(file));
+    setCoverAttribution(null);
+    setCoverChanged(true);
+  }
+
+  function fetchUnsplashCover() {
+    fetch(`/api/unsplash?q=${encodeURIComponent(destination || trip.destination)}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (data?.url) {
+          setCoverPreview(data.url);
+          setCoverAttribution(data.attribution);
+          setCoverFile(null);
+          setCoverChanged(true);
+        }
+      })
+      .catch(() => {});
+  }
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    padding: "12px 16px",
+    background: "#fff",
+    border: "1px solid var(--color-border-dark)",
+    borderRadius: 10,
+    color: "var(--color-text)",
+    fontFamily: "inherit",
+    fontSize: 15,
+  };
+
+  const labelStyle: React.CSSProperties = {
+    display: "block",
+    fontSize: 11,
+    color: "var(--color-text-mid)",
+    marginBottom: 6,
+    fontFamily: "var(--font-mono)",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    fontWeight: 600,
+  };
+
+  // Gentle prompt style for empty optional fields
+  const promptStyle: React.CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    padding: "14px 16px",
+    background: "var(--color-coral-light)",
+    border: "1px solid var(--color-coral-border)",
+    borderRadius: 10,
+    fontSize: 14,
+    color: "var(--color-text-mid)",
+    cursor: "pointer",
+    fontFamily: "inherit",
+    transition: "all 0.15s",
+  };
+
+  return (
+    <div style={{
+      height: "100dvh",
+      background: "var(--color-bg)",
+      overflowY: "auto",
+    }}>
+      {/* Header */}
+      <header style={{
+        padding: "14px 20px",
+        borderBottom: "1px solid var(--color-border)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        background: "var(--color-bg)",
+        position: "sticky",
+        top: 0,
+        zIndex: 10,
+      }}>
+        <button
+          onClick={onClose}
+          style={{
+            background: "none", border: "none", cursor: "pointer",
+            fontFamily: "inherit", fontSize: 14, fontWeight: 600,
+            color: "var(--color-text-mid)", padding: "8px 12px",
+            borderRadius: 6,
+          }}
+        >
+          &larr; Back
+        </button>
+        <h2 className="font-heading" style={{
+          fontSize: 16, fontWeight: 600, color: "var(--color-text)", margin: 0,
+        }}>
+          Trip Settings
+        </h2>
+        <div style={{ width: 60 }} />
+      </header>
+
+      <form onSubmit={handleSave} style={{
+        maxWidth: 480,
+        margin: "0 auto",
+        padding: "28px 20px 40px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 20,
+      }}>
+        {/* Cover Photo — at top for visual impact */}
+        <div>
+          <label style={labelStyle}>Cover Photo</label>
+          {coverPreview ? (
+            <div style={{ position: "relative", borderRadius: 10, overflow: "hidden", border: "1px solid var(--color-border-dark)" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={coverPreview}
+                alt="Cover"
+                style={{ width: "100%", height: 160, objectFit: "cover", display: "block" }}
+              />
+              <div style={{
+                position: "absolute", inset: 0,
+                background: "linear-gradient(to bottom, transparent 50%, rgba(0,0,0,0.35) 100%)",
+              }} />
+              {coverAttribution && (
+                <div style={{ position: "absolute", bottom: 4, right: 8, fontSize: 9, color: "rgba(255,255,255,0.5)" }}>
+                  {coverAttribution}
+                </div>
+              )}
+              <div style={{ position: "absolute", top: 8, right: 8, display: "flex", gap: 4 }}>
+                <label style={{
+                  fontSize: 11, padding: "4px 10px", borderRadius: 8,
+                  background: "rgba(0,0,0,0.5)", color: "#fff",
+                  cursor: "pointer", fontFamily: "inherit",
+                }}>
+                  Upload new
+                  <input type="file" accept="image/*" onChange={handleCoverUpload} style={{ display: "none" }} />
+                </label>
+                <button
+                  type="button"
+                  onClick={fetchUnsplashCover}
+                  style={{
+                    fontSize: 11, padding: "4px 10px", borderRadius: 8,
+                    background: "rgba(0,0,0,0.5)", color: "rgba(255,255,255,0.8)",
+                    border: "none", cursor: "pointer", fontFamily: "inherit",
+                  }}
+                >
+                  Unsplash
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setCoverPreview(null); setCoverAttribution(null); setCoverFile(null); setCoverChanged(true); }}
+                  style={{
+                    fontSize: 11, padding: "4px 10px", borderRadius: 8,
+                    background: "rgba(0,0,0,0.5)", color: "rgba(255,255,255,0.7)",
+                    border: "none", cursor: "pointer", fontFamily: "inherit",
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: "flex", gap: 8 }}>
+              <label style={{
+                flex: 1, padding: "12px 16px", fontSize: 14, fontWeight: 500,
+                background: "#fff", border: "1px solid var(--color-border-dark)",
+                borderRadius: 10, cursor: "pointer", fontFamily: "inherit",
+                color: "var(--color-text-mid)", textAlign: "center" as const,
+              }}>
+                Upload photo
+                <input type="file" accept="image/*" onChange={handleCoverUpload} style={{ display: "none" }} />
+              </label>
+              <button
+                type="button"
+                onClick={fetchUnsplashCover}
+                style={{
+                  flex: 1, padding: "12px 16px", fontSize: 14, fontWeight: 500,
+                  background: "#fff", border: "1px solid var(--color-border-dark)",
+                  borderRadius: 10, cursor: "pointer", fontFamily: "inherit",
+                  color: "var(--color-text-mid)",
+                }}
+              >
+                Unsplash suggestion
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Trip name */}
+        <div>
+          <label style={labelStyle}>Trip Name</label>
+          <input
+            type="text"
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            style={inputStyle}
+            placeholder="Barbados 2026"
+          />
+        </div>
+
+        {/* Destination */}
+        <div>
+          <label style={labelStyle}>Destination</label>
+          <input
+            type="text"
+            required
+            value={destination}
+            onChange={(e) => setDestination(e.target.value)}
+            style={inputStyle}
+            placeholder="Barbados"
+          />
+          {destination.trim() !== trip.destination && destination.trim() && (
+            <p style={{ fontSize: 12, color: "var(--color-text-muted)", marginTop: 6, marginBottom: 0 }}>
+              Map center will update when you save.
+            </p>
+          )}
+        </div>
+
+        {/* Dates — with gentle prompt if missing */}
+        <div>
+          <label style={labelStyle}>Dates</label>
+          {!hasDates && !checkIn && !checkOut ? (
+            <div
+              onClick={() => {
+                // Focus the first date input by setting a dummy value and clearing
+                const today = new Date().toISOString().split("T")[0];
+                setCheckIn(today);
+              }}
+              style={promptStyle}
+            >
+              <span style={{ fontSize: 18, color: "var(--color-coral)", lineHeight: 1 }}>+</span>
+              <span>Add your travel dates</span>
+            </div>
+          ) : (
+            <>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div>
+                  <span style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 4 }}>Arrival</span>
+                  <input
+                    type="date"
+                    value={checkIn}
+                    onChange={(e) => setCheckIn(e.target.value)}
+                    style={{
+                      ...inputStyle,
+                      color: checkIn ? "var(--color-text)" : "var(--color-text-muted)",
+                    }}
+                  />
+                </div>
+                <div>
+                  <span style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 4 }}>Departure</span>
+                  <input
+                    type="date"
+                    value={checkOut}
+                    min={checkIn || undefined}
+                    onChange={(e) => setCheckOut(e.target.value)}
+                    style={{
+                      ...inputStyle,
+                      color: checkOut ? "var(--color-text)" : "var(--color-text-muted)",
+                    }}
+                  />
+                </div>
+              </div>
+              {dateNights != null && (
+                <p className="font-mono" style={{ fontSize: 12, color: "var(--color-text-mid)", marginTop: 8, marginBottom: 0 }}>
+                  {dateNights} night{dateNights !== 1 ? "s" : ""}
+                </p>
+              )}
+              {(checkIn || checkOut) && (
+                <button
+                  type="button"
+                  onClick={() => { setCheckIn(""); setCheckOut(""); }}
+                  style={{
+                    fontSize: 12, color: "var(--color-text-muted)", background: "none",
+                    border: "none", cursor: "pointer", fontFamily: "inherit", padding: 0,
+                    marginTop: 6,
+                  }}
+                >
+                  Clear dates
+                </button>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Group size */}
+        <div>
+          <label style={labelStyle}>Group Size</label>
+          <div style={{
+            background: "#fff",
+            border: "1px solid var(--color-border-dark)",
+            borderRadius: 10,
+            padding: "8px 16px",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0" }}>
+              <span style={{ fontSize: 14, color: "var(--color-text-mid)" }}>Adults</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => setAdults(Math.max(1, adults - 1))}
+                  disabled={adults <= 1}
+                  style={{
+                    width: 40, height: 40, borderRadius: "50%",
+                    border: "1px solid var(--color-border-dark)",
+                    background: adults <= 1 ? "var(--color-bg)" : "#fff",
+                    color: adults <= 1 ? "var(--color-text-light)" : "var(--color-text)",
+                    cursor: adults <= 1 ? "default" : "pointer",
+                    fontSize: 18, fontWeight: 600, fontFamily: "inherit",
+                    display: "flex", alignItems: "center", justifyContent: "center", padding: 0,
+                  }}
+                >-</button>
+                <span className="font-mono" style={{ fontSize: 16, fontWeight: 700, minWidth: 24, textAlign: "center" }}>{adults}</span>
+                <button
+                  type="button"
+                  onClick={() => setAdults(Math.min(20, adults + 1))}
+                  style={{
+                    width: 40, height: 40, borderRadius: "50%",
+                    border: "1px solid var(--color-border-dark)",
+                    background: "#fff", color: "var(--color-text)",
+                    cursor: "pointer", fontSize: 18, fontWeight: 600, fontFamily: "inherit",
+                    display: "flex", alignItems: "center", justifyContent: "center", padding: 0,
+                  }}
+                >+</button>
+              </div>
+            </div>
+            <div style={{ borderTop: "1px solid var(--color-border)", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0" }}>
+              <span style={{ fontSize: 14, color: "var(--color-text-mid)" }}>Kids</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => setKids(Math.max(0, kids - 1))}
+                  disabled={kids <= 0}
+                  style={{
+                    width: 40, height: 40, borderRadius: "50%",
+                    border: "1px solid var(--color-border-dark)",
+                    background: kids <= 0 ? "var(--color-bg)" : "#fff",
+                    color: kids <= 0 ? "var(--color-text-light)" : "var(--color-text)",
+                    cursor: kids <= 0 ? "default" : "pointer",
+                    fontSize: 18, fontWeight: 600, fontFamily: "inherit",
+                    display: "flex", alignItems: "center", justifyContent: "center", padding: 0,
+                  }}
+                >-</button>
+                <span className="font-mono" style={{ fontSize: 16, fontWeight: 700, minWidth: 24, textAlign: "center" }}>{kids}</span>
+                <button
+                  type="button"
+                  onClick={() => setKids(Math.min(20, kids + 1))}
+                  style={{
+                    width: 40, height: 40, borderRadius: "50%",
+                    border: "1px solid var(--color-border-dark)",
+                    background: "#fff", color: "var(--color-text)",
+                    cursor: "pointer", fontSize: 18, fontWeight: 600, fontFamily: "inherit",
+                    display: "flex", alignItems: "center", justifyContent: "center", padding: 0,
+                  }}
+                >+</button>
+              </div>
+            </div>
+          </div>
+          <p style={{ fontSize: 12, color: "var(--color-text-muted)", marginTop: 6, marginBottom: 0 }}>
+            Changing adults updates all per-person price calculations.
+          </p>
+        </div>
+
+        {/* Save */}
+        <button
+          type="submit"
+          disabled={saving || !name.trim() || !destination.trim()}
+          style={{
+            width: "100%",
+            padding: "14px 16px",
+            fontSize: 16,
+            fontWeight: 600,
+            background: "var(--color-coral)",
+            color: "#fff",
+            borderRadius: 10,
+            border: "none",
+            cursor: saving ? "default" : "pointer",
+            fontFamily: "inherit",
+            opacity: saving ? 0.6 : 1,
+            transition: "all 0.15s",
+            boxShadow: "0 4px 14px rgba(224,90,71,0.25)",
+            marginTop: 4,
+          }}
+        >
+          {saving ? "Saving..." : "Save changes"}
+        </button>
+      </form>
+
+      {/* Travelers section */}
+      <div style={{ marginTop: 32, paddingTop: 24, borderTop: "1px solid var(--color-border)" }}>
+        <label style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)", fontFamily: "var(--font-heading)", display: "block", marginBottom: 12 }}>
+          Travelers
+        </label>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {travelers.map((t) => (
+            <div
+              key={t.id}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "8px 12px",
+                background: "#fff",
+                border: "1px solid var(--color-border)",
+                borderRadius: 8,
+              }}
+            >
+              <div style={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                background: t.color,
+                flexShrink: 0,
+              }} />
+              <span style={{ fontSize: 14, color: "var(--color-text)", flex: 1 }}>
+                {t.name}
+              </span>
+              {t.isCreator && (
+                <span style={{
+                  fontSize: 10,
+                  color: "var(--color-text-muted)",
+                  background: "var(--color-panel)",
+                  borderRadius: 4,
+                  padding: "2px 6px",
+                  fontWeight: 500,
+                }}>
+                  creator
+                </span>
+              )}
+              {!t.isCreator && (
+                <button
+                  onClick={() => handleRemoveTraveler(t.id)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    color: "var(--color-text-muted)",
+                    fontSize: 16,
+                    padding: 0,
+                    lineHeight: 1,
+                    fontFamily: "inherit",
+                  }}
+                >
+                  &times;
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+        {/* Add traveler input */}
+        <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+          <input
+            type="text"
+            placeholder="Add traveler..."
+            value={newTravelerName}
+            onChange={(e) => setNewTravelerName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleAddTraveler();
+              }
+            }}
+            style={{
+              flex: 1,
+              padding: "10px 14px",
+              background: "#fff",
+              border: "1px solid var(--color-border-dark)",
+              borderRadius: 8,
+              color: "var(--color-text)",
+              fontFamily: "inherit",
+              fontSize: 14,
+            }}
+          />
+          <button
+            type="button"
+            onClick={handleAddTraveler}
+            disabled={!newTravelerName.trim() || addingTraveler}
+            style={{
+              padding: "10px 16px",
+              fontSize: 13,
+              fontWeight: 600,
+              background: newTravelerName.trim() ? "var(--color-coral)" : "var(--color-panel)",
+              color: newTravelerName.trim() ? "#fff" : "var(--color-text-light)",
+              borderRadius: 8,
+              border: "none",
+              cursor: newTravelerName.trim() ? "pointer" : "default",
+              fontFamily: "inherit",
+            }}
+          >
+            Add
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -205,14 +1106,23 @@ export default function TripPage({
   const detailListingRef = useRef<Listing | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [userName, setUserName] = useState("");
+  const [userEmoji, setUserEmoji] = useState("");
   const [showNamePrompt, setShowNamePrompt] = useState(false);
   const [nameInput, setNameInput] = useState("");
+  const [currentTraveler, setCurrentTraveler] = useState<Traveler | null>(null);
+  const [showIdentityPicker, setShowIdentityPicker] = useState(false);
+  const [identityChecked, setIdentityChecked] = useState(false);
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
   const [showPreferences, setShowPreferences] = useState(false);
-  const [editingTripSettings, setEditingTripSettings] = useState(false);
-  const [mobileTab, setMobileTab] = useState<"list" | "map">("list");
+  const [showSettings, setShowSettings] = useState(false);
   const isMobile = useIsMobile();
   const sidebarRef = useRef<HTMLDivElement>(null);
+
+  // Mobile bottom sheet state
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const sheetContentRef = useRef<HTMLDivElement>(null);
+  const sheetDragStart = useRef<{ y: number; sheetTop: number } | null>(null);
+  const [sheetTop, setSheetTop] = useState(60); // percentage from top (60% = map gets 60%)
 
   // Keep ref in sync so fetchTrip can read it without a dependency
   useEffect(() => {
@@ -264,15 +1174,47 @@ export default function TripPage({
     return () => clearInterval(interval);
   }, [trip, fetchTrip]);
 
-  // Username
+  // Username + emoji + traveler identity
   useEffect(() => {
     const stored = getStoredName();
     if (stored) {
       setUserName(stored);
-    } else {
-      setShowNamePrompt(true);
     }
+    setUserEmoji(getStoredEmoji());
   }, []);
+
+  // Resolve traveler identity from cookie once trip loads
+  useEffect(() => {
+    if (!trip || identityChecked) return;
+
+    const travelers: Traveler[] = trip.travelers || [];
+    if (travelers.length === 0) {
+      // Legacy trip without travelers — use localStorage name prompt
+      if (!getStoredName()) {
+        setShowNamePrompt(true);
+      }
+      setIdentityChecked(true);
+      return;
+    }
+
+    // Resolve from server (reads cookie server-side)
+    fetch(`/api/trips/${tripId}/me`)
+      .then((r) => r.ok ? r.json() : { traveler: null })
+      .then((data: { traveler: Traveler | null }) => {
+        if (data.traveler) {
+          setCurrentTraveler(data.traveler);
+          setUserName(data.traveler.name);
+          setStoredName(data.traveler.name);
+        } else {
+          setShowIdentityPicker(true);
+        }
+        setIdentityChecked(true);
+      })
+      .catch(() => {
+        setShowIdentityPicker(true);
+        setIdentityChecked(true);
+      });
+  }, [trip, tripId, identityChecked]);
 
   // Scroll-to-center: fly map to the most visible card in the sidebar
   useEffect(() => {
@@ -346,7 +1288,13 @@ export default function TripPage({
     fetchTrip();
   }
 
-  async function updateTripSettings(updates: { adults?: number; kids?: number; nights?: number }) {
+  async function updateTripSettings(updates: {
+    name?: string; destination?: string;
+    adults?: number; kids?: number; nights?: number | null;
+    checkIn?: string | null; checkOut?: string | null;
+    centerLat?: number; centerLng?: number;
+    coverPhotoUrl?: string | null; coverPhotoAttribution?: string | null;
+  }) {
     await fetch(`/api/trips/${tripId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -372,7 +1320,7 @@ export default function TripPage({
     return (
       <div
         style={{
-          height: "100vh",
+          height: "100dvh",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -389,7 +1337,7 @@ export default function TripPage({
     return (
       <div
         style={{
-          height: "100vh",
+          height: "100dvh",
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
@@ -422,13 +1370,55 @@ export default function TripPage({
     );
   }
 
+  // Show identity picker if needed
+  const tripTravelers: Traveler[] = trip.travelers || [];
+  if (showIdentityPicker && tripTravelers.length > 0) {
+    return (
+      <IdentityPicker
+        trip={trip}
+        travelers={tripTravelers}
+        onClaim={(traveler) => {
+          setCurrentTraveler(traveler);
+          setUserName(traveler.name);
+          setStoredName(traveler.name);
+          setShowIdentityPicker(false);
+          setShowNamePrompt(false);
+        }}
+      />
+    );
+  }
+
   const listings: Listing[] = trip.listings || [];
   const filtered = applyFilters(listings, filters);
-  const budgetRange = computeBudgetRange(listings);
+  const nights = trip.nights || 7;
 
   const isDetailOpen = detailListing !== null;
   const sidebarWidth = isDetailOpen ? 300 : 380;
   const tripPrefs: TripPreferencesType | null = trip.preferences || null;
+
+  // Trip date formatting for header
+  const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const checkInDate = trip.checkIn ? new Date(trip.checkIn) : null;
+  const tripMonthLabel = checkInDate
+    ? `${MONTHS[checkInDate.getMonth()]} \u2018${String(checkInDate.getFullYear()).slice(-2)}`
+    : null;
+  const daysUntilTrip = checkInDate
+    ? Math.ceil((checkInDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    : null;
+
+  if (showSettings) {
+    return (
+      <TripSettingsView
+        trip={trip}
+        onSave={async (updates) => {
+          await updateTripSettings(updates);
+          setShowSettings(false);
+        }}
+        onClose={() => setShowSettings(false)}
+        onRefresh={fetchTrip}
+      />
+    );
+  }
 
   if (showPreferences) {
     return (
@@ -441,6 +1431,18 @@ export default function TripPage({
           fetchTrip();
         }}
         onClose={() => setShowPreferences(false)}
+        userName={userName}
+        userEmoji={userEmoji}
+        onProfileChange={(name, emoji) => {
+          setUserName(name);
+          setStoredName(name);
+          setUserEmoji(emoji);
+          setStoredEmoji(emoji);
+        }}
+        adults={trip.adults}
+        kids={trip.kids}
+        nights={trip.nights || 7}
+        onTripSettingsChange={updateTripSettings}
       />
     );
   }
@@ -451,9 +1453,46 @@ export default function TripPage({
     [consensusGroups.into, consensusGroups.deciding, consensusGroups.not]
       .filter((g) => g.length > 0).length > 1;
 
+  // Compute named waiting message for group headers
+  function getGroupLabel(groupKey: ConsensusGroup): string {
+    const meta = GROUP_META[groupKey];
+    if (groupKey !== "deciding" || tripTravelers.length === 0) return meta.label;
+
+    // Find who hasn't voted across all listings in this group
+    const allVoters = new Set<string>();
+    for (const listing of filtered) {
+      for (const v of (listing.votes || [])) {
+        allVoters.add(v.userName);
+      }
+    }
+
+    const nonVoters = tripTravelers.filter((t) => !allVoters.has(t.name));
+    if (nonVoters.length === 0) return meta.label;
+
+    if (allVoters.size > 0 && nonVoters.length <= 2) {
+      const names = nonVoters.map((t) => t.name);
+      return `Waiting on ${names.join(" and ")}`;
+    }
+
+    return meta.label;
+  }
+
   function renderGroupSection(groupKey: ConsensusGroup, listings: Listing[], indexOffset: number) {
     if (listings.length === 0) return null;
     const meta = GROUP_META[groupKey];
+    const label = getGroupLabel(groupKey);
+
+    // Check if everyone voted on ALL listings in "into" group
+    const allVotedLabel = groupKey === "into" && tripTravelers.length > 0
+      ? (() => {
+          const allVoted = listings.every((l: Listing) => {
+            const voters = new Set((l.votes || []).map((v: { userName: string }) => v.userName));
+            return tripTravelers.every((t) => voters.has(t.name));
+          });
+          return allVoted ? "\u2713 everyone\u2019s in" : null;
+        })()
+      : null;
+
     return (
       <div key={groupKey}>
         {hasMultipleGroups && (
@@ -483,8 +1522,18 @@ export default function TripPage({
                 color: meta.color,
                 letterSpacing: "0.01em",
               }}>
-                {meta.label}
+                {label}
               </span>
+              {allVotedLabel && (
+                <span style={{
+                  fontSize: 11,
+                  color: "var(--color-green)",
+                  fontWeight: 500,
+                  marginLeft: 4,
+                }}>
+                  {allVotedLabel}
+                </span>
+              )}
             </div>
             <span style={{
               fontSize: 11,
@@ -515,19 +1564,14 @@ export default function TripPage({
               <ListingCard
                 listing={listing}
                 adults={trip.adults}
-                nights={trip.nights || 7}
+                nights={nights}
                 isSelected={selectedId === listing.id}
                 isHovered={hoveredId === listing.id}
-                userName={userName}
                 index={indexOffset + i}
                 onSelect={() => openDetail(listing)}
-                onViewDetail={() => openDetail(listing)}
-                onReact={(reactionType) => handleReact(listing.id, reactionType)}
-                onRemoveReaction={() => handleRemoveVote(listing.id)}
-                onRescrape={() => handleRescrape(listing.id)}
                 onMouseEnter={() => setHoveredId(listing.id)}
                 onMouseLeave={() => setHoveredId(null)}
-                budgetRange={budgetRange}
+                travelers={tripTravelers}
               />
             </div>
           ))}
@@ -597,7 +1641,7 @@ export default function TripPage({
     <ListingDetail
       listing={detailListing}
       adults={trip.adults}
-      nights={trip.nights || 7}
+      nights={nights}
       userName={userName}
       onClose={closeDetail}
       onRefresh={fetchTrip}
@@ -605,11 +1649,31 @@ export default function TripPage({
       onReact={(reactionType) => handleReact(detailListing.id, reactionType)}
       onRemoveReaction={() => handleRemoveVote(detailListing.id)}
       onRescrape={() => handleRescrape(detailListing.id)}
-      budgetRange={budgetRange}
+      onNightsChange={(n) => updateTripSettings({ nights: n })}
+      budgetRange={null}
       hasPreferences={!!tripPrefs}
       isMobile={isMobile}
+      travelers={tripTravelers}
     />
   );
+
+  function handleMapPinSelect(id: string) {
+    setSelectedId(id);
+
+    if (isMobile) {
+      // On mobile, don't open full-screen detail — just expand sheet and scroll to card
+      setSheetTop((prev) => prev > 70 ? 55 : prev);
+      setTimeout(() => {
+        const cardEl = document.getElementById(`listing-${id}`);
+        if (cardEl) {
+          cardEl.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 100);
+    } else {
+      const listing = listings.find((l: Listing) => l.id === id);
+      if (listing) openDetail(listing);
+    }
+  }
 
   const mapView = (
     <MapView
@@ -617,19 +1681,15 @@ export default function TripPage({
       center={[trip.centerLng, trip.centerLat]}
       selectedId={selectedId}
       hoveredId={hoveredId}
-      onSelect={(id) => {
-        setSelectedId(id);
-        const listing = listings.find((l: Listing) => l.id === id);
-        if (listing) openDetail(listing);
-      }}
+      onSelect={handleMapPinSelect}
       onHover={setHoveredId}
       adults={trip.adults}
-      budgetRange={budgetRange}
+      nights={nights}
     />
   );
 
   return (
-    <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
+    <div style={{ height: "100dvh", display: "flex", flexDirection: "column" }}>
       {/* Trip header */}
       <header
         style={{
@@ -643,23 +1703,26 @@ export default function TripPage({
           gap: 8,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 6 : 12, minWidth: 0, flex: 1 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 6 : 10, minWidth: 0, flex: 1 }}>
           <a
             href="/"
             style={{
               fontSize: 16,
               fontWeight: 600,
-              color: "var(--color-coral)",
+              color: "#2E2A26",
               textDecoration: "none",
               fontFamily: "var(--font-heading)",
               flexShrink: 0,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
             }}
           >
-            Stay
+            stay<span style={{ color: "#C4725A" }}>.</span>
+            <span className="font-mono" style={{ fontSize: 9, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.1em", color: "#C4725A", background: "rgba(196,114,90,0.12)", borderRadius: 4, padding: "3px 8px" }}>
+              Alpha
+            </span>
           </a>
-          {!isMobile && (
-            <span style={{ color: "var(--color-text-light)", fontSize: 13 }}>/</span>
-          )}
           <h1
             style={{
               fontSize: isMobile ? 14 : 16,
@@ -670,52 +1733,123 @@ export default function TripPage({
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
             }}
           >
-            {isMobile ? trip.destination : trip.name}
+            {trip.destination}
+            {tripMonthLabel && (
+              <span style={{ color: "var(--color-text-mid)", fontWeight: 400, fontSize: isMobile ? 13 : 14 }}>
+                {" \u00B7 "}{tripMonthLabel}
+              </span>
+            )}
           </h1>
-          {!isMobile && (
-            <span style={{ fontSize: 14, color: "var(--color-text-mid)" }}>
-              {trip.destination}
+          {daysUntilTrip != null && daysUntilTrip > 0 && (
+            <span
+              className="font-mono"
+              style={{
+                fontSize: 12, fontWeight: 600, color: "var(--color-text-mid)",
+                whiteSpace: "nowrap", flexShrink: 0,
+              }}
+            >
+              {"\u2600\uFE0F"} {daysUntilTrip}d
             </span>
           )}
-          <div style={{ position: "relative", flexShrink: 0 }}>
-            <button
-              onClick={() => setEditingTripSettings(!editingTripSettings)}
-              style={{
-                fontSize: 12, color: "var(--color-text-muted)",
-                background: editingTripSettings ? "var(--color-panel)" : "transparent",
-                border: "1px solid", borderColor: editingTripSettings ? "var(--color-border-dark)" : "transparent",
-                borderRadius: 6, padding: isMobile ? "4px 6px" : "3px 8px", cursor: "pointer", fontFamily: "inherit",
-                transition: "all 0.15s",
-                whiteSpace: "nowrap",
-              }}
-              onMouseOver={(e) => { if (!editingTripSettings) e.currentTarget.style.borderColor = "var(--color-border-dark)"; }}
-              onMouseOut={(e) => { if (!editingTripSettings) e.currentTarget.style.borderColor = "transparent"; }}
-            >
-              {trip.adults}{isMobile ? "a" : " adults"}{trip.kids > 0 ? `, ${trip.kids}${isMobile ? "k" : " kids"}` : ""}{trip.nights ? ` · ${trip.nights}n` : ""}
-              <span style={{ marginLeft: 4, fontSize: 10 }}>&#9998;</span>
-            </button>
-            {editingTripSettings && (
-              <>
-                <div style={{ position: "fixed", inset: 0, zIndex: 49 }} onClick={() => setEditingTripSettings(false)} />
-                <div style={{
-                  position: "absolute", top: "100%", left: isMobile ? "auto" : 0, right: isMobile ? 0 : "auto", marginTop: 4,
-                  background: "#fff", border: "1px solid var(--color-border-dark)",
-                  borderRadius: 10, padding: 16, boxShadow: "0 8px 24px rgba(0,0,0,0.1)",
-                  zIndex: 50, width: 220,
-                }}>
-                  <StepperRow label="Adults" value={trip.adults} min={1} max={20} onChange={(v) => updateTripSettings({ adults: v })} />
-                  <StepperRow label="Kids" value={trip.kids} min={0} max={20} onChange={(v) => updateTripSettings({ kids: v })} />
-                  <StepperRow label="Nights" value={trip.nights || 7} min={1} max={30} onChange={(v) => updateTripSettings({ nights: v })} />
+          {/* Traveler avatar pips in header */}
+          {!isMobile && tripTravelers.length > 0 && (
+            <div style={{ display: "flex", marginLeft: 8, flexShrink: 0 }}>
+              {tripTravelers.slice(0, 5).map((t, i) => (
+                <div
+                  key={t.id}
+                  title={t.name}
+                  style={{
+                    width: 22,
+                    height: 22,
+                    borderRadius: "50%",
+                    background: t.color,
+                    color: "#fff",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 9,
+                    fontWeight: 600,
+                    border: currentTraveler?.id === t.id ? "2px solid var(--color-coral)" : "2px solid #fff",
+                    marginLeft: i > 0 ? -5 : 0,
+                    position: "relative" as const,
+                    zIndex: tripTravelers.length - i,
+                  }}
+                >
+                  {t.name.charAt(0).toUpperCase()}
                 </div>
-              </>
-            )}
-          </div>
+              ))}
+              {tripTravelers.length > 5 && (
+                <div style={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: "50%",
+                  background: "var(--color-panel)",
+                  color: "var(--color-text-muted)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 8,
+                  fontWeight: 600,
+                  border: "2px solid #fff",
+                  marginLeft: -5,
+                }}>
+                  +{tripTravelers.length - 5}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 4 : 8, flexShrink: 0 }}>
-          {userName && !isMobile && (
+          {currentTraveler && !isMobile && (
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{
+                fontSize: 12,
+                color: "var(--color-text-mid)",
+                padding: "4px 10px",
+                background: "var(--color-panel)",
+                borderRadius: 20,
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+              }}>
+                <div style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  background: currentTraveler.color,
+                  flexShrink: 0,
+                }} />
+                {currentTraveler.name}
+              </span>
+              <button
+                onClick={() => {
+                  clearCookie(`stay_traveler_${tripId}`);
+                  setCurrentTraveler(null);
+                  setShowIdentityPicker(true);
+                  setIdentityChecked(false);
+                }}
+                style={{
+                  fontSize: 11,
+                  color: "var(--color-text-muted)",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  padding: 0,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Not {currentTraveler.name}?
+              </button>
+            </div>
+          )}
+          {!currentTraveler && userName && !isMobile && (
             <span
               style={{
                 fontSize: 12,
@@ -723,12 +1857,45 @@ export default function TripPage({
                 padding: "4px 10px",
                 background: "var(--color-panel)",
                 borderRadius: 20,
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
               }}
             >
+              {userEmoji && <span style={{ fontSize: 14 }}>{userEmoji}</span>}
               {userName}
             </span>
           )}
-          {!isMobile && (
+          {/* Trip settings gear */}
+          <button
+            onClick={() => setShowSettings(true)}
+            style={{
+              width: isMobile ? 36 : 32, height: isMobile ? 36 : 32, borderRadius: "50%",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              background: "transparent", border: "1px solid var(--color-border-dark)",
+              cursor: "pointer", fontSize: 15, color: "var(--color-text-muted)",
+              fontFamily: "inherit", transition: "all 0.15s", flexShrink: 0,
+            }}
+            title="Trip settings"
+          >
+            &#9881;
+          </button>
+          {isMobile ? (
+            <button
+              onClick={() => setShowPreferences(true)}
+              style={{
+                width: 36, height: 36, borderRadius: "50%",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                background: "var(--color-panel)", border: "1px solid var(--color-border-dark)",
+                cursor: "pointer", fontSize: userEmoji ? 18 : 13, fontWeight: 700,
+                color: "var(--color-text-mid)", fontFamily: "inherit",
+                transition: "all 0.15s", flexShrink: 0,
+              }}
+              title="Preferences"
+            >
+              {userEmoji || (userName ? userName.charAt(0).toUpperCase() : "\u2699")}
+            </button>
+          ) : (
             <button
               onClick={() => setShowPreferences(true)}
               style={{
@@ -781,17 +1948,95 @@ export default function TripPage({
       {/* Main content */}
       {isMobile ? (
         <>
-          {/* Mobile: single view */}
+          {/* Mobile: map + draggable bottom sheet */}
           <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
-            {mobileTab === "list" ? (
-              <div ref={sidebarRef} style={{ height: "100%", overflowY: "auto", background: "var(--color-bg)" }}>
+            {/* Map fills the space */}
+            <div style={{ position: "absolute", inset: 0 }}>
+              {mapView}
+            </div>
+
+            {/* Draggable bottom sheet */}
+            <div
+              ref={sheetRef}
+              className="mobile-bottom-sheet"
+              style={{
+                top: `${sheetTop}%`,
+                transition: sheetDragStart.current ? "none" : "top 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
+              }}
+            >
+              {/* Handle — only this element initiates drag */}
+              <div
+                className="sheet-handle"
+                onTouchStart={(e) => {
+                  const touch = e.touches[0];
+                  sheetDragStart.current = { y: touch.clientY, sheetTop };
+                }}
+                onTouchMove={(e) => {
+                  if (!sheetDragStart.current) return;
+                  e.preventDefault();
+                  const touch = e.touches[0];
+                  const containerHeight = sheetRef.current?.parentElement?.clientHeight || window.innerHeight;
+                  const deltaPct = ((touch.clientY - sheetDragStart.current.y) / containerHeight) * 100;
+                  const newTop = Math.max(5, Math.min(85, sheetDragStart.current.sheetTop + deltaPct));
+                  setSheetTop(newTop);
+                }}
+                onTouchEnd={() => {
+                  if (!sheetDragStart.current) return;
+                  sheetDragStart.current = null;
+                  // Snap to nearest position: collapsed (85%), split (55%), expanded (10%)
+                  setSheetTop((prev) => {
+                    if (prev < 30) return 10;
+                    if (prev > 70) return 85;
+                    return 55;
+                  });
+                }}
+              >
+                <div className="sheet-handle-bar" />
+              </div>
+
+              {/* Scrollable content — pull down to collapse when at scroll top */}
+              <div
+                ref={(el) => {
+                  sheetContentRef.current = el;
+                  if (isMobile && el) {
+                    sidebarRef.current = el;
+                  }
+                }}
+                className="sheet-content"
+                onTouchStart={(e) => {
+                  const contentEl = sheetContentRef.current;
+                  // Only allow pull-down-to-collapse when scrolled to top
+                  if (contentEl && contentEl.scrollTop <= 0) {
+                    sheetDragStart.current = { y: e.touches[0].clientY, sheetTop };
+                  }
+                }}
+                onTouchMove={(e) => {
+                  if (!sheetDragStart.current) return;
+                  const deltaY = e.touches[0].clientY - sheetDragStart.current.y;
+                  // Only drag down (collapse), not up — let scroll handle up
+                  if (deltaY <= 0) {
+                    sheetDragStart.current = null;
+                    return;
+                  }
+                  e.preventDefault();
+                  const containerHeight = sheetRef.current?.parentElement?.clientHeight || window.innerHeight;
+                  const deltaPct = (deltaY / containerHeight) * 100;
+                  const newTop = Math.max(5, Math.min(85, sheetDragStart.current.sheetTop + deltaPct));
+                  setSheetTop(newTop);
+                }}
+                onTouchEnd={() => {
+                  if (!sheetDragStart.current) return;
+                  sheetDragStart.current = null;
+                  setSheetTop((prev) => {
+                    if (prev < 30) return 10;
+                    if (prev > 70) return 85;
+                    return 55;
+                  });
+                }}
+              >
                 {sidebarContent}
               </div>
-            ) : (
-              <div style={{ height: "100%", position: "relative" }}>
-                {mapView}
-              </div>
-            )}
+            </div>
           </div>
 
           {/* Mobile FAB for adding listings */}
@@ -802,22 +2047,6 @@ export default function TripPage({
           >
             +
           </button>
-
-          {/* Mobile tab bar */}
-          <div className="mobile-tab-bar">
-            <button
-              className={mobileTab === "list" ? "active" : ""}
-              onClick={() => setMobileTab("list")}
-            >
-              List ({filtered.length})
-            </button>
-            <button
-              className={mobileTab === "map" ? "active" : ""}
-              onClick={() => setMobileTab("map")}
-            >
-              Map
-            </button>
-          </div>
 
           {/* Mobile detail sheet */}
           {detailPanel}
@@ -863,81 +2092,94 @@ export default function TripPage({
         />
       )}
 
-      {/* Name prompt */}
+      {/* Name prompt — warm, casual, not a sign-up form */}
       {showNamePrompt && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center"
           style={{
-            background: "rgba(0,0,0,0.6)",
-            backdropFilter: "blur(4px)",
+            background: "rgba(42,37,32,0.5)",
+            backdropFilter: "blur(6px)",
           }}
         >
           <div
             className="animate-slide-up"
             style={{
-              background: "#fff",
-              borderRadius: 14,
-              padding: isMobile ? 20 : 28,
-              maxWidth: 360,
+              background: "linear-gradient(160deg, #FFF9F5 0%, #FFFFFF 100%)",
+              borderRadius: 20,
+              padding: isMobile ? 24 : 32,
+              maxWidth: 380,
               width: "100%",
               margin: 16,
-              boxShadow: "0 20px 60px rgba(0,0,0,0.15)",
+              boxShadow: "0 24px 60px rgba(0,0,0,0.12)",
+              textAlign: "center",
             }}
           >
+            <div style={{ fontSize: 32, marginBottom: 12 }}>&#128075;</div>
             <h2
               style={{
-                fontSize: 18,
+                fontSize: 24,
                 fontWeight: 600,
                 color: "var(--color-text)",
-                marginBottom: 4,
+                marginBottom: 6,
                 fontFamily: "var(--font-heading)",
+                fontStyle: "italic",
               }}
             >
-              What&apos;s your name?
+              Before we dive in&mdash;
             </h2>
             <p
               style={{
-                fontSize: 13,
+                fontSize: 16,
                 color: "var(--color-text-mid)",
-                marginBottom: 16,
+                marginBottom: 20,
               }}
             >
-              Used for votes and comments — no account needed.
+              What should we call you?
             </p>
             <form onSubmit={submitName}>
               <input
                 type="text"
                 autoFocus
-                placeholder="Your first name"
+                placeholder="First name is perfect"
                 value={nameInput}
                 onChange={(e) => setNameInput(e.target.value)}
                 style={{
                   width: "100%",
-                  padding: "12px 16px",
-                  fontSize: 16,
+                  padding: "14px 18px",
+                  fontSize: 17,
                   background: "var(--color-bg)",
-                  border: "1px solid var(--color-border-dark)",
-                  borderRadius: 8,
+                  border: "1.5px solid var(--color-border-dark)",
+                  borderRadius: 12,
                   color: "var(--color-text)",
                   fontFamily: "inherit",
+                  textAlign: "center",
                 }}
               />
+              <p style={{
+                fontSize: 12,
+                color: "var(--color-text-muted)",
+                marginTop: 8,
+                marginBottom: 16,
+              }}>
+                This is how your group will see your votes and comments.
+              </p>
               <button
                 type="submit"
                 disabled={!nameInput.trim()}
                 style={{
-                  marginTop: 12,
                   width: "100%",
-                  padding: "12px 16px",
+                  padding: "14px 16px",
                   fontSize: 16,
                   fontWeight: 600,
                   background: "var(--color-coral)",
                   color: "#fff",
-                  borderRadius: 8,
+                  borderRadius: 12,
                   border: "none",
                   cursor: "pointer",
                   fontFamily: "inherit",
                   opacity: nameInput.trim() ? 1 : 0.5,
+                  transition: "all 0.15s",
+                  boxShadow: nameInput.trim() ? "0 4px 14px rgba(224,90,71,0.25)" : "none",
                 }}
               >
                 Let&apos;s go

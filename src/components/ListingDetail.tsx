@@ -74,6 +74,13 @@ interface BudgetRange {
   p80: number;
 }
 
+interface TravelerInfo {
+  id: string;
+  name: string;
+  color: string;
+  isCreator: boolean;
+}
+
 interface ListingDetailProps {
   listing: Listing;
   adults: number;
@@ -85,9 +92,11 @@ interface ListingDetailProps {
   onReact: (reactionType: ReactionType) => void;
   onRemoveReaction: () => void;
   onRescrape?: () => void;
+  onNightsChange?: (nights: number) => void;
   budgetRange?: BudgetRange | null;
   hasPreferences?: boolean;
   isMobile?: boolean;
+  travelers?: TravelerInfo[];
 }
 
 function formatPrice(amount: number | null, currency: string = "USD"): string {
@@ -124,7 +133,11 @@ const USER_COLORS = [
   "#0891B2", "#DB2777", "#EA580C", "#6D28D9", "#059669",
 ];
 
-function getUserColor(name: string): string {
+function getUserColor(name: string, travelers?: TravelerInfo[]): string {
+  if (travelers) {
+    const t = travelers.find((t) => t.name.toLowerCase() === name.toLowerCase());
+    if (t) return t.color;
+  }
   let hash = 0;
   for (let i = 0; i < name.length; i++) {
     hash = name.charCodeAt(i) + ((hash << 5) - hash);
@@ -282,9 +295,11 @@ export function ListingDetail({
   onReact,
   onRemoveReaction,
   onRescrape,
+  onNightsChange,
   budgetRange,
   hasPreferences,
   isMobile,
+  travelers,
 }: ListingDetailProps) {
   const [photoFilter, setPhotoFilter] = useState("all");
   const [commentText, setCommentText] = useState("");
@@ -307,6 +322,8 @@ export function ListingDetail({
   const [saving, setSaving] = useState(false);
   const [showAllAmenities, setShowAllAmenities] = useState(false);
   const [showDescription, setShowDescription] = useState(false);
+  const [showOverflow, setShowOverflow] = useState(false);
+  const [previewNights, setPreviewNights] = useState(nights);
   const panelRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number>(0);
 
@@ -374,8 +391,6 @@ export function ListingDetail({
   const nightlyTotal = listing.perNight ? listing.perNight * 7 : 0;
   const fees = (listing.cleaningFee || 0) + (listing.serviceFee || 0);
   const hiddenCostWarning = nightlyTotal > 0 && fees > nightlyTotal * 0.15;
-
-  const listingPrice = listing.perNight || listing.totalCost;
 
   async function submitComment(e: React.FormEvent) {
     e.preventDefault();
@@ -484,25 +499,89 @@ export function ListingDetail({
           >
             &larr; Back to list
           </button>
-          <a
-            href={listing.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              fontSize: 12,
-              fontWeight: 600,
-              color: "var(--color-coral)",
-              textDecoration: "none",
-              padding: isMobile ? "8px 14px" : "4px 10px",
-              border: "1px solid var(--color-coral-border)",
-              borderRadius: 6,
-              minHeight: isMobile ? 44 : undefined,
-              display: "flex",
-              alignItems: "center",
-            }}
-          >
-            View on {sourceLabel(listing.source)} &#8599;
-          </a>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <a
+              href={listing.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                fontSize: 12,
+                fontWeight: 600,
+                color: "var(--color-coral)",
+                textDecoration: "none",
+                padding: isMobile ? "8px 14px" : "4px 10px",
+                border: "1px solid var(--color-coral-border)",
+                borderRadius: 6,
+                minHeight: isMobile ? 44 : undefined,
+                display: "flex",
+                alignItems: "center",
+              }}
+            >
+              View on {sourceLabel(listing.source)} &#8599;
+            </a>
+            {/* Overflow menu */}
+            <div style={{ position: "relative" }}>
+              <button
+                onClick={() => setShowOverflow(!showOverflow)}
+                style={{
+                  width: isMobile ? 44 : 32, height: isMobile ? 44 : 32,
+                  borderRadius: 6, border: "1px solid var(--color-border-dark)",
+                  background: showOverflow ? "var(--color-panel)" : "transparent",
+                  cursor: "pointer", fontSize: 16, color: "var(--color-text-mid)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontFamily: "inherit", transition: "all 0.15s",
+                  letterSpacing: 2,
+                }}
+                aria-label="More options"
+              >
+                &middot;&middot;&middot;
+              </button>
+              {showOverflow && (
+                <>
+                  <div
+                    style={{ position: "fixed", inset: 0, zIndex: 49 }}
+                    onClick={() => setShowOverflow(false)}
+                  />
+                  <div style={{
+                    position: "absolute", top: "100%", right: 0, marginTop: 4,
+                    background: "var(--color-card)", border: "1px solid var(--color-border-dark)",
+                    borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.1)",
+                    minWidth: 160, zIndex: 50, overflow: "hidden",
+                  }}>
+                    <button
+                      onClick={() => { setEditing(true); setShowOverflow(false); }}
+                      style={{
+                        width: "100%", padding: "10px 14px", fontSize: 13,
+                        background: "none", border: "none", cursor: "pointer",
+                        fontFamily: "inherit", color: "var(--color-text)",
+                        textAlign: "left" as const, display: "block",
+                        transition: "background 0.1s",
+                      }}
+                      onMouseOver={(e) => (e.currentTarget.style.background = "var(--color-bg)")}
+                      onMouseOut={(e) => (e.currentTarget.style.background = "none")}
+                    >
+                      Edit listing
+                    </button>
+                    <button
+                      onClick={() => { setShowOverflow(false); deleteListing(); }}
+                      style={{
+                        width: "100%", padding: "10px 14px", fontSize: 13,
+                        background: "none", border: "none", cursor: "pointer",
+                        fontFamily: "inherit", color: "var(--color-red)",
+                        textAlign: "left" as const, display: "block",
+                        borderTop: "1px solid var(--color-border)",
+                        transition: "background 0.1s",
+                      }}
+                      onMouseOver={(e) => (e.currentTarget.style.background = "rgba(185,28,28,0.04)")}
+                      onMouseOut={(e) => (e.currentTarget.style.background = "none")}
+                    >
+                      Remove listing
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Scrollable content */}
@@ -553,61 +632,51 @@ export function ListingDetail({
 
           {/* Header info */}
           <div style={{ padding: "20px 20px 16px" }}>
-            <div style={{ display: "flex", alignItems: "start", gap: 10 }}>
-              <span
-                className={`shrink-0 mt-1 px-2.5 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wide font-mono ${sourceColor(
-                  listing.source
-                )}`}
-              >
-                {sourceLabel(listing.source)}
-              </span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                {editing ? (
-                  <input
-                    type="text"
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    style={{
-                      width: "100%",
-                      fontSize: 18,
-                      fontWeight: 700,
-                      background: "var(--color-bg)",
-                      border: "1px solid var(--color-border-dark)",
-                      borderRadius: 8,
-                      padding: "6px 12px",
-                      color: "var(--color-text)",
-                      fontFamily: "inherit",
-                    }}
-                    placeholder="Listing name"
-                  />
-                ) : (
-                  <h2 className="font-heading" style={{
+            <div>
+              {editing ? (
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  style={{
+                    width: "100%",
                     fontSize: 18,
-                    fontWeight: 600,
-                    color: isGenericName ? "var(--color-text-mid)" : "var(--color-text)",
-                    lineHeight: 1.3,
-                    margin: 0,
-                  }}>
-                    {listing.name || "Untitled Listing"}
-                  </h2>
-                )}
-                <p style={{ fontSize: 13, color: "var(--color-text-mid)", marginTop: 4, margin: 0 }}>
-                  {listing.neighborhood || listing.address || getDomain(listing.url)}
-                </p>
-              </div>
-              {listing.rating != null && listing.rating > 0 && (
-                <div style={{ textAlign: "right", flexShrink: 0 }}>
-                  <div className="font-mono" style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)" }}>
+                    fontWeight: 700,
+                    background: "var(--color-bg)",
+                    border: "1px solid var(--color-border-dark)",
+                    borderRadius: 8,
+                    padding: "6px 12px",
+                    color: "var(--color-text)",
+                    fontFamily: "inherit",
+                  }}
+                  placeholder="Listing name"
+                />
+              ) : (
+                <h2 className="font-heading" style={{
+                  fontSize: 18,
+                  fontWeight: 600,
+                  color: isGenericName ? "var(--color-text-mid)" : "var(--color-text)",
+                  lineHeight: 1.3,
+                  margin: 0,
+                }}>
+                  {listing.name || "Untitled Listing"}
+                </h2>
+              )}
+              <p style={{ fontSize: 13, color: "var(--color-text-mid)", marginTop: 4, margin: 0 }}>
+                {listing.neighborhood || listing.address || getDomain(listing.url)}
+                {listing.rating != null && listing.rating > 0 && (
+                  <span className="font-mono" style={{ fontSize: 12 }}>
+                    {" \u00B7 "}
                     <span style={{ color: "#D4A017" }}>&#9733;</span>{" "}
                     {listing.rating}
-                  </div>
-                  {listing.reviewCount != null && listing.reviewCount > 0 && (
-                    <div className="font-mono" style={{ fontSize: 11, color: "var(--color-text-mid)" }}>
-                      {listing.reviewCount.toLocaleString()} reviews
-                    </div>
-                  )}
-                </div>
-              )}
+                    {listing.reviewCount != null && listing.reviewCount > 0 && (
+                      <span style={{ color: "var(--color-text-muted)" }}>
+                        {" "}({listing.reviewCount.toLocaleString()})
+                      </span>
+                    )}
+                  </span>
+                )}
+              </p>
             </div>
 
             {/* Scrape status */}
@@ -729,33 +798,106 @@ export function ListingDetail({
                     </span>
                   </div>
 
-                  {/* Contextual breakdown: N nights + per person */}
+                  {/* Contextual breakdown: nights stepper + per person */}
                   {(() => {
+                    const n = previewNights;
+                    const isPreview = n !== nights;
                     const totalForStay = listing.perNight
-                      ? listing.perNight * nights
+                      ? listing.perNight * n
                       : listing.totalCost!;
                     const perPersonSplit = adults > 0 ? Math.round(totalForStay / adults) : null;
                     return (
                       <div style={{
-                        display: "flex", gap: 16, marginTop: 10, paddingTop: 10,
+                        marginTop: 10, paddingTop: 10,
                         borderTop: "1px solid var(--color-border-dark)",
                       }}>
-                        <div>
-                          <div className="font-mono" style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.04em", color: "var(--color-text-light)" }}>
-                            {nights} nights
-                          </div>
-                          <div className="font-mono" style={{ fontSize: 17, fontWeight: 700, marginTop: 2 }}>
-                            {formatPrice(totalForStay, listing.currency)}
-                          </div>
-                        </div>
-                        {perPersonSplit && adults > 1 && (
+                        <div style={{ display: "flex", gap: 16 }}>
                           <div>
-                            <div className="font-mono" style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.04em", color: "var(--color-text-light)" }}>
-                              Per person
+                            {/* Nights stepper */}
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
+                              <button
+                                onClick={() => setPreviewNights(Math.max(1, n - 1))}
+                                disabled={n <= 1}
+                                aria-label="Fewer nights"
+                                style={{
+                                  width: 36, height: 36, borderRadius: "50%",
+                                  border: "1.5px solid var(--color-coral)",
+                                  background: "transparent", color: "var(--color-coral)",
+                                  fontSize: 18, lineHeight: 1, fontWeight: 700,
+                                  cursor: n > 1 ? "pointer" : "default",
+                                  opacity: n > 1 ? 1 : 0.3,
+                                  display: "flex", alignItems: "center", justifyContent: "center",
+                                  padding: 0, fontFamily: "var(--font-mono)",
+                                }}
+                              >
+                                &minus;
+                              </button>
+                              <span className="font-mono" style={{ fontSize: 16, fontWeight: 700, color: "var(--color-text)", minWidth: 20, textAlign: "center" as const }}>
+                                {n}
+                              </span>
+                              <button
+                                onClick={() => setPreviewNights(n + 1)}
+                                aria-label="More nights"
+                                style={{
+                                  width: 36, height: 36, borderRadius: "50%",
+                                  border: "1.5px solid var(--color-coral)",
+                                  background: "transparent", color: "var(--color-coral)",
+                                  fontSize: 18, lineHeight: 1, fontWeight: 700,
+                                  cursor: "pointer",
+                                  display: "flex", alignItems: "center", justifyContent: "center",
+                                  padding: 0, fontFamily: "var(--font-mono)",
+                                }}
+                              >
+                                +
+                              </button>
+                              <span className="font-mono" style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.04em", color: "var(--color-text-light)" }}>
+                                nights
+                              </span>
                             </div>
                             <div className="font-mono" style={{ fontSize: 17, fontWeight: 700, marginTop: 2 }}>
-                              {formatPrice(perPersonSplit, listing.currency)}
+                              {formatPrice(totalForStay, listing.currency)}
                             </div>
+                          </div>
+                          {perPersonSplit && adults > 1 && (
+                            <div>
+                              <div className="font-mono" style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.04em", color: "var(--color-text-light)" }}>
+                                Per person
+                              </div>
+                              <div className="font-mono" style={{ fontSize: 17, fontWeight: 700, marginTop: 2 }}>
+                                {formatPrice(perPersonSplit, listing.currency)}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        {/* Preview indicator + save link */}
+                        {isPreview && (
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+                            <span className="font-mono" style={{ fontSize: 10, color: "var(--color-text-muted)", fontStyle: "italic" }}>
+                              (preview)
+                            </span>
+                            {onNightsChange && (
+                              <button
+                                onClick={() => { onNightsChange(n); }}
+                                style={{
+                                  fontSize: 11, fontWeight: 600, color: "var(--color-coral)",
+                                  background: "none", border: "none", cursor: "pointer",
+                                  fontFamily: "inherit", padding: 0, textDecoration: "underline",
+                                  textUnderlineOffset: 2,
+                                }}
+                              >
+                                Save to trip
+                              </button>
+                            )}
+                            <button
+                              onClick={() => setPreviewNights(nights)}
+                              style={{
+                                fontSize: 11, color: "var(--color-text-muted)",
+                                background: "none", border: "none", cursor: "pointer",
+                                fontFamily: "inherit", padding: 0,
+                              }}
+                            >
+                              Reset
+                            </button>
                           </div>
                         )}
                       </div>
@@ -812,57 +954,52 @@ export function ListingDetail({
               )}
             </div>
 
-            {/* Edit controls */}
-            <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 6 }}>
-              {editing ? (
-                <>
-                  <button
-                    onClick={saveEdits}
-                    disabled={saving}
-                    style={{ padding: "5px 12px", fontSize: 12, fontWeight: 600, background: "var(--color-coral)", color: "#fff", borderRadius: 6, border: "none", cursor: "pointer", fontFamily: "inherit", opacity: saving ? 0.5 : 1 }}
-                  >
-                    {saving ? "Saving..." : "Save"}
-                  </button>
-                  <button
-                    onClick={() => setEditing(false)}
-                    style={{ padding: "5px 12px", fontSize: 12, color: "var(--color-text-mid)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}
-                  >
-                    Cancel
-                  </button>
-                </>
-              ) : (
+            {/* Save/Cancel when editing */}
+            {editing && (
+              <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 6 }}>
                 <button
-                  onClick={() => setEditing(true)}
-                  style={{ padding: "5px 12px", fontSize: 12, fontWeight: 500, background: "var(--color-panel)", border: "1px solid var(--color-border-dark)", color: "var(--color-text-mid)", borderRadius: 6, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}
+                  onClick={saveEdits}
+                  disabled={saving}
+                  style={{ padding: "5px 12px", fontSize: 12, fontWeight: 600, background: "var(--color-coral)", color: "#fff", borderRadius: 6, border: "none", cursor: "pointer", fontFamily: "inherit", opacity: saving ? 0.5 : 1 }}
                 >
-                  Edit
+                  {saving ? "Saving..." : "Save"}
                 </button>
-              )}
-            </div>
+                <button
+                  onClick={() => setEditing(false)}
+                  style={{ padding: "5px 12px", fontSize: 12, color: "var(--color-text-mid)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
 
-            {/* Reactions */}
-            <div style={{ marginTop: 12 }}>
-              <ReactionBar
-                votes={listing.votes}
-                userName={userName}
-                mode="full"
-                onReact={onReact}
-                onRemoveReaction={onRemoveReaction}
-                onNeedName={onNeedName}
-              />
+          {/* Reactions */}
+          <div style={{ padding: "0 20px 16px" }}>
+            <ReactionBar
+              votes={listing.votes}
+              userName={userName}
+              mode="full"
+              onReact={onReact}
+              onRemoveReaction={onRemoveReaction}
+              onNeedName={onNeedName}
+            />
             </div>
           </div>
 
-          {/* Discussion — group chat style */}
+          {/* Comments */}
           <div style={{ padding: "0 20px 16px" }}>
-            <h3 className="font-mono" style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", marginBottom: 10 }}>
-              Discussion ({listing.comments.length})
-            </h3>
-
+            {listing.comments.length > 0 && (
+              <>
+              <h3 className="font-mono" style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", marginBottom: 10 }}>
+                Comments
+              </h3>
+            </>
+            )}
             {listing.comments.length > 0 && (
               <div style={{ display: "flex", flexDirection: "column", gap: 2, marginBottom: 10 }}>
                 {listing.comments.map((comment) => {
-                  const color = getUserColor(comment.userName);
+                  const color = getUserColor(comment.userName, travelers);
                   const initial = comment.userName.charAt(0).toUpperCase();
                   const timeAgo = formatTimeAgo(comment.createdAt);
                   return (
@@ -921,10 +1058,10 @@ export function ListingDetail({
                 disabled={submitting || !commentText.trim()}
                 aria-label="Send"
                 style={{
-                  width: 32, height: 32, borderRadius: "50%", border: "none", cursor: "pointer",
+                  width: 40, height: 40, borderRadius: "50%", border: "none", cursor: "pointer",
                   display: "flex", alignItems: "center", justifyContent: "center",
                   background: commentText.trim() ? "var(--color-coral)" : "var(--color-border-dark)",
-                  color: "#fff", fontSize: 14, fontWeight: 700,
+                  color: "#fff", fontSize: 16, fontWeight: 700,
                   transition: "background 0.15s",
                   flexShrink: 0,
                   opacity: submitting ? 0.5 : 1,
@@ -1069,12 +1206,11 @@ export function ListingDetail({
             </div>
           )}
 
-          {/* Property details */}
-          {hasAnyDetail && !editing ? (
+          {/* Key details (Big 4 + kid-friendly) */}
+          {!editing && (listing.bedrooms != null || listing.bathrooms != null || listing.kitchen || listing.beachDistance || listing.kidFriendly) ? (
             <div style={{ padding: "0 20px 16px" }}>
-              {/* The Big 4 */}
               {(listing.bedrooms != null || listing.bathrooms != null || listing.kitchen || listing.beachDistance) && (
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: listing.kidFriendly ? 16 : 0 }}>
                   {listing.bedrooms != null && (
                     <div style={{ padding: 12, background: "var(--color-bg)", borderRadius: 8, border: "1px solid var(--color-border-dark)" }}>
                       <div className="font-mono" style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", marginBottom: 4 }}>Bedrooms</div>
@@ -1111,85 +1247,16 @@ export function ListingDetail({
                   )}
                 </div>
               )}
-
               {listing.kidFriendly && (
-                <div style={{ padding: 12, background: "rgba(74,158,107,0.05)", border: "1px solid rgba(74,158,107,0.15)", borderRadius: 8, marginBottom: 16 }}>
+                <div style={{ padding: 12, background: "rgba(74,158,107,0.05)", border: "1px solid rgba(74,158,107,0.15)", borderRadius: 8 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-green)", marginBottom: 2 }}>Kid-Friendly</div>
                   <p style={{ fontSize: 13, color: "var(--color-text-mid)", margin: 0 }}>
                     {listing.kidNotes || "This property is marked as kid-friendly"}
                   </p>
                 </div>
               )}
-
-              {/* Amenities */}
-              {amenities.length > 0 && (
-                <div style={{ marginBottom: 16 }}>
-                  <h3 className="font-mono" style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", marginBottom: 8 }}>
-                    Amenities
-                  </h3>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                    {(isMobile && !showAllAmenities ? amenities.slice(0, 4) : amenities).map((a: string, i: number) => (
-                      <span key={i} style={{ padding: "4px 10px", background: "var(--color-panel)", color: "var(--color-text-mid)", fontSize: 12, borderRadius: 6 }}>
-                        {a}
-                      </span>
-                    ))}
-                    {isMobile && amenities.length > 4 && !showAllAmenities && (
-                      <button
-                        onClick={() => setShowAllAmenities(true)}
-                        className="font-mono"
-                        style={{
-                          padding: "4px 10px", borderRadius: 6,
-                          background: "transparent", border: "1.5px solid var(--color-border-dark)",
-                          fontSize: 12, color: "var(--color-text-mid)", cursor: "pointer",
-                          fontFamily: "inherit",
-                        }}
-                      >
-                        +{amenities.length - 4}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Description */}
-              {listing.description && (
-                isMobile ? (
-                  <div style={{ marginBottom: 16 }}>
-                    <button
-                      onClick={() => setShowDescription(!showDescription)}
-                      style={{
-                        width: "100%", padding: "12px 14px", borderRadius: 10,
-                        border: "1.5px solid var(--color-border-dark)", background: "transparent",
-                        fontSize: 13, fontWeight: 500, cursor: "pointer",
-                        fontFamily: "inherit", color: "var(--color-text-mid)",
-                        textAlign: "left" as const, display: "flex", justifyContent: "space-between",
-                      }}
-                    >
-                      <span>Full description</span>
-                      <span style={{ color: "var(--color-text-light)" }}>{showDescription ? "\u25B2" : "\u25BC"}</span>
-                    </button>
-                    {showDescription && (
-                      <p style={{
-                        fontSize: 13, color: "var(--color-text-mid)", margin: "10px 0 0",
-                        lineHeight: 1.6, padding: "0 4px",
-                      }}>
-                        {listing.description}
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  <div>
-                    <h3 className="font-mono" style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", marginBottom: 8 }}>
-                      Description
-                    </h3>
-                    <p style={{ fontSize: 13, color: "var(--color-text-mid)", lineHeight: 1.6, margin: 0 }}>
-                      {listing.description}
-                    </p>
-                  </div>
-                )
-              )}
             </div>
-          ) : !editing ? (
+          ) : !editing && !hasAnyDetail ? (
             <div style={{ padding: "0 20px 16px" }}>
               <div style={{ textAlign: "center", padding: 24, background: "var(--color-bg)", borderRadius: 12, border: "1px solid var(--color-border-dark)" }}>
                 <div style={{ fontSize: 28, marginBottom: 8, opacity: 0.3 }}>
@@ -1207,125 +1274,88 @@ export function ListingDetail({
             </div>
           ) : null}
 
-          {/* Desktop: Comments in original position */}
-          {!isMobile && (
-            <div style={{ borderTop: "1px solid var(--color-border-dark)", padding: 20 }}>
-              <h3 className="font-mono" style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", marginBottom: 12 }}>
-                Comments ({listing.comments.length})
+          {/* Amenities — collapsible, first 4 visible */}
+          {!editing && amenities.length > 0 && (
+            <div style={{ padding: "0 20px 16px" }}>
+              <h3 className="font-mono" style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", marginBottom: 8 }}>
+                Amenities
               </h3>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                {(showAllAmenities ? amenities : amenities.slice(0, 4)).map((a: string, i: number) => (
+                  <span key={i} style={{ padding: "4px 10px", background: "var(--color-panel)", color: "var(--color-text-mid)", fontSize: 12, borderRadius: 6 }}>
+                    {a}
+                  </span>
+                ))}
+                {amenities.length > 4 && !showAllAmenities && (
+                  <button
+                    onClick={() => setShowAllAmenities(true)}
+                    style={{
+                      padding: "4px 10px", background: "var(--color-panel)", color: "var(--color-coral)",
+                      fontSize: 12, fontWeight: 600, borderRadius: 6, border: "none", cursor: "pointer",
+                      fontFamily: "inherit", transition: "all 0.15s",
+                    }}
+                  >
+                    +{amenities.length - 4} more
+                  </button>
+                )}
+                {showAllAmenities && amenities.length > 4 && (
+                  <button
+                    onClick={() => setShowAllAmenities(false)}
+                    style={{
+                      padding: "4px 10px", background: "transparent", color: "var(--color-text-muted)",
+                      fontSize: 11, borderRadius: 6, border: "none", cursor: "pointer",
+                      fontFamily: "inherit",
+                    }}
+                  >
+                    Show less
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
-              {listing.comments.length > 0 && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
-                  {listing.comments.map((comment) => (
-                    <div
-                      key={comment.id}
-                      className="group"
-                      style={{ padding: 10, background: "var(--color-bg)", borderRadius: 8 }}
-                    >
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
-                        <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-                          <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>{comment.userName}</span>
-                          <span style={{ fontSize: 10, color: "var(--color-text-muted)" }}>
-                            {new Date(comment.createdAt).toLocaleDateString()}
-                          </span>
-                        </div>
-                        {comment.userName === userName && (
-                          <button
-                            onClick={() => deleteComment(comment.id)}
-                            className="opacity-0 group-hover:opacity-100"
-                            style={{ fontSize: 10, color: "var(--color-text-muted)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}
-                            title="Delete comment"
-                          >
-                            delete
-                          </button>
-                        )}
-                      </div>
-                      <p style={{ fontSize: 13, color: "var(--color-text-mid)", marginTop: 4, margin: 0 }}>{comment.text}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <form onSubmit={submitComment} style={{ display: "flex", gap: 8 }}>
-                <input
-                  type="text"
-                  placeholder="Add a comment..."
-                  value={commentText}
-                  onChange={(e) => setCommentText(e.target.value)}
-                  style={{
-                    flex: 1, padding: "8px 12px", fontSize: 13,
-                    background: "var(--color-bg)", border: "1px solid var(--color-border-dark)",
-                    borderRadius: 8, color: "var(--color-text)", fontFamily: "inherit",
-                  }}
-                />
+          {/* Description — collapsed by default */}
+          {!editing && listing.description && (
+            <div style={{ padding: "0 20px 16px" }}>
+              {!showDescription ? (
                 <button
-                  type="submit"
-                  disabled={submitting || !commentText.trim()}
+                  onClick={() => setShowDescription(true)}
                   style={{
-                    padding: "8px 14px", fontSize: 13, fontWeight: 600,
-                    background: "var(--color-coral)", color: "#fff", borderRadius: 8,
-                    border: "none", cursor: "pointer", fontFamily: "inherit",
-                    opacity: submitting || !commentText.trim() ? 0.5 : 1,
+                    width: "100%", padding: "10px 14px", fontSize: 13, fontWeight: 500,
+                    background: "var(--color-panel)", border: "1px solid var(--color-border-dark)",
+                    borderRadius: 8, cursor: "pointer", fontFamily: "inherit",
+                    color: "var(--color-text-mid)", textAlign: "left" as const,
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    transition: "all 0.15s",
                   }}
                 >
-                  Post
+                  <span>Full description</span>
+                  <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>&#9660;</span>
                 </button>
-              </form>
+              ) : (
+                <div>
+                  <button
+                    onClick={() => setShowDescription(false)}
+                    className="font-mono"
+                    style={{
+                      fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const,
+                      letterSpacing: 1, color: "var(--color-text-mid)", marginBottom: 8,
+                      background: "none", border: "none", cursor: "pointer", fontFamily: "inherit",
+                      padding: 0, display: "flex", alignItems: "center", gap: 6,
+                    }}
+                  >
+                    Description <span style={{ fontSize: 9 }}>&#9650;</span>
+                  </button>
+                  <p style={{ fontSize: 13, color: "var(--color-text-mid)", lineHeight: 1.6, margin: 0 }}>
+                    {listing.description}
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Mobile: full-width source link near bottom */}
-          {isMobile && (
-            <div style={{ padding: "0 20px 12px" }}>
-              <a
-                href={listing.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  width: "100%", padding: "14px", borderRadius: 10,
-                  border: "1px solid var(--color-coral-border)",
-                  fontSize: 14, fontWeight: 600,
-                  color: "var(--color-coral)", textDecoration: "none",
-                  minHeight: 48,
-                }}
-              >
-                View on {sourceLabel(listing.source)} &#8599;
-              </a>
-            </div>
-          )}
-
-          {/* Footer */}
-          <div style={{
-            borderTop: isMobile ? undefined : "1px solid var(--color-border-dark)",
-            padding: isMobile ? "0 20px 24px" : "12px 20px",
-            display: "flex",
-            justifyContent: isMobile ? "center" : "flex-end",
-          }}>
-            <button
-              onClick={deleteListing}
-              style={{
-                padding: isMobile ? "12px" : "6px 14px",
-                fontSize: 13,
-                color: "var(--color-red)",
-                background: isMobile ? "rgba(185,28,28,0.06)" : "none",
-                border: "none",
-                cursor: "pointer",
-                fontFamily: "inherit",
-                borderRadius: isMobile ? 10 : 6,
-                transition: "all 0.15s",
-                width: isMobile ? "100%" : undefined,
-                fontWeight: isMobile ? 500 : undefined,
-              }}
-              onMouseOver={(e) => (e.currentTarget.style.background = "rgba(185,28,28,0.06)")}
-              onMouseOut={(e) => { if (!isMobile) e.currentTarget.style.background = "none"; }}
-            >
-              Remove listing
-            </button>
-          </div>
-
-          {/* Mobile: extra bottom padding for safe area */}
-          {isMobile && <div style={{ height: 20 }} />}
+          {/* Bottom spacer */}
+          <div style={{ height: 20 }} />
         </div>
       </div>
 

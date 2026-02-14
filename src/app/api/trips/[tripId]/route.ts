@@ -14,7 +14,12 @@ export async function GET(
         centerLat: true, centerLng: true,
         adults: true, kids: true,
         nights: true, checkIn: true, checkOut: true,
+        coverPhotoUrl: true, coverPhotoAttribution: true,
         createdAt: true,
+        travelers: {
+          select: { id: true, name: true, color: true, isCreator: true, createdAt: true },
+          orderBy: { createdAt: "asc" },
+        },
         listings: {
           select: {
             id: true, tripId: true, url: true, source: true, externalId: true,
@@ -72,6 +77,8 @@ export async function PATCH(
     if (body.checkIn !== undefined) data.checkIn = body.checkIn ? new Date(body.checkIn) : null;
     if (body.checkOut !== undefined) data.checkOut = body.checkOut ? new Date(body.checkOut) : null;
     if (body.preferences !== undefined) data.preferences = body.preferences;
+    if (body.coverPhotoUrl !== undefined) data.coverPhotoUrl = body.coverPhotoUrl || null;
+    if (body.coverPhotoAttribution !== undefined) data.coverPhotoAttribution = body.coverPhotoAttribution || null;
 
     const trip = await prisma.trip.update({
       where: { id: tripId },

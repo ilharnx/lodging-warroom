@@ -1,7 +1,6 @@
 "use client";
 
-import type { BudgetRange } from "@/lib/budget";
-import { ReactionBar } from "./ReactionBar";
+import { useState, useRef, useCallback } from "react";
 import type { ReactionType } from "./ReactionBar";
 
 interface Photo {
@@ -55,22 +54,41 @@ interface Listing {
   amenities: unknown;
 }
 
+interface TravelerInfo {
+  id: string;
+  name: string;
+  color: string;
+  isCreator: boolean;
+}
+
 interface ListingCardProps {
   listing: Listing;
   adults: number;
   nights: number;
   isSelected: boolean;
   isHovered: boolean;
-  userName: string;
   index: number;
   onSelect: () => void;
-  onViewDetail: () => void;
-  onReact: (reactionType: ReactionType) => void;
-  onRemoveReaction: () => void;
-  onRescrape?: () => void;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
-  budgetRange: BudgetRange | null;
+  travelers?: TravelerInfo[];
+}
+
+const USER_COLORS = [
+  "#E05A47", "#3D67FF", "#4A9E6B", "#D4A843", "#8B5CF6",
+  "#0891B2", "#DB2777", "#EA580C", "#6D28D9", "#059669",
+];
+
+function getUserColor(name: string, travelers?: TravelerInfo[]): string {
+  if (travelers) {
+    const t = travelers.find((t) => t.name.toLowerCase() === name.toLowerCase());
+    if (t) return t.color;
+  }
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return USER_COLORS[Math.abs(hash) % USER_COLORS.length];
 }
 
 function formatPrice(amount: number | null, currency: string = "USD"): string {
@@ -82,48 +100,126 @@ function formatPrice(amount: number | null, currency: string = "USD"): string {
   }).format(amount);
 }
 
-const USER_COLORS = [
-  "#E05A47", "#3D67FF", "#4A9E6B", "#D4A843", "#8B5CF6",
-  "#0891B2", "#DB2777", "#EA580C", "#6D28D9", "#059669",
-];
+const SOURCE_LABELS: Record<string, string> = {
+  airbnb: "Airbnb",
+  vrbo: "VRBO",
+  booking: "Booking",
+  other: "Other",
+};
 
-function getUserColor(name: string): string {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return USER_COLORS[Math.abs(hash) % USER_COLORS.length];
-}
+function PhotoCarousel({ photos, name }: { photos: Photo[]; name: string }) {
+  const [current, setCurrent] = useState(0);
+  const touchStart = useRef<number | null>(null);
+  const touchDelta = useRef(0);
 
-function Badge({ source }: { source: string }) {
-  const colors: Record<string, string> = {
-    airbnb: "#FF5A5F",
-    vrbo: "#3D67FF",
-    booking: "#003B95",
-    other: "#706B65",
+  const goTo = useCallback((idx: number) => {
+    setCurrent(Math.max(0, Math.min(idx, photos.length - 1)));
+  }, [photos.length]);
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    touchStart.current = e.touches[0].clientX;
+    touchDelta.current = 0;
   };
-  const labels: Record<string, string> = {
-    airbnb: "Airbnb",
-    vrbo: "VRBO",
-    booking: "Booking",
-    other: "Other",
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (touchStart.current == null) return;
+    touchDelta.current = e.touches[0].clientX - touchStart.current;
   };
+
+  const onTouchEnd = () => {
+    if (Math.abs(touchDelta.current) > 40) {
+      goTo(current + (touchDelta.current < 0 ? 1 : -1));
+    }
+    touchStart.current = null;
+    touchDelta.current = 0;
+  };
+
+  if (photos.length === 0) return null;
+
   return (
-    <span
-      style={{
-        background: colors[source] || colors.other,
-        color: "#fff",
-        padding: "2px 8px",
-        borderRadius: 4,
-        fontSize: 10,
-        fontWeight: 700,
-        letterSpacing: 0.6,
-        textTransform: "uppercase",
-        fontFamily: "var(--font-mono)",
-      }}
+    <div
+      style={{ position: "relative", height: 180, overflow: "hidden", background: "#f0ede8" }}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
     >
-      {labels[source] || source}
-    </span>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={photos[current].url}
+        alt={name}
+        style={{ width: "100%", height: "100%", objectFit: "cover", transition: "opacity 0.2s" }}
+        loading="lazy"
+      />
+
+      {/* Dot indicators */}
+      {photos.length > 1 && (
+        <div style={{
+          position: "absolute",
+          bottom: 8,
+          left: "50%",
+          transform: "translateX(-50%)",
+          display: "flex",
+          gap: 4,
+        }}>
+          {photos.slice(0, 5).map((_, i) => (
+            <button
+              key={i}
+              onClick={(e) => { e.stopPropagation(); goTo(i); }}
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                background: i === current ? "#fff" : "rgba(255,255,255,0.5)",
+                border: "none",
+                padding: 0,
+                cursor: "pointer",
+                transition: "background 0.15s",
+              }}
+              aria-label={`Photo ${i + 1}`}
+            />
+          ))}
+          {photos.length > 5 && (
+            <span style={{ fontSize: 8, color: "rgba(255,255,255,0.7)", lineHeight: "6px" }}>
+              +{photos.length - 5}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Left/right arrows on hover (desktop) */}
+      {photos.length > 1 && current > 0 && (
+        <button
+          onClick={(e) => { e.stopPropagation(); goTo(current - 1); }}
+          style={{
+            position: "absolute", left: 6, top: "50%", transform: "translateY(-50%)",
+            width: 36, height: 36, borderRadius: "50%", background: "rgba(255,255,255,0.85)",
+            border: "none", cursor: "pointer", fontSize: 13, color: "#333",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            opacity: 0, transition: "opacity 0.15s",
+          }}
+          className="carousel-arrow"
+          aria-label="Previous photo"
+        >
+          &#8249;
+        </button>
+      )}
+      {photos.length > 1 && current < photos.length - 1 && (
+        <button
+          onClick={(e) => { e.stopPropagation(); goTo(current + 1); }}
+          style={{
+            position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)",
+            width: 36, height: 36, borderRadius: "50%", background: "rgba(255,255,255,0.85)",
+            border: "none", cursor: "pointer", fontSize: 13, color: "#333",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            opacity: 0, transition: "opacity 0.15s",
+          }}
+          className="carousel-arrow"
+          aria-label="Next photo"
+        >
+          &#8250;
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -133,33 +229,30 @@ export function ListingCard({
   nights,
   isSelected,
   isHovered,
-  userName,
   index,
   onSelect,
-  onReact,
-  onRemoveReaction,
-  onRescrape,
   onMouseEnter,
   onMouseLeave,
-  budgetRange,
+  travelers,
 }: ListingCardProps) {
-  const perPerson =
-    listing.totalCost && adults > 0
-      ? Math.round(listing.totalCost / adults)
-      : null;
-
   const isScraping =
     listing.scrapeStatus === "pending" || listing.scrapeStatus === "scraping";
-  const isFailed = listing.scrapeStatus === "failed";
-  const isPartial = listing.scrapeStatus === "partial";
-  const isGenericName =
-    listing.name.startsWith("Listing from") ||
-    listing.name === "Loading..." ||
-    listing.name.startsWith("VRBO ") ||
-    listing.name.startsWith("Airbnb Listing");
 
-  const amenities: string[] = Array.isArray(listing.amenities) ? listing.amenities : [];
-  const listingPrice = listing.perNight || listing.totalCost;
+  // Per-person-per-night price
+  const perPersonPerNight = listing.perNight && adults > 0
+    ? Math.round(listing.perNight / adults)
+    : listing.totalCost && nights > 0 && adults > 0
+      ? Math.round(listing.totalCost / nights / adults)
+      : null;
+
+  const location = listing.neighborhood || listing.address;
+  const sourceLabel = SOURCE_LABELS[listing.source] || listing.source;
+
+  // Recent comment for inline quote
+  const latestComment = listing.comments.length > 0
+    ? listing.comments[listing.comments.length - 1]
+    : null;
+  const extraComments = listing.comments.length - 1;
 
   return (
     <div
@@ -170,10 +263,14 @@ export function ListingCard({
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(); } }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
-      className="animate-fade-in-up"
+      className="animate-fade-in-up listing-card"
       style={{
         background: "#fff",
-        border: isSelected ? "2px solid var(--color-coral)" : isHovered ? "1.5px solid var(--color-coral-border)" : "1px solid var(--color-border)",
+        border: isSelected
+          ? "2px solid var(--color-coral)"
+          : isHovered
+            ? "1.5px solid var(--color-coral-border)"
+            : "1px solid var(--color-border)",
         borderRadius: 14,
         overflow: "hidden",
         cursor: "pointer",
@@ -187,17 +284,9 @@ export function ListingCard({
         animationDelay: `${index * 50}ms`,
       }}
     >
-      {/* Photo or placeholder */}
+      {/* Photo carousel or placeholder */}
       {listing.photos.length > 0 ? (
-        <div style={{ height: 150, overflow: "hidden" }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={listing.photos[0].url}
-            alt={listing.name}
-            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-            loading="lazy"
-          />
-        </div>
+        <PhotoCarousel photos={listing.photos} name={listing.name} />
       ) : (
         <div
           style={{
@@ -219,275 +308,149 @@ export function ListingCard({
         </div>
       )}
 
-      <div style={{ padding: "12px 14px 14px" }}>
-        {/* Status banners */}
-        {isFailed && (
-          <div
-            style={{
-              marginBottom: 8, padding: "5px 10px",
-              background: "rgba(185,28,28,0.06)", border: "1px solid rgba(185,28,28,0.15)",
-              borderRadius: 6, fontSize: 12, color: "#b91c1c",
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-            }}
-          >
-            <span>Scrape failed</span>
-            {onRescrape && (
-              <button
-                onClick={(e) => { e.stopPropagation(); onRescrape(); }}
-                style={{ fontSize: 10, fontWeight: 600, textDecoration: "underline", cursor: "pointer", background: "none", border: "none", color: "#b91c1c", fontFamily: "inherit" }}
-              >
-                Retry
-              </button>
-            )}
-          </div>
-        )}
-        {isPartial && (
-          <div
-            style={{
-              marginBottom: 8, padding: "5px 10px",
-              background: "rgba(139,105,20,0.06)", border: "1px solid rgba(139,105,20,0.15)",
-              borderRadius: 6, fontSize: 12, color: "#7a5c12",
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-            }}
-          >
-            <span>Limited data</span>
-            {onRescrape && (
-              <button
-                onClick={(e) => { e.stopPropagation(); onRescrape(); }}
-                style={{ fontSize: 10, fontWeight: 600, textDecoration: "underline", cursor: "pointer", background: "none", border: "none", color: "#7a5c12", fontFamily: "inherit" }}
-              >
-                Retry
-              </button>
-            )}
-          </div>
-        )}
+      <div style={{ padding: "10px 14px 12px" }}>
+        {/* Title — one line */}
+        <h3
+          className="font-heading"
+          style={{
+            margin: 0,
+            fontSize: 15,
+            fontWeight: 600,
+            color: "var(--color-text)",
+            lineHeight: 1.3,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {listing.name || "Untitled Listing"}
+        </h3>
 
-        {/* Source + Rating + Neighborhood */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-          <Badge source={listing.source} />
-          {listing.rating != null && listing.rating > 0 && (
-            <span className="font-mono" style={{ fontSize: 12, color: "var(--color-text-mid)", display: "flex", alignItems: "center", gap: 3 }}>
-              <span style={{ color: "var(--color-coral)" }}>&#9733;</span> {listing.rating}
-              {listing.reviewCount ? <span style={{ color: "var(--color-text-muted)" }}>({listing.reviewCount})</span> : null}
+        {/* Location · Source */}
+        <div style={{
+          fontSize: 12,
+          color: "var(--color-text-muted)",
+          marginTop: 2,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}>
+          {location && <span>{location} · </span>}
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>
+            {sourceLabel}
+          </span>
+        </div>
+
+        {/* Per-person-per-night price */}
+        <div style={{ marginTop: 6 }}>
+          {perPersonPerNight ? (
+            <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+              <span className="font-mono" style={{ fontSize: 18, fontWeight: 700, color: "var(--color-coral)" }}>
+                {formatPrice(perPersonPerNight, listing.currency)}
+              </span>
+              <span className="font-mono" style={{ fontSize: 11, color: "var(--color-text-muted)" }}>
+                /person/night
+              </span>
+            </div>
+          ) : (
+            <span style={{ fontSize: 12, color: "var(--color-text-muted)", fontStyle: "italic" }}>
+              {isScraping ? "Loading price..." : "Price unavailable"}
             </span>
           )}
-          {listing.neighborhood && (
-            <span style={{ fontSize: 11, color: "var(--color-text-muted)", marginLeft: "auto" }}>{listing.neighborhood}</span>
-          )}
         </div>
 
-        {/* Title + Price */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-          <h3
-            className="font-heading"
-            style={{
-              margin: 0, fontSize: 16, fontWeight: 600,
-              color: isGenericName ? "var(--color-text-mid)" : "var(--color-text)",
-              lineHeight: 1.3, flex: 1,
-              overflow: "hidden", textOverflow: "ellipsis",
-              display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const,
-            }}
-          >
-            {listing.name || "Untitled Listing"}
-          </h3>
-          <div style={{ textAlign: "right", flexShrink: 0 }}>
-            {listing.perNight ? (
-              <>
-                <div className="font-mono" style={{ fontSize: 20, fontWeight: 700, color: "var(--color-coral)" }}>
-                  {formatPrice(listing.perNight, listing.currency)}
-                </div>
-                <div className="font-mono" style={{ fontSize: 11, color: "var(--color-text-mid)" }}>/night</div>
-              </>
-            ) : listing.totalCost ? (
-              <>
-                <div className="font-mono" style={{ fontSize: 20, fontWeight: 700, color: "var(--color-coral)" }}>
-                  {formatPrice(listing.totalCost, listing.currency)}
-                </div>
-                <div className="font-mono" style={{ fontSize: 11, color: "var(--color-text-mid)" }}>total</div>
-              </>
-            ) : (
-              <span style={{ fontSize: 12, color: "var(--color-text-muted)", fontStyle: "italic" }}>
-                {isScraping ? "..." : "\u2014"}
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Per-listing price context: total for N nights · per person */}
-        {(listing.perNight || listing.totalCost) && (() => {
-          const totalForStay = listing.perNight
-            ? listing.perNight * nights
-            : listing.totalCost!;
-          const perPersonSplit = adults > 0 ? Math.round(totalForStay / adults) : null;
-          return (
-            <div className="font-mono" style={{
-              fontSize: 11, color: "var(--color-text-muted)",
-              marginTop: 4,
-            }}>
-              {formatPrice(totalForStay, listing.currency)} total{perPersonSplit ? ` · ${formatPrice(perPersonSplit, listing.currency)}/person` : ""}
-            </div>
-          );
-        })()}
-
-        {/* Budget range dot */}
-        {budgetRange && listingPrice && budgetRange.max > budgetRange.min && (
-          <div style={{ marginTop: 8 }}>
-            <div style={{ position: "relative", height: 4, background: "var(--color-border)", borderRadius: 2 }}>
-              <div style={{
-                position: "absolute",
-                left: `${Math.min(Math.max(((listingPrice - budgetRange.min) / (budgetRange.max - budgetRange.min)) * 100, 0), 100)}%`,
-                top: "50%",
-                transform: "translate(-50%, -50%)",
-                width: 8,
-                height: 8,
-                borderRadius: "50%",
-                background: "var(--color-coral)",
-                border: "1.5px solid #fff",
-                boxShadow: "0 0 3px rgba(0,0,0,0.15)",
-              }} />
-            </div>
-          </div>
-        )}
-
-        {/* The Big 4 */}
-        {(listing.bedrooms != null || listing.bathrooms != null || listing.kitchen || listing.beachType || listing.beachDistance) && (
-          <div style={{
-            display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 14px", marginTop: 10,
-            padding: "8px 10px", background: "var(--color-bg)", borderRadius: 8, border: "1px solid var(--color-border)",
-          }}>
-            {listing.bedrooms != null && (
-              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--color-text-mid)" }}>
-                <span style={{ fontSize: 14, width: 20, textAlign: "center" }} aria-hidden="true">&#128716;</span>
-                {listing.bedrooms} bed{listing.bedrooms !== 1 ? "s" : ""}
+        {/* Reaction pips + inline quote */}
+        <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 6, minHeight: 24 }}>
+          {listing.votes.length > 0 ? (
+            <>
+              {/* Avatar pips with emoji */}
+              <div style={{ display: "flex", gap: -4 }}>
+                {listing.votes.slice(0, 5).map((vote) => {
+                  const color = getUserColor(vote.userName, travelers);
+                  const initial = vote.userName.charAt(0).toUpperCase();
+                  const REACTION_EMOJI: Record<string, string> = { fire: "\uD83D\uDD25", love: "\uD83D\uDE0D", think: "\uD83E\uDD14", pass: "\uD83D\uDC4E" };
+                  const emoji = REACTION_EMOJI[vote.reactionType] || "\uD83E\uDD14";
+                  return (
+                    <div
+                      key={vote.id}
+                      title={vote.userName}
+                      style={{
+                        position: "relative",
+                        width: 26,
+                        height: 26,
+                        marginRight: -4,
+                      }}
+                    >
+                      <div style={{
+                        width: 24,
+                        height: 24,
+                        borderRadius: "50%",
+                        background: color,
+                        color: "#fff",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 10,
+                        fontWeight: 700,
+                        border: "2px solid #fff",
+                      }}>
+                        {initial}
+                      </div>
+                      <span style={{
+                        position: "absolute",
+                        bottom: -2,
+                        right: -3,
+                        fontSize: 10,
+                        lineHeight: 1,
+                      }}>
+                        {emoji}
+                      </span>
+                    </div>
+                  );
+                })}
+                {listing.votes.length > 5 && (
+                  <div style={{
+                    width: 24, height: 24, borderRadius: "50%",
+                    background: "var(--color-panel)", color: "var(--color-text-muted)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 9, fontWeight: 700, border: "2px solid #fff",
+                  }}>
+                    +{listing.votes.length - 5}
+                  </div>
+                )}
               </div>
-            )}
-            {listing.bathrooms != null && (
-              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--color-text-mid)" }}>
-                <span style={{ fontSize: 14, width: 20, textAlign: "center" }} aria-hidden="true">&#128703;</span>
-                {listing.bathrooms} bath{listing.bathrooms !== 1 ? "s" : ""}
-              </div>
-            )}
-            {listing.kitchen && (
-              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--color-text-mid)" }}>
-                <span style={{ fontSize: 14, width: 20, textAlign: "center" }} aria-hidden="true">&#127859;</span>
-                <span style={{ textTransform: "capitalize" }}>{listing.kitchen}</span>
-              </div>
-            )}
-            {(listing.beachDistance || listing.beachType) && (
-              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--color-text-mid)" }}>
-                <span style={{ fontSize: 14, width: 20, textAlign: "center" }} aria-hidden="true">&#127958;</span>
-                {listing.beachDistance || listing.beachType}
-              </div>
-            )}
-          </div>
-        )}
 
-        {/* Amenity chips — top 3 + overflow */}
-        {amenities.length > 0 && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 8 }}>
-            {amenities.slice(0, 3).map((a: string, i: number) => (
-              <span key={i} style={{
-                padding: "2px 8px", background: "var(--color-panel)", color: "var(--color-text-mid)",
-                fontSize: 11, borderRadius: 4, whiteSpace: "nowrap",
-              }}>
-                {a}
-              </span>
-            ))}
-            {amenities.length > 3 && (
-              <span style={{
-                padding: "2px 8px", background: "var(--color-panel)", color: "var(--color-text-muted)",
-                fontSize: 11, borderRadius: 4,
-              }}>
-                +{amenities.length - 3} more
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* Kid badge */}
-        {listing.kidFriendly && (
-          <div style={{
-            marginTop: 8, display: "inline-flex", alignItems: "center", gap: 4,
-            fontSize: 11, color: "var(--color-green)", background: "rgba(74,158,107,0.06)",
-            border: "1px solid rgba(74,158,107,0.15)", padding: "2px 8px", borderRadius: 6,
-          }}>
-            &#128118; {listing.kidNotes || "Kid-friendly"}
-          </div>
-        )}
-
-        {/* Comment preview */}
-        {listing.comments && listing.comments.length > 0 && (() => {
-          const latest = listing.comments[0];
-          const color = getUserColor(latest.userName);
-          const initial = latest.userName.charAt(0).toUpperCase();
-          const extraCount = listing.comments.length - 1;
-          return (
-            <div
-              style={{
-                marginTop: 8, padding: "6px 8px",
-                background: "var(--color-bg)", borderRadius: 8,
-                display: "flex", alignItems: "center", gap: 6,
-                overflow: "hidden",
-              }}
-            >
-              <div style={{
-                width: 20, height: 20, borderRadius: "50%", flexShrink: 0,
-                background: color, color: "#fff",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 10, fontWeight: 700,
-              }}>
-                {initial}
-              </div>
-              <span style={{ fontSize: 11, fontWeight: 700, color, flexShrink: 0 }}>
-                {latest.userName}:
-              </span>
-              <span style={{
-                fontSize: 11, color: "var(--color-text-mid)", flex: 1, minWidth: 0,
-                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-              }}>
-                {latest.text}
-              </span>
-              {extraCount > 0 && (
-                <span className="font-mono" style={{
-                  fontSize: 10, color: "var(--color-text-muted)", flexShrink: 0,
-                  fontWeight: 600,
+              {/* Inline comment quote */}
+              {latestComment ? (
+                <div style={{
+                  flex: 1,
+                  minWidth: 0,
+                  fontSize: 11,
+                  color: "var(--color-text-mid)",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  background: "var(--color-bg)",
+                  borderRadius: 8,
+                  padding: "3px 8px",
                 }}>
-                  +{extraCount}
-                </span>
-              )}
-            </div>
-          );
-        })()}
-
-        {/* Reactions + link */}
-        <div style={{
-          display: "flex", justifyContent: "space-between", alignItems: "center",
-          marginTop: 12, paddingTop: 10, borderTop: "1px solid var(--color-border)",
-        }}>
-          <ReactionBar
-            votes={listing.votes}
-            userName={userName}
-            mode="compact"
-            onReact={onReact}
-            onRemoveReaction={onRemoveReaction}
-          />
-          <a
-            href={listing.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              fontSize: 12, color: "var(--color-coral)", fontWeight: 600, textDecoration: "none",
-              padding: "6px 12px", border: "1px solid var(--color-coral-border)", borderRadius: 8,
-              transition: "all 0.15s",
-              minHeight: 40,
-              display: "flex",
-              alignItems: "center",
-              flexShrink: 0,
-            }}
-          >
-            View &#8599;
-          </a>
+                  <span style={{ fontWeight: 600, color: getUserColor(latestComment.userName, travelers) }}>
+                    {latestComment.userName}:
+                  </span>{" "}
+                  {latestComment.text}
+                  {extraComments > 0 && (
+                    <span style={{ color: "var(--color-text-light)", marginLeft: 4 }}>
+                      +{extraComments}
+                    </span>
+                  )}
+                </div>
+              ) : null}
+            </>
+          ) : (
+            <span style={{ fontSize: 11, color: "var(--color-text-light)" }}>
+              No reactions yet
+            </span>
+          )}
         </div>
       </div>
     </div>

@@ -3,8 +3,6 @@
 import { useRef, useEffect, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import type { BudgetRange } from "@/lib/budget";
-import { getPriceTier } from "@/lib/budget";
 
 interface Listing {
   id: string;
@@ -25,7 +23,7 @@ interface MapViewProps {
   onSelect: (id: string) => void;
   onHover: (id: string | null) => void;
   adults: number;
-  budgetRange: BudgetRange | null;
+  nights: number;
 }
 
 export default function MapView({
@@ -36,7 +34,7 @@ export default function MapView({
   onSelect,
   onHover,
   adults,
-  budgetRange,
+  nights,
 }: MapViewProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -46,6 +44,9 @@ export default function MapView({
   const [noToken, setNoToken] = useState(false);
   const prevSelectedId = useRef<string | null>(null);
   const userInteracting = useRef(false);
+  const easeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isEasing = useRef(false);
+  const resizeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!mapContainer.current) return;
@@ -67,10 +68,21 @@ export default function MapView({
 
     map.current.addControl(new mapboxgl.NavigationControl(), "bottom-right");
 
-    const ro = new ResizeObserver(() => map.current?.resize());
+    // Debounced resize — prevents rapid resize() calls during CSS transitions
+    // from interrupting easeTo animations
+    const ro = new ResizeObserver(() => {
+      if (isEasing.current) return; // never resize while easing
+      if (resizeTimer.current) clearTimeout(resizeTimer.current);
+      resizeTimer.current = setTimeout(() => {
+        resizeTimer.current = null;
+        map.current?.resize();
+      }, 80);
+    });
     ro.observe(mapContainer.current);
 
     return () => {
+      if (easeTimeout.current) clearTimeout(easeTimeout.current);
+      if (resizeTimer.current) clearTimeout(resizeTimer.current);
       ro.disconnect();
       map.current?.remove();
     };
@@ -92,30 +104,22 @@ export default function MapView({
     listings.forEach((listing) => {
       if (listing.lat === 0 && listing.lng === 0) return;
 
-      const price = listing.totalCost
-        ? `$${(listing.totalCost / 1000).toFixed(1)}k`
-        : listing.perNight
-          ? `$${Math.round(listing.perNight)}/n`
-          : "?";
-
-      const listingPrice = listing.perNight || listing.totalCost;
-      const tier = getPriceTier(listingPrice, budgetRange);
+      // Per-person-per-night price for pin labels
+      let price = "?";
+      if (listing.perNight && adults > 0) {
+        price = `$${Math.round(listing.perNight / adults)}`;
+      } else if (listing.totalCost && nights > 0 && adults > 0) {
+        price = `$${Math.round(listing.totalCost / nights / adults)}`;
+      }
 
       const existing = markers.current.get(listing.id);
       if (existing) {
         existing.el.textContent = price;
         existing.marker.setLngLat([listing.lng, listing.lat]);
-        // Update budget class
-        existing.el.classList.remove("budget-low", "budget-high");
-        if (tier === "low") existing.el.classList.add("budget-low");
-        if (tier === "high") existing.el.classList.add("budget-high");
       } else {
         const el = document.createElement("div");
         el.className = "price-marker";
         el.textContent = price;
-
-        if (tier === "low") el.classList.add("budget-low");
-        if (tier === "high") el.classList.add("budget-high");
 
         el.addEventListener("click", () => onSelect(listing.id));
         el.addEventListener("mouseenter", () => onHover(listing.id));
@@ -128,7 +132,7 @@ export default function MapView({
         markers.current.set(listing.id, { marker, el });
       }
     });
-  }, [listings, noToken, onSelect, onHover, adults, budgetRange]);
+  }, [listings, noToken, onSelect, onHover, adults, nights]);
 
   // Track user map interaction to suppress flyTo during drags/zooms
   useEffect(() => {
@@ -164,8 +168,10 @@ export default function MapView({
     });
   }, [selectedId, hoveredId]);
 
-  // Fly to selected listing — only when selectedId genuinely changes
-  // and user is not actively dragging the map
+  // Ease to selected listing — only when selectedId genuinely changes
+  // and user is not actively dragging the map.
+  // Uses isEasing ref to suppress ResizeObserver resize() calls that
+  // would otherwise interrupt the animation mid-flight.
   useEffect(() => {
     if (
       selectedId &&
@@ -173,12 +179,27 @@ export default function MapView({
       map.current &&
       !userInteracting.current
     ) {
+      if (easeTimeout.current) clearTimeout(easeTimeout.current);
+
       const listing = listings.find((l) => l.id === selectedId);
       if (listing && listing.lat !== 0) {
-        map.current.flyTo({
-          center: [listing.lng, listing.lat],
-          duration: 600,
-        });
+        // Wait for layout transitions to settle, then do a single
+        // resize + ease sequence with resize suppressed during the ease.
+        easeTimeout.current = setTimeout(() => {
+          easeTimeout.current = null;
+          // Final resize before easing so the map has correct dimensions
+          map.current?.resize();
+
+          isEasing.current = true;
+          map.current?.easeTo({
+            center: [listing.lng, listing.lat],
+            duration: 900,
+            easing: (t) => t * (2 - t), // ease-out quadratic
+          });
+
+          // Release resize lock after the animation finishes
+          setTimeout(() => { isEasing.current = false; }, 950);
+        }, 350);
       }
     }
     prevSelectedId.current = selectedId;

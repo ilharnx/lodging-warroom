@@ -10,7 +10,20 @@ interface TripPreferencesProps {
   hasKids: boolean;
   onSave: (prefs: TripPreferencesType) => void;
   onClose: () => void;
+  userName: string;
+  userEmoji: string;
+  onProfileChange: (name: string, emoji: string) => void;
+  adults: number;
+  kids: number;
+  nights: number;
+  onTripSettingsChange: (updates: { adults?: number; kids?: number; nights?: number }) => void;
 }
+
+const AVATAR_EMOJI = [
+  "\uD83D\uDE0E", "\uD83E\uDDD1", "\uD83C\uDFC4", "\uD83C\uDF34",
+  "\uD83D\uDE80", "\uD83C\uDF1E", "\uD83E\uDD99", "\uD83D\uDC27",
+  "\uD83D\uDC36", "\uD83C\uDF3B",
+];
 
 const VIBE_OPTIONS: { key: Vibe; label: string; desc: string; icon: string }[] = [
   { key: "chill", label: "Chill & quiet", desc: "Low-key relaxation, minimal crowds, peaceful vibes", icon: "\u{1F3D6}\uFE0F" },
@@ -93,12 +106,44 @@ function ChipGrid({
   );
 }
 
+function Stepper({ label, value, min, max, onChange }: {
+  label: string; value: number; min: number; max: number; onChange: (v: number) => void;
+}) {
+  const btnStyle = (disabled: boolean): React.CSSProperties => ({
+    width: 40, height: 40, borderRadius: "50%",
+    border: "1px solid var(--color-border-dark)",
+    background: disabled ? "var(--color-bg)" : "#fff",
+    color: disabled ? "var(--color-text-light)" : "var(--color-text)",
+    cursor: disabled ? "default" : "pointer",
+    fontSize: 18, fontWeight: 600, fontFamily: "inherit",
+    display: "flex", alignItems: "center", justifyContent: "center",
+    padding: 0,
+  });
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0" }}>
+      <span style={{ fontSize: 14, color: "var(--color-text-mid)" }}>{label}</span>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <button type="button" onClick={() => { if (value > min) onChange(value - 1); }} disabled={value <= min} style={btnStyle(value <= min)}>-</button>
+        <span className="font-mono" style={{ fontSize: 14, fontWeight: 600, minWidth: 24, textAlign: "center" }}>{value}</span>
+        <button type="button" onClick={() => { if (value < max) onChange(value + 1); }} disabled={value >= max} style={btnStyle(value >= max)}>+</button>
+      </div>
+    </div>
+  );
+}
+
 export function TripPreferences({
   tripId,
   initial,
   hasKids,
   onSave,
   onClose,
+  userName,
+  userEmoji,
+  onProfileChange,
+  adults,
+  kids,
+  nights,
+  onTripSettingsChange,
 }: TripPreferencesProps) {
   const prefs = initial || EMPTY_PREFERENCES;
   const [vibe, setVibe] = useState<Vibe | null>(prefs.vibe);
@@ -108,6 +153,8 @@ export function TripPreferences({
   const [kidNeeds, setKidNeeds] = useState<string[]>(prefs.kidNeeds);
   const [notes, setNotes] = useState(prefs.notes);
   const [saving, setSaving] = useState(false);
+  const [editName, setEditName] = useState(userName);
+  const [editEmoji, setEditEmoji] = useState(userEmoji);
 
   async function handleSave() {
     setSaving(true);
@@ -126,6 +173,9 @@ export function TripPreferences({
         body: JSON.stringify({ preferences }),
       });
       if (res.ok) {
+        if (editName.trim() && (editName.trim() !== userName || editEmoji !== userEmoji)) {
+          onProfileChange(editName.trim(), editEmoji);
+        }
         onSave(preferences);
       }
     } finally {
@@ -155,7 +205,7 @@ export function TripPreferences({
   };
 
   return (
-    <div style={{ height: "100vh", display: "flex", flexDirection: "column", background: "var(--color-bg)" }}>
+    <div style={{ height: "100dvh", display: "flex", flexDirection: "column", background: "var(--color-bg)" }}>
       {/* Header */}
       <header style={{
         padding: "14px 24px",
@@ -195,6 +245,62 @@ export function TripPreferences({
 
       {/* Scrollable form */}
       <div style={{ flex: 1, overflowY: "auto", padding: "32px 24px", maxWidth: 680, margin: "0 auto", width: "100%" }}>
+        {/* Profile */}
+        <div style={{ ...sectionStyle, paddingBottom: 24, borderBottom: "1px solid var(--color-border-dark)" }}>
+          <span style={labelStyle}>Your profile</span>
+          <h2 style={titleStyle}>Name &amp; avatar</h2>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ fontSize: 13, color: "var(--color-text-mid)", display: "block", marginBottom: 6 }}>
+              Display name
+            </label>
+            <input
+              type="text"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              placeholder="Your first name"
+              style={{
+                width: "100%", padding: "10px 14px", fontSize: 15,
+                background: "#fff", border: "1px solid var(--color-border-dark)",
+                borderRadius: 8, color: "var(--color-text)", fontFamily: "inherit",
+              }}
+            />
+          </div>
+          <div>
+            <label style={{ fontSize: 13, color: "var(--color-text-mid)", display: "block", marginBottom: 8 }}>
+              Pick your avatar
+            </label>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {AVATAR_EMOJI.map((e) => (
+                <button
+                  key={e}
+                  type="button"
+                  onClick={() => setEditEmoji(e)}
+                  style={{
+                    width: 44, height: 44, borderRadius: "50%", fontSize: 22,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s",
+                    border: editEmoji === e ? "2px solid var(--color-coral)" : "1px solid var(--color-border-dark)",
+                    background: editEmoji === e ? "var(--color-coral-light)" : "#fff",
+                  }}
+                >
+                  {e}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Trip details */}
+        <div style={{ ...sectionStyle, paddingBottom: 24, borderBottom: "1px solid var(--color-border-dark)" }}>
+          <span style={labelStyle}>Trip details</span>
+          <h2 style={titleStyle}>Group size &amp; duration</h2>
+          <div style={{ maxWidth: 280 }}>
+            <Stepper label="Adults" value={adults} min={1} max={20} onChange={(v) => onTripSettingsChange({ adults: v })} />
+            <Stepper label="Kids" value={kids} min={0} max={20} onChange={(v) => onTripSettingsChange({ kids: v })} />
+            <Stepper label="Nights" value={nights} min={1} max={30} onChange={(v) => onTripSettingsChange({ nights: v })} />
+          </div>
+        </div>
+
         {/* 1. Vibe */}
         <div style={sectionStyle}>
           <span style={labelStyle}>1 / {hasKids ? "6" : "5"}</span>

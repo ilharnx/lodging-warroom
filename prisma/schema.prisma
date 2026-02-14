@@ -9,19 +9,37 @@ datasource db {
 }
 
 model Trip {
-  id          String    @id @default(cuid())
-  name        String
-  destination String
-  centerLat   Float
-  centerLng   Float
-  adults      Int       @default(4)
-  kids        Int       @default(2)
-  nights      Int?
-  checkIn     DateTime?
-  checkOut    DateTime?
-  preferences Json?
-  listings    Listing[]
-  createdAt   DateTime  @default(now())
+  id            String    @id @default(cuid())
+  name          String
+  destination   String
+  centerLat     Float
+  centerLng     Float
+  adults        Int       @default(4)
+  kids          Int       @default(2)
+  nights        Int?
+  checkIn       DateTime?
+  checkOut      DateTime?
+  preferences   Json?
+  coverPhotoUrl String?
+  coverPhotoAttribution String?
+  listings      Listing[]
+  travelers     Traveler[]
+  createdAt     DateTime  @default(now())
+}
+
+model Traveler {
+  id        String   @id @default(cuid())
+  tripId    String
+  trip      Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  name      String
+  color     String
+  token     String   @unique @default(cuid())
+  isCreator Boolean  @default(false)
+  createdAt DateTime @default(now())
+  votes     Vote[]
+  comments  Comment[]
+
+  @@unique([tripId, name])
 }
 
 model Listing {
@@ -100,6 +118,8 @@ model Vote {
   listingId    String
   listing      Listing      @relation(fields: [listingId], references: [id], onDelete: Cascade)
   userName     String
+  travelerId   String?
+  traveler     Traveler?    @relation(fields: [travelerId], references: [id], onDelete: SetNull)
   value        Int          @default(0)
   reactionType ReactionType @default(fire)
   createdAt    DateTime     @default(now())
@@ -108,10 +128,12 @@ model Vote {
 }
 
 model Comment {
-  id        String   @id @default(cuid())
-  listingId String
-  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  userName  String
-  text      String   @db.Text
-  createdAt DateTime @default(now())
+  id         String    @id @default(cuid())
+  listingId  String
+  listing    Listing   @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  userName   String
+  travelerId String?
+  traveler   Traveler? @relation(fields: [travelerId], references: [id], onDelete: SetNull)
+  text       String    @db.Text
+  createdAt  DateTime  @default(now())
 }

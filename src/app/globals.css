@@ -120,21 +120,13 @@ body {
   z-index: 20 !important;
 }
 
-/* Budget-context pin variants */
-.price-marker.budget-low {
-  border-color: #7BAFD4;
+/* Photo carousel arrows — visible on card hover */
+.listing-card:hover .carousel-arrow {
+  opacity: 0.9 !important;
 }
-.price-marker.budget-low:hover,
-.price-marker.budget-low.hovered {
-  border-color: var(--color-coral);
-}
-
-.price-marker.budget-high {
-  border-color: var(--color-yellow);
-}
-.price-marker.budget-high:hover,
-.price-marker.budget-high.hovered {
-  border-color: var(--color-coral);
+.carousel-arrow:hover {
+  opacity: 1 !important;
+  transform: translateY(-50%) scale(1.1);
 }
 
 /* Heading font — Fraunces serif */
@@ -239,33 +231,42 @@ a:focus:not(:focus-visible) {
 
 /* ── Mobile styles ───────────────────────────────────────── */
 
-/* Mobile tab bar */
-.mobile-tab-bar {
+/* Mobile bottom sheet — draggable card list over map */
+.mobile-bottom-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--color-bg);
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+  z-index: 30;
   display: flex;
-  background: #fff;
-  border-top: 1px solid var(--color-border-dark);
-  padding: 6px 12px calc(6px + env(safe-area-inset-bottom));
-  gap: 8px;
+  flex-direction: column;
+  will-change: transform;
+}
+
+.mobile-bottom-sheet .sheet-handle {
+  display: flex;
+  justify-content: center;
+  padding: 12px 0 8px;
+  cursor: grab;
   flex-shrink: 0;
+  touch-action: none;
 }
 
-.mobile-tab-bar button {
+.mobile-bottom-sheet .sheet-handle-bar {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-text-light);
+}
+
+.mobile-bottom-sheet .sheet-content {
   flex: 1;
-  padding: 10px 0;
-  font-size: 13px;
-  font-weight: 600;
-  font-family: inherit;
-  border: none;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.15s;
-  background: transparent;
-  color: var(--color-text-muted);
-}
-
-.mobile-tab-bar button.active {
-  background: var(--color-coral);
-  color: #fff;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 /* Mobile bottom sheet for detail panel */
@@ -291,9 +292,9 @@ a:focus:not(:focus-visible) {
 /* Mobile FAB (floating action button) */
 .mobile-fab {
   position: fixed;
-  bottom: calc(72px + env(safe-area-inset-bottom));
+  bottom: calc(16px + env(safe-area-inset-bottom));
   right: 16px;
-  z-index: 40;
+  z-index: 45;
   width: 56px;
   height: 56px;
   border-radius: 50%;
@@ -317,6 +318,104 @@ a:focus:not(:focus-visible) {
 /* Prevent body scroll when mobile detail is open */
 body.mobile-detail-open {
   overflow: hidden;
+}
+
+/* ── Topographic contour line background ──────────────────── */
+
+.topo-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.topo-bg svg {
+  width: 100%;
+  height: 100%;
+  min-width: 800px;
+  min-height: 800px;
+}
+
+/* ── Trip card Ken Burns drift ───────────────────────────── */
+
+@keyframes kenBurnsDrift {
+  0%, 100% { transform: scale(1) translate(0, 0); }
+  50% { transform: scale(1.06) translate(-1.5%, -1%); }
+}
+
+.trip-card-ken-burns {
+  animation: kenBurnsDrift 20s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* ── Trip card wave shapes ───────────────────────────────── */
+
+@keyframes waveDriftA {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(-4%); }
+}
+
+@keyframes waveDriftB {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(3%); }
+}
+
+.trip-card-wave-a {
+  animation: waveDriftA 8s ease-in-out infinite;
+}
+
+.trip-card-wave-b {
+  animation: waveDriftB 5s ease-in-out infinite;
+}
+
+.trip-card-wave-c {
+  animation: waveDriftA 6.5s ease-in-out infinite reverse;
+}
+
+/* ── Cosmos-style staggered entrance ─────────────────────── */
+
+@keyframes entranceFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.entrance {
+  opacity: 0;
+  animation: entranceFadeUp 0.6s var(--ease-spring) both;
+}
+
+.entrance-d0 { animation-delay: 0ms; }
+.entrance-d1 { animation-delay: 120ms; }
+.entrance-d2 { animation-delay: 240ms; }
+.entrance-d3 { animation-delay: 360ms; }
+.entrance-d4 { animation-delay: 480ms; }
+.entrance-d5 { animation-delay: 600ms; }
+.entrance-d6 { animation-delay: 720ms; }
+.entrance-d7 { animation-delay: 840ms; }
+
+/* ── Reduced motion — disable all ambient/entrance anims ── */
+
+@media (prefers-reduced-motion: reduce) {
+  .trip-card-ken-burns {
+    animation: none;
+  }
+  .trip-card-wave-a,
+  .trip-card-wave-b,
+  .trip-card-wave-c {
+    animation: none;
+  }
+  .entrance {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
 }
 
 @media (max-width: 768px) {
