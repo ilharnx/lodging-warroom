@@ -276,6 +276,8 @@ export function ListingDetail({
     listing.bathrooms != null ? String(listing.bathrooms) : ""
   );
   const [saving, setSaving] = useState(false);
+  const [showAllAmenities, setShowAllAmenities] = useState(false);
+  const [showDescription, setShowDescription] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number>(0);
 
@@ -478,6 +480,50 @@ export function ListingDetail({
 
         {/* Scrollable content */}
         <div style={{ flex: 1, overflowY: "auto" }}>
+          {/* Mobile: photo hero at top, before title */}
+          {isMobile && listing.photos.length > 0 && (
+            <div
+              style={{
+                height: 240,
+                position: "relative",
+                overflow: "hidden",
+                cursor: "pointer",
+              }}
+              onClick={() => setSelectedPhotoIdx(0)}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={listing.photos[0].url}
+                alt={listing.name}
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+              <span
+                className={`shrink-0 px-2.5 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wide font-mono ${sourceColor(listing.source)}`}
+                style={{ position: "absolute", top: 12, left: 16 }}
+              >
+                {sourceLabel(listing.source)}
+              </span>
+              {listing.photos.length > 1 && (
+                <div
+                  className="font-mono"
+                  style={{
+                    position: "absolute",
+                    bottom: 12,
+                    right: 16,
+                    padding: "3px 10px",
+                    borderRadius: 6,
+                    background: "rgba(0,0,0,0.5)",
+                    color: "white",
+                    fontSize: 11,
+                    fontWeight: 600,
+                  }}
+                >
+                  1 / {listing.photos.length}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Header info */}
           <div style={{ padding: "20px 20px 16px" }}>
             <div style={{ display: "flex", alignItems: "start", gap: 10 }}>
@@ -822,8 +868,82 @@ export function ListingDetail({
             hasPreferences={!!hasPreferences}
           />
 
-          {/* Photo gallery */}
-          {listing.photos.length > 0 && (
+          {/* Mobile: comments/discussion moved up — after group vibes, before details */}
+          {isMobile && (
+            <div style={{ padding: "0 20px 16px" }}>
+              <h3 className="font-mono" style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", marginBottom: 12 }}>
+                Discussion ({listing.comments.length})
+              </h3>
+
+              {listing.comments.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
+                  {listing.comments.map((comment) => (
+                    <div
+                      key={comment.id}
+                      style={{ display: "flex", gap: 8, alignItems: "flex-start" }}
+                    >
+                      <div style={{
+                        width: 28, height: 28, borderRadius: "50%",
+                        background: "var(--color-panel)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 11, fontWeight: 700, color: "var(--color-text)",
+                        fontFamily: "inherit", flexShrink: 0,
+                      }}>{comment.userName[0]}</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", gap: 6, alignItems: "baseline" }}>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--color-text)" }}>{comment.userName}</span>
+                          <span className="font-mono" style={{ fontSize: 10, color: "var(--color-text-muted)" }}>
+                            {new Date(comment.createdAt).toLocaleDateString()}
+                          </span>
+                          {comment.userName === userName && (
+                            <button
+                              onClick={() => deleteComment(comment.id)}
+                              style={{ fontSize: 10, color: "var(--color-text-muted)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", marginLeft: "auto" }}
+                            >
+                              delete
+                            </button>
+                          )}
+                        </div>
+                        <p style={{ fontSize: 13, color: "var(--color-text-mid)", margin: "2px 0 0", lineHeight: 1.4 }}>{comment.text}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <form onSubmit={submitComment} style={{ display: "flex", gap: 8 }}>
+                <input
+                  type="text"
+                  placeholder="Say something..."
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  style={{
+                    flex: 1, padding: "12px 14px", fontSize: 16,
+                    background: "var(--color-bg)", border: "1px solid var(--color-border-dark)",
+                    borderRadius: 20, color: "var(--color-text)", fontFamily: "inherit",
+                  }}
+                />
+                <button
+                  type="submit"
+                  disabled={submitting || !commentText.trim()}
+                  style={{
+                    width: 44, height: 44, borderRadius: "50%",
+                    background: commentText.trim() ? "var(--color-coral)" : "var(--color-border-dark)",
+                    color: "#fff", border: "none", cursor: "pointer",
+                    fontFamily: "inherit", fontSize: 16, fontWeight: 600,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    opacity: submitting ? 0.5 : 1,
+                    transition: "background 0.15s",
+                  }}
+                >
+                  &#8593;
+                </button>
+              </form>
+            </div>
+          )}
+
+          {/* Desktop: Photo gallery in original position */}
+          {!isMobile && listing.photos.length > 0 && (
             <div style={{ padding: "0 20px 16px" }}>
               {/* Category tabs */}
               <div style={{ display: "flex", gap: 4, overflowX: "auto", paddingBottom: 8, marginBottom: 8 }}>
@@ -934,25 +1054,65 @@ export function ListingDetail({
                     Amenities
                   </h3>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                    {amenities.map((a: string, i: number) => (
+                    {(isMobile && !showAllAmenities ? amenities.slice(0, 4) : amenities).map((a: string, i: number) => (
                       <span key={i} style={{ padding: "4px 10px", background: "var(--color-panel)", color: "var(--color-text-mid)", fontSize: 12, borderRadius: 6 }}>
                         {a}
                       </span>
                     ))}
+                    {isMobile && amenities.length > 4 && !showAllAmenities && (
+                      <button
+                        onClick={() => setShowAllAmenities(true)}
+                        className="font-mono"
+                        style={{
+                          padding: "4px 10px", borderRadius: 6,
+                          background: "transparent", border: "1.5px solid var(--color-border-dark)",
+                          fontSize: 12, color: "var(--color-text-mid)", cursor: "pointer",
+                          fontFamily: "inherit",
+                        }}
+                      >
+                        +{amenities.length - 4}
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
 
               {/* Description */}
               {listing.description && (
-                <div>
-                  <h3 className="font-mono" style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", marginBottom: 8 }}>
-                    Description
-                  </h3>
-                  <p style={{ fontSize: 13, color: "var(--color-text-mid)", lineHeight: 1.6, margin: 0 }}>
-                    {listing.description}
-                  </p>
-                </div>
+                isMobile ? (
+                  <div style={{ marginBottom: 16 }}>
+                    <button
+                      onClick={() => setShowDescription(!showDescription)}
+                      style={{
+                        width: "100%", padding: "12px 14px", borderRadius: 10,
+                        border: "1.5px solid var(--color-border-dark)", background: "transparent",
+                        fontSize: 13, fontWeight: 500, cursor: "pointer",
+                        fontFamily: "inherit", color: "var(--color-text-mid)",
+                        textAlign: "left" as const, display: "flex", justifyContent: "space-between",
+                      }}
+                    >
+                      <span>Full description</span>
+                      <span style={{ color: "var(--color-text-light)" }}>{showDescription ? "\u25B2" : "\u25BC"}</span>
+                    </button>
+                    {showDescription && (
+                      <p style={{
+                        fontSize: 13, color: "var(--color-text-mid)", margin: "10px 0 0",
+                        lineHeight: 1.6, padding: "0 4px",
+                      }}>
+                        {listing.description}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div>
+                    <h3 className="font-mono" style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", marginBottom: 8 }}>
+                      Description
+                    </h3>
+                    <p style={{ fontSize: 13, color: "var(--color-text-mid)", lineHeight: 1.6, margin: 0 }}>
+                      {listing.description}
+                    </p>
+                  </div>
+                )
               )}
             </div>
           ) : !editing ? (
@@ -973,83 +1133,125 @@ export function ListingDetail({
             </div>
           ) : null}
 
-          {/* Comments */}
-          <div style={{ borderTop: "1px solid var(--color-border-dark)", padding: 20 }}>
-            <h3 className="font-mono" style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", marginBottom: 12 }}>
-              Comments ({listing.comments.length})
-            </h3>
+          {/* Desktop: Comments in original position */}
+          {!isMobile && (
+            <div style={{ borderTop: "1px solid var(--color-border-dark)", padding: 20 }}>
+              <h3 className="font-mono" style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", marginBottom: 12 }}>
+                Comments ({listing.comments.length})
+              </h3>
 
-            {listing.comments.length > 0 && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
-                {listing.comments.map((comment) => (
-                  <div
-                    key={comment.id}
-                    className="group"
-                    style={{ padding: 10, background: "var(--color-bg)", borderRadius: 8 }}
-                  >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
-                      <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>{comment.userName}</span>
-                        <span style={{ fontSize: 10, color: "var(--color-text-muted)" }}>
-                          {new Date(comment.createdAt).toLocaleDateString()}
-                        </span>
+              {listing.comments.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
+                  {listing.comments.map((comment) => (
+                    <div
+                      key={comment.id}
+                      className="group"
+                      style={{ padding: 10, background: "var(--color-bg)", borderRadius: 8 }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+                        <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>{comment.userName}</span>
+                          <span style={{ fontSize: 10, color: "var(--color-text-muted)" }}>
+                            {new Date(comment.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                        {comment.userName === userName && (
+                          <button
+                            onClick={() => deleteComment(comment.id)}
+                            className="opacity-0 group-hover:opacity-100"
+                            style={{ fontSize: 10, color: "var(--color-text-muted)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}
+                            title="Delete comment"
+                          >
+                            delete
+                          </button>
+                        )}
                       </div>
-                      {comment.userName === userName && (
-                        <button
-                          onClick={() => deleteComment(comment.id)}
-                          className="opacity-0 group-hover:opacity-100"
-                          style={{ fontSize: 10, color: "var(--color-text-muted)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}
-                          title="Delete comment"
-                        >
-                          delete
-                        </button>
-                      )}
+                      <p style={{ fontSize: 13, color: "var(--color-text-mid)", marginTop: 4, margin: 0 }}>{comment.text}</p>
                     </div>
-                    <p style={{ fontSize: 13, color: "var(--color-text-mid)", marginTop: 4, margin: 0 }}>{comment.text}</p>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
 
-            <form onSubmit={submitComment} style={{ display: "flex", gap: 8 }}>
-              <input
-                type="text"
-                placeholder="Add a comment..."
-                value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
+              <form onSubmit={submitComment} style={{ display: "flex", gap: 8 }}>
+                <input
+                  type="text"
+                  placeholder="Add a comment..."
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  style={{
+                    flex: 1, padding: "8px 12px", fontSize: 13,
+                    background: "var(--color-bg)", border: "1px solid var(--color-border-dark)",
+                    borderRadius: 8, color: "var(--color-text)", fontFamily: "inherit",
+                  }}
+                />
+                <button
+                  type="submit"
+                  disabled={submitting || !commentText.trim()}
+                  style={{
+                    padding: "8px 14px", fontSize: 13, fontWeight: 600,
+                    background: "var(--color-coral)", color: "#fff", borderRadius: 8,
+                    border: "none", cursor: "pointer", fontFamily: "inherit",
+                    opacity: submitting || !commentText.trim() ? 0.5 : 1,
+                  }}
+                >
+                  Post
+                </button>
+              </form>
+            </div>
+          )}
+
+          {/* Mobile: full-width source link near bottom */}
+          {isMobile && (
+            <div style={{ padding: "0 20px 12px" }}>
+              <a
+                href={listing.url}
+                target="_blank"
+                rel="noopener noreferrer"
                 style={{
-                  flex: 1, padding: isMobile ? "12px 14px" : "8px 12px", fontSize: isMobile ? 16 : 13,
-                  background: "var(--color-bg)", border: "1px solid var(--color-border-dark)",
-                  borderRadius: 8, color: "var(--color-text)", fontFamily: "inherit",
-                }}
-              />
-              <button
-                type="submit"
-                disabled={submitting || !commentText.trim()}
-                style={{
-                  padding: isMobile ? "12px 18px" : "8px 14px", fontSize: isMobile ? 14 : 13, fontWeight: 600,
-                  background: "var(--color-coral)", color: "#fff", borderRadius: 8,
-                  border: "none", cursor: "pointer", fontFamily: "inherit",
-                  opacity: submitting || !commentText.trim() ? 0.5 : 1,
-                  minHeight: isMobile ? 44 : undefined,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  width: "100%", padding: "14px", borderRadius: 10,
+                  border: "1px solid var(--color-coral-border)",
+                  fontSize: 14, fontWeight: 600,
+                  color: "var(--color-coral)", textDecoration: "none",
+                  minHeight: 48,
                 }}
               >
-                Post
-              </button>
-            </form>
-          </div>
+                View on {sourceLabel(listing.source)} &#8599;
+              </a>
+            </div>
+          )}
 
           {/* Footer */}
-          <div style={{ borderTop: "1px solid var(--color-border-dark)", padding: "12px 20px", display: "flex", justifyContent: "flex-end" }}>
+          <div style={{
+            borderTop: isMobile ? undefined : "1px solid var(--color-border-dark)",
+            padding: isMobile ? "0 20px 24px" : "12px 20px",
+            display: "flex",
+            justifyContent: isMobile ? "center" : "flex-end",
+          }}>
             <button
               onClick={deleteListing}
-              style={{ padding: "6px 14px", fontSize: 13, color: "var(--color-red)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", borderRadius: 6, transition: "all 0.15s" }}
+              style={{
+                padding: isMobile ? "12px" : "6px 14px",
+                fontSize: 13,
+                color: "var(--color-red)",
+                background: isMobile ? "rgba(185,28,28,0.06)" : "none",
+                border: "none",
+                cursor: "pointer",
+                fontFamily: "inherit",
+                borderRadius: isMobile ? 10 : 6,
+                transition: "all 0.15s",
+                width: isMobile ? "100%" : undefined,
+                fontWeight: isMobile ? 500 : undefined,
+              }}
               onMouseOver={(e) => (e.currentTarget.style.background = "rgba(185,28,28,0.06)")}
-              onMouseOut={(e) => (e.currentTarget.style.background = "none")}
+              onMouseOut={(e) => { if (!isMobile) e.currentTarget.style.background = "none"; }}
             >
               Remove listing
             </button>
           </div>
+
+          {/* Mobile: extra bottom padding for safe area */}
+          {isMobile && <div style={{ height: 20 }} />}
         </div>
       </div>
 
