@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "**.muscache.com" },
       { protocol: "https", hostname: "**.vrbo.com" },
       { protocol: "https", hostname: "**.bstatic.com" },
+      { protocol: "https", hostname: "images.unsplash.com" },
     ],
   },
 };

@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, destination, centerLat, centerLng, adults, kids, nights, checkIn, checkOut } = body;
+    const { name, destination, centerLat, centerLng, adults, kids, nights, checkIn, checkOut, coverPhotoUrl, coverPhotoAttribution } = body;
 
     if (!name || !destination || centerLat == null || centerLng == null) {
       return NextResponse.json(
@@ -24,6 +24,8 @@ export async function POST(request: NextRequest) {
         nights: nights ?? null,
         checkIn: checkIn ? new Date(checkIn) : null,
         checkOut: checkOut ? new Date(checkOut) : null,
+        coverPhotoUrl: coverPhotoUrl || null,
+        coverPhotoAttribution: coverPhotoAttribution || null,
       },
     });
 
@@ -44,6 +46,8 @@ export async function GET() {
         adults: true,
         kids: true,
         checkIn: true,
+        coverPhotoUrl: true,
+        coverPhotoAttribution: true,
         createdAt: true,
         listings: {
           select: {
@@ -54,6 +58,7 @@ export async function GET() {
             totalCost: true,
             addedBy: true,
             createdAt: true,
+            photos: { select: { url: true }, orderBy: { sortOrder: "asc" as const }, take: 1 },
             votes: { select: { userName: true, value: true, createdAt: true } },
             comments: { select: { userName: true, text: true, createdAt: true }, orderBy: { createdAt: "desc" as const }, take: 3 },
           },

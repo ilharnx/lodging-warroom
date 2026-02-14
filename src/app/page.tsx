@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 interface TripVote {
   userName: string;
@@ -22,6 +22,7 @@ interface TripListing {
   totalCost: number | null;
   addedBy: string | null;
   createdAt: string;
+  photos: { url: string }[];
   votes: TripVote[];
   comments: TripComment[];
 }
@@ -33,6 +34,8 @@ interface Trip {
   adults: number;
   kids: number;
   checkIn: string | null;
+  coverPhotoUrl: string | null;
+  coverPhotoAttribution: string | null;
   createdAt: string;
   listings: TripListing[];
 }
@@ -150,6 +153,9 @@ export default function Home() {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [coverPreview, setCoverPreview] = useState<{ url: string; attribution: string | null; source: "unsplash" | "upload" } | null>(null);
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [fetchingCover, setFetchingCover] = useState(false);
 
   useEffect(() => {
     fetch("/api/trips")
@@ -173,8 +179,41 @@ export default function Home() {
     ? Math.max(1, Math.round((new Date(form.checkOut).getTime() - new Date(form.checkIn).getTime()) / (1000 * 60 * 60 * 24)))
     : null;
 
+  // Fetch Unsplash cover photo when destination changes
+  const fetchUnsplash = useCallback((dest: string) => {
+    if (!dest.trim()) { setCoverPreview(null); return; }
+    setFetchingCover(true);
+    fetch(`/api/unsplash?q=${encodeURIComponent(dest)}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (data?.url) {
+          setCoverPreview({ url: data.url, attribution: data.attribution, source: "unsplash" });
+        }
+      })
+      .catch(() => {})
+      .finally(() => setFetchingCover(false));
+  }, []);
+
+  useEffect(() => {
+    if (!form.destination.trim() || coverPreview?.source === "upload") return;
+    const timer = setTimeout(() => fetchUnsplash(form.destination), 600);
+    return () => clearTimeout(timer);
+  }, [form.destination, fetchUnsplash, coverPreview?.source]);
+
+  function handleCoverFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCoverFile(file);
+    const objectUrl = URL.createObjectURL(file);
+    setCoverPreview({ url: objectUrl, attribution: null, source: "upload" });
+  }
+
   async function createTrip(e: React.FormEvent) {
     e.preventDefault();
+    // Determine cover photo to include at creation
+    const coverPhotoUrl = coverPreview?.source === "unsplash" ? coverPreview.url : null;
+    const coverPhotoAttribution = coverPreview?.source === "unsplash" ? coverPreview.attribution : null;
+
     const res = await fetch("/api/trips", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -188,10 +227,21 @@ export default function Home() {
         checkIn: form.checkIn || null,
         checkOut: form.checkOut || null,
         nights: dateNights,
+        coverPhotoUrl,
+        coverPhotoAttribution,
       }),
     });
     if (res.ok) {
       const trip = await res.json();
+      // Upload user photo if selected
+      if (coverFile) {
+        const formData = new FormData();
+        formData.append("file", coverFile);
+        await fetch(`/api/trips/${trip.id}/cover-photo`, {
+          method: "POST",
+          body: formData,
+        });
+      }
       window.location.href = `/trip/${trip.id}`;
     }
   }
@@ -621,6 +671,76 @@ export default function Home() {
                 </div>
               </div>
 
+              {/* Cover photo — optional */}
+              <div>
+                <label style={{ display: "block", fontSize: 11, color: "var(--color-text-mid)", marginBottom: 4, fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: 0.8 }}>
+                  Cover Photo <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0, fontFamily: "inherit" }}>(optional)</span>
+                </label>
+                {coverPreview ? (
+                  <div style={{ position: "relative", borderRadius: 10, overflow: "hidden", border: "1px solid var(--color-border-dark)" }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={coverPreview.url}
+                      alt="Cover preview"
+                      style={{ width: "100%", height: 140, objectFit: "cover", display: "block" }}
+                    />
+                    <div style={{
+                      position: "absolute", inset: 0,
+                      background: "linear-gradient(to bottom, transparent 50%, rgba(0,0,0,0.4) 100%)",
+                    }} />
+                    {coverPreview.attribution && (
+                      <div style={{
+                        position: "absolute", bottom: 4, right: 8,
+                        fontSize: 9, color: "rgba(255,255,255,0.5)",
+                      }}>
+                        {coverPreview.attribution}
+                      </div>
+                    )}
+                    <div style={{ position: "absolute", top: 8, right: 8, display: "flex", gap: 4 }}>
+                      {coverPreview.source === "unsplash" && (
+                        <span style={{
+                          fontSize: 10, padding: "2px 8px", borderRadius: 10,
+                          background: "rgba(0,0,0,0.5)", color: "rgba(255,255,255,0.8)",
+                        }}>
+                          Auto
+                        </span>
+                      )}
+                      <label style={{
+                        fontSize: 10, padding: "2px 8px", borderRadius: 10,
+                        background: "rgba(0,0,0,0.5)", color: "#fff",
+                        cursor: "pointer",
+                      }}>
+                        Upload
+                        <input type="file" accept="image/*" onChange={handleCoverFileChange} style={{ display: "none" }} />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => { setCoverPreview(null); setCoverFile(null); }}
+                        style={{
+                          fontSize: 10, padding: "2px 8px", borderRadius: 10,
+                          background: "rgba(0,0,0,0.5)", color: "rgba(255,255,255,0.8)",
+                          border: "none", cursor: "pointer", fontFamily: "inherit",
+                        }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <label style={{
+                      flex: 1, padding: "10px 16px", fontSize: 13, fontWeight: 500,
+                      background: "var(--color-panel)", border: "1px solid var(--color-border-dark)",
+                      borderRadius: 8, cursor: "pointer", fontFamily: "inherit",
+                      color: "var(--color-text-mid)", textAlign: "center" as const,
+                    }}>
+                      {fetchingCover ? "Loading..." : "Upload your own"}
+                      <input type="file" accept="image/*" onChange={handleCoverFileChange} style={{ display: "none" }} />
+                    </label>
+                  </div>
+                )}
+              </div>
+
               <div className="flex gap-3 pt-2">
                 <button
                   type="submit"
@@ -668,6 +788,7 @@ export default function Home() {
 
 function TripCard({ trip }: { trip: Trip }) {
   const [hovered, setHovered] = useState(false);
+  const [unsplashPhoto, setUnsplashPhoto] = useState<{ url: string; attribution: string } | null>(null);
   const flag = getFlag(trip.destination);
   const members = getMembers(trip);
   const activityStatus = getActivityStatus(trip);
@@ -677,6 +798,26 @@ function TripCard({ trip }: { trip: Trip }) {
   const daysUntilTrip = checkInDate
     ? Math.ceil((checkInDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
     : null;
+
+  // Determine cover photo: user upload > first listing photo > Unsplash
+  const firstListingPhoto = trip.listings.find((l) => l.photos.length > 0)?.photos[0]?.url;
+  const coverPhoto = trip.coverPhotoUrl || firstListingPhoto || unsplashPhoto?.url || null;
+  const attribution = trip.coverPhotoAttribution || (unsplashPhoto && !trip.coverPhotoUrl && !firstListingPhoto ? unsplashPhoto.attribution : null);
+
+  // Fetch Unsplash fallback if no other photo
+  useEffect(() => {
+    if (trip.coverPhotoUrl || firstListingPhoto) return;
+    let cancelled = false;
+    fetch(`/api/unsplash?q=${encodeURIComponent(trip.destination)}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (!cancelled && data?.url) {
+          setUnsplashPhoto({ url: data.url, attribution: data.attribution });
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [trip.coverPhotoUrl, firstListingPhoto, trip.destination]);
 
   return (
     <a
@@ -698,50 +839,76 @@ function TripCard({ trip }: { trip: Trip }) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {/* Warm gradient header — Ken Burns + waves */}
+      {/* Photo header */}
       <div style={{ position: "relative", overflow: "hidden" }}>
-        {/* Layer 1: Ken Burns gradient */}
-        <div
-          className="trip-card-ken-burns"
-          style={{
-            position: "absolute",
-            inset: "-10%",
-            background: "linear-gradient(135deg, #FCEEE8 0%, #F7E4D8 40%, #EDE7E0 100%)",
-          }}
-        />
-
-        {/* Layer 2: SVG wave shapes — bottom third */}
-        <svg
-          style={{ position: "absolute", bottom: 0, left: "-5%", width: "110%", height: "40%" }}
-          viewBox="0 0 400 100"
-          preserveAspectRatio="none"
-          fill="#fff"
-        >
-          <path className="trip-card-wave-a" d="M0 50C60 35 140 65 200 45S320 55 400 42L400 100H0Z" opacity="0.06" />
-          <path className="trip-card-wave-b" d="M0 62C80 48 160 72 240 55S360 68 400 58L400 100H0Z" opacity="0.08" />
-          <path className="trip-card-wave-c" d="M0 72C50 60 130 82 210 68S330 78 400 70L400 100H0Z" opacity="0.1" />
-        </svg>
+        {/* Photo or gradient fallback */}
+        {coverPhoto ? (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={coverPhoto}
+              alt=""
+              className="trip-card-ken-burns"
+              style={{
+                position: "absolute",
+                inset: "-10%",
+                width: "120%",
+                height: "120%",
+                objectFit: "cover",
+              }}
+            />
+            {/* Dark gradient overlay for text readability */}
+            <div style={{
+              position: "absolute",
+              inset: 0,
+              background: "linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.45) 100%)",
+            }} />
+          </>
+        ) : (
+          <>
+            <div
+              className="trip-card-ken-burns"
+              style={{
+                position: "absolute",
+                inset: "-10%",
+                background: "linear-gradient(135deg, #FCEEE8 0%, #F7E4D8 40%, #EDE7E0 100%)",
+              }}
+            />
+            <svg
+              style={{ position: "absolute", bottom: 0, left: "-5%", width: "110%", height: "40%" }}
+              viewBox="0 0 400 100"
+              preserveAspectRatio="none"
+              fill="#fff"
+            >
+              <path className="trip-card-wave-a" d="M0 50C60 35 140 65 200 45S320 55 400 42L400 100H0Z" opacity="0.06" />
+              <path className="trip-card-wave-b" d="M0 62C80 48 160 72 240 55S360 68 400 58L400 100H0Z" opacity="0.08" />
+              <path className="trip-card-wave-c" d="M0 72C50 60 130 82 210 68S330 78 400 70L400 100H0Z" opacity="0.1" />
+            </svg>
+          </>
+        )}
 
         {/* Content on top */}
         <div style={{ position: "relative", padding: "20px 20px 16px" }}>
           <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-            <span style={{ fontSize: 26, lineHeight: 1 }}>{flag}</span>
+            <span style={{ fontSize: 26, lineHeight: 1, textShadow: coverPhoto ? "0 1px 3px rgba(0,0,0,0.3)" : "none" }}>{flag}</span>
             <div style={{ flex: 1, minWidth: 0 }}>
               <h3 style={{
                 fontSize: 18,
                 fontWeight: 600,
-                color: "var(--color-text)",
+                color: coverPhoto ? "#fff" : "var(--color-text)",
                 margin: 0,
                 lineHeight: 1.25,
                 fontFamily: "var(--font-heading)",
+                textShadow: coverPhoto ? "0 1px 4px rgba(0,0,0,0.3)" : "none",
               }}>
                 {trip.name}
               </h3>
               <p style={{
                 fontSize: 13,
-                color: "var(--color-text-mid)",
+                color: coverPhoto ? "rgba(255,255,255,0.85)" : "var(--color-text-mid)",
                 margin: 0,
                 marginTop: 3,
+                textShadow: coverPhoto ? "0 1px 3px rgba(0,0,0,0.3)" : "none",
               }}>
                 {trip.destination}
               </p>
@@ -750,10 +917,11 @@ function TripCard({ trip }: { trip: Trip }) {
               {daysUntilTrip != null && daysUntilTrip > 0 && (
                 <p className="font-mono" style={{
                   fontSize: 12,
-                  color: "var(--color-text-mid)",
+                  color: coverPhoto ? "rgba(255,255,255,0.75)" : "var(--color-text-mid)",
                   margin: 0,
                   marginTop: 6,
                   letterSpacing: 0.3,
+                  textShadow: coverPhoto ? "0 1px 3px rgba(0,0,0,0.3)" : "none",
                 }}>
                   &#9728;&#65039; {daysUntilTrip}d away
                 </p>
@@ -761,6 +929,22 @@ function TripCard({ trip }: { trip: Trip }) {
             </div>
           </div>
         </div>
+
+        {/* Unsplash attribution — tiny, bottom-right corner */}
+        {attribution && (
+          <div style={{
+            position: "absolute",
+            bottom: 4,
+            right: 8,
+            fontSize: 8,
+            color: "rgba(255,255,255,0.4)",
+            textShadow: "0 1px 2px rgba(0,0,0,0.3)",
+            lineHeight: 1,
+            pointerEvents: "none",
+          }}>
+            {attribution}
+          </div>
+        )}
 
         {/* Coral accent bar on hover */}
         <div

@@ -201,6 +201,7 @@ function StepperRow({ label, value, min, max, onChange }: {
 
 interface TripSettingsProps {
   trip: {
+    id: string;
     name: string;
     destination: string;
     adults: number;
@@ -210,11 +211,14 @@ interface TripSettingsProps {
     checkOut: string | null;
     centerLat: number;
     centerLng: number;
+    coverPhotoUrl: string | null;
+    coverPhotoAttribution: string | null;
   };
   onSave: (updates: {
     name?: string; destination?: string;
     adults?: number; kids?: number; nights?: number | null;
     checkIn?: string | null; checkOut?: string | null;
+    coverPhotoUrl?: string | null; coverPhotoAttribution?: string | null;
   }) => Promise<void>;
   onClose: () => void;
 }
@@ -224,6 +228,10 @@ function TripSettingsView({ trip, onSave, onClose }: TripSettingsProps) {
   const [destination, setDestination] = useState(trip.destination);
   const [adults, setAdults] = useState(trip.adults);
   const [kids, setKids] = useState(trip.kids);
+  const [coverPreview, setCoverPreview] = useState<string | null>(trip.coverPhotoUrl);
+  const [coverAttribution, setCoverAttribution] = useState<string | null>(trip.coverPhotoAttribution);
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverChanged, setCoverChanged] = useState(false);
   const [checkIn, setCheckIn] = useState(
     trip.checkIn ? new Date(trip.checkIn).toISOString().split("T")[0] : ""
   );
@@ -240,6 +248,25 @@ function TripSettingsView({ trip, onSave, onClose }: TripSettingsProps) {
     e.preventDefault();
     setSaving(true);
     try {
+      // If user uploaded a new file, upload it
+      if (coverFile) {
+        const formData = new FormData();
+        formData.append("file", coverFile);
+        const uploadRes = await fetch(`/api/trips/${trip.id}/cover-photo`, {
+          method: "POST",
+          body: formData,
+        });
+        if (uploadRes.ok) {
+          const { coverPhotoUrl } = await uploadRes.json();
+          await onSave({
+            name: name.trim(), destination: destination.trim(),
+            adults, kids, checkIn: checkIn || null, checkOut: checkOut || null,
+            nights: dateNights, coverPhotoUrl, coverPhotoAttribution: null,
+          });
+          return;
+        }
+      }
+
       await onSave({
         name: name.trim(),
         destination: destination.trim(),
@@ -248,10 +275,34 @@ function TripSettingsView({ trip, onSave, onClose }: TripSettingsProps) {
         checkIn: checkIn || null,
         checkOut: checkOut || null,
         nights: dateNights,
+        ...(coverChanged && !coverFile ? { coverPhotoUrl: coverPreview, coverPhotoAttribution: coverAttribution } : {}),
       });
     } finally {
       setSaving(false);
     }
+  }
+
+  function handleCoverUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCoverFile(file);
+    setCoverPreview(URL.createObjectURL(file));
+    setCoverAttribution(null);
+    setCoverChanged(true);
+  }
+
+  function fetchUnsplashCover() {
+    fetch(`/api/unsplash?q=${encodeURIComponent(destination || trip.destination)}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (data?.url) {
+          setCoverPreview(data.url);
+          setCoverAttribution(data.attribution);
+          setCoverFile(null);
+          setCoverChanged(true);
+        }
+      })
+      .catch(() => {});
   }
 
   const inputStyle: React.CSSProperties = {
@@ -476,6 +527,86 @@ function TripSettingsView({ trip, onSave, onClose }: TripSettingsProps) {
           </p>
         </div>
 
+        {/* Cover Photo */}
+        <div>
+          <label style={labelStyle}>Cover Photo</label>
+          {coverPreview ? (
+            <div style={{ position: "relative", borderRadius: 10, overflow: "hidden", border: "1px solid var(--color-border-dark)" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={coverPreview}
+                alt="Cover"
+                style={{ width: "100%", height: 160, objectFit: "cover", display: "block" }}
+              />
+              <div style={{
+                position: "absolute", inset: 0,
+                background: "linear-gradient(to bottom, transparent 50%, rgba(0,0,0,0.35) 100%)",
+              }} />
+              {coverAttribution && (
+                <div style={{ position: "absolute", bottom: 4, right: 8, fontSize: 9, color: "rgba(255,255,255,0.5)" }}>
+                  {coverAttribution}
+                </div>
+              )}
+              <div style={{ position: "absolute", top: 8, right: 8, display: "flex", gap: 4 }}>
+                <label style={{
+                  fontSize: 11, padding: "4px 10px", borderRadius: 8,
+                  background: "rgba(0,0,0,0.5)", color: "#fff",
+                  cursor: "pointer", fontFamily: "inherit",
+                }}>
+                  Upload new
+                  <input type="file" accept="image/*" onChange={handleCoverUpload} style={{ display: "none" }} />
+                </label>
+                <button
+                  type="button"
+                  onClick={fetchUnsplashCover}
+                  style={{
+                    fontSize: 11, padding: "4px 10px", borderRadius: 8,
+                    background: "rgba(0,0,0,0.5)", color: "rgba(255,255,255,0.8)",
+                    border: "none", cursor: "pointer", fontFamily: "inherit",
+                  }}
+                >
+                  Unsplash
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setCoverPreview(null); setCoverAttribution(null); setCoverFile(null); setCoverChanged(true); }}
+                  style={{
+                    fontSize: 11, padding: "4px 10px", borderRadius: 8,
+                    background: "rgba(0,0,0,0.5)", color: "rgba(255,255,255,0.7)",
+                    border: "none", cursor: "pointer", fontFamily: "inherit",
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: "flex", gap: 8 }}>
+              <label style={{
+                flex: 1, padding: "12px 16px", fontSize: 14, fontWeight: 500,
+                background: "#fff", border: "1px solid var(--color-border-dark)",
+                borderRadius: 10, cursor: "pointer", fontFamily: "inherit",
+                color: "var(--color-text-mid)", textAlign: "center" as const,
+              }}>
+                Upload photo
+                <input type="file" accept="image/*" onChange={handleCoverUpload} style={{ display: "none" }} />
+              </label>
+              <button
+                type="button"
+                onClick={fetchUnsplashCover}
+                style={{
+                  flex: 1, padding: "12px 16px", fontSize: 14, fontWeight: 500,
+                  background: "#fff", border: "1px solid var(--color-border-dark)",
+                  borderRadius: 10, cursor: "pointer", fontFamily: "inherit",
+                  color: "var(--color-text-mid)",
+                }}
+              >
+                Unsplash suggestion
+              </button>
+            </div>
+          )}
+        </div>
+
         {/* Save */}
         <button
           type="submit"
@@ -674,6 +805,7 @@ export default function TripPage({
     adults?: number; kids?: number; nights?: number | null;
     checkIn?: string | null; checkOut?: string | null;
     centerLat?: number; centerLng?: number;
+    coverPhotoUrl?: string | null; coverPhotoAttribution?: string | null;
   }) {
     await fetch(`/api/trips/${tripId}`, {
       method: "PATCH",

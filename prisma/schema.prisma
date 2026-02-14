@@ -9,19 +9,21 @@ datasource db {
 }
 
 model Trip {
-  id          String    @id @default(cuid())
-  name        String
-  destination String
-  centerLat   Float
-  centerLng   Float
-  adults      Int       @default(4)
-  kids        Int       @default(2)
-  nights      Int?
-  checkIn     DateTime?
-  checkOut    DateTime?
-  preferences Json?
-  listings    Listing[]
-  createdAt   DateTime  @default(now())
+  id            String    @id @default(cuid())
+  name          String
+  destination   String
+  centerLat     Float
+  centerLng     Float
+  adults        Int       @default(4)
+  kids          Int       @default(2)
+  nights        Int?
+  checkIn       DateTime?
+  checkOut      DateTime?
+  preferences   Json?
+  coverPhotoUrl String?
+  coverPhotoAttribution String?
+  listings      Listing[]
+  createdAt     DateTime  @default(now())
 }
 
 model Listing {
