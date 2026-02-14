@@ -299,32 +299,33 @@ function IdentityPicker({
       {/* Trip info */}
       <div style={{ textAlign: "center", marginBottom: 32, maxWidth: 360 }}>
         <h2 style={{
-          fontSize: 22,
+          fontSize: 24,
           fontWeight: 600,
           fontFamily: "var(--font-heading)",
+          fontStyle: "italic",
           color: "var(--color-text)",
           margin: 0,
           marginBottom: 8,
         }}>
-          {trip.name}
+          new trip, who dis?
         </h2>
         <p style={{
-          fontSize: 13,
+          fontSize: 14,
           color: "var(--color-text-muted)",
           margin: 0,
         }}>
-          {trip.destination}{dateLabel ? ` \u00B7 ${dateLabel}` : ""}
+          {trip.name}{dateLabel ? ` \u00B7 ${dateLabel}` : ""}
         </p>
       </div>
 
       {/* Question */}
       <p style={{
-        fontSize: 16,
-        color: "var(--color-text)",
+        fontSize: 15,
+        color: "var(--color-text-mid)",
         fontWeight: 500,
         marginBottom: 20,
       }}>
-        Which traveler are you?
+        Tap your name to jump in
       </p>
 
       {/* Traveler cards */}
