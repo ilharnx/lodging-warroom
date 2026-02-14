@@ -9,9 +9,25 @@ export async function GET(
     const { tripId } = await params;
     const trip = await prisma.trip.findUnique({
       where: { id: tripId },
-      include: {
+      select: {
+        id: true, name: true, destination: true,
+        centerLat: true, centerLng: true,
+        adults: true, kids: true,
+        nights: true, checkIn: true, checkOut: true,
+        createdAt: true,
         listings: {
-          include: {
+          select: {
+            id: true, tripId: true, url: true, source: true, externalId: true,
+            name: true, description: true,
+            totalCost: true, perNight: true, cleaningFee: true,
+            serviceFee: true, taxes: true, currency: true,
+            address: true, neighborhood: true, lat: true, lng: true,
+            bedrooms: true, beds: true, bathrooms: true, bathroomNotes: true,
+            kitchen: true, kitchenDetails: true, amenities: true,
+            kidFriendly: true, kidNotes: true, beachType: true, beachDistance: true,
+            rating: true, reviewCount: true, addedBy: true,
+            scrapeStatus: true, scrapeError: true, lastScraped: true,
+            createdAt: true, updatedAt: true,
             photos: { orderBy: { sortOrder: "asc" } },
             votes: true,
             comments: { orderBy: { createdAt: "desc" } },
@@ -40,7 +56,7 @@ export async function PATCH(
     const { tripId } = await params;
     const body = await request.json();
 
-    const existing = await prisma.trip.findUnique({ where: { id: tripId } });
+    const existing = await prisma.trip.findUnique({ where: { id: tripId }, select: { id: true } });
     if (!existing) {
       return NextResponse.json({ error: "Trip not found" }, { status: 404 });
     }

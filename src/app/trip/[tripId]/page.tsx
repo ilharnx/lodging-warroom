@@ -151,6 +151,7 @@ export default function TripPage({
 
   const [trip, setTrip] = useState<Trip>(null);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [detailListing, setDetailListing] = useState<Listing | null>(null);
@@ -168,6 +169,7 @@ export default function TripPage({
       if (res.ok) {
         const data = await res.json();
         setTrip(data);
+        setFetchError(null);
 
         // If detail panel is open, refresh the listing data
         if (detailListing) {
@@ -176,9 +178,13 @@ export default function TripPage({
           );
           if (updated) setDetailListing(updated);
         }
+      } else if (res.status === 404) {
+        setFetchError("Trip not found");
+      } else {
+        setFetchError("Could not load trip — the database may need a schema update.");
       }
     } catch {
-      // ignore
+      setFetchError("Could not connect to the server.");
     } finally {
       setLoading(false);
     }
@@ -277,13 +283,33 @@ export default function TripPage({
         style={{
           height: "100vh",
           display: "flex",
+          flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
+          gap: 12,
           background: "var(--color-bg)",
           color: "var(--color-text-mid)",
         }}
       >
-        Trip not found
+        <p>{fetchError || "Trip not found"}</p>
+        {fetchError && fetchError !== "Trip not found" && (
+          <button
+            onClick={() => window.location.reload()}
+            style={{
+              padding: "8px 16px",
+              background: "var(--color-coral)",
+              color: "#fff",
+              fontWeight: 600,
+              borderRadius: 8,
+              border: "none",
+              cursor: "pointer",
+              fontFamily: "inherit",
+              fontSize: 14,
+            }}
+          >
+            Retry
+          </button>
+        )}
       </div>
     );
   }
