@@ -1,5 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { ReactionType as ReactionTypeEnum } from "@prisma/client";
+
+const VALID_REACTIONS = new Set<string>(["fire", "love", "think", "pass"]);
+const REACTION_VALUE: Record<string, number> = {
+  fire: 1,
+  love: 1,
+  think: 0,
+  pass: -1,
+};
 
 export async function POST(
   request: NextRequest,
@@ -8,11 +17,11 @@ export async function POST(
   try {
     const { listingId } = await params;
     const body = await request.json();
-    const { userName, value } = body;
+    const { userName, reactionType } = body;
 
-    if (!userName || (value !== 1 && value !== -1)) {
+    if (!userName || !VALID_REACTIONS.has(reactionType)) {
       return NextResponse.json(
-        { error: "userName and value (1 or -1) are required" },
+        { error: "userName and reactionType (fire|love|think|pass) are required" },
         { status: 400 }
       );
     }
@@ -22,18 +31,19 @@ export async function POST(
       return NextResponse.json({ error: "Listing not found" }, { status: 404 });
     }
 
+    const value = REACTION_VALUE[reactionType] ?? 0;
+
     // Upsert: update existing vote or create new
     const vote = await prisma.vote.upsert({
       where: { listingId_userName: { listingId, userName } },
-      update: { value },
-      create: { listingId, userName, value },
+      update: { reactionType: reactionType as ReactionTypeEnum, value },
+      create: { listingId, userName, reactionType: reactionType as ReactionTypeEnum, value },
     });
 
-    // Return updated vote tally
+    // Return updated votes
     const votes = await prisma.vote.findMany({ where: { listingId } });
-    const tally = votes.reduce((sum, v) => sum + v.value, 0);
 
-    return NextResponse.json({ vote, tally, votes });
+    return NextResponse.json({ vote, votes });
   } catch (error) {
     console.error("Error voting:", error);
     return NextResponse.json({ error: "Failed to vote" }, { status: 500 });
@@ -61,9 +71,8 @@ export async function DELETE(
     });
 
     const votes = await prisma.vote.findMany({ where: { listingId } });
-    const tally = votes.reduce((sum, v) => sum + v.value, 0);
 
-    return NextResponse.json({ tally, votes });
+    return NextResponse.json({ votes });
   } catch (error) {
     console.error("Error removing vote:", error);
     return NextResponse.json({ error: "Failed to remove vote" }, { status: 500 });

@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { ReactionBar } from "./ReactionBar";
+import type { ReactionType } from "./ReactionBar";
 
 interface Photo {
   id: string;
@@ -12,7 +14,7 @@ interface Photo {
 interface Vote {
   id: string;
   userName: string;
-  value: number;
+  reactionType: ReactionType;
 }
 
 interface Comment {
@@ -80,8 +82,8 @@ interface ListingDetailProps {
   onClose: () => void;
   onRefresh: () => void;
   onNeedName: () => void;
-  onVote: (value: 1 | -1) => void;
-  onRemoveVote: () => void;
+  onReact: (reactionType: ReactionType) => void;
+  onRemoveReaction: () => void;
   onRescrape?: () => void;
   budgetRange?: BudgetRange | null;
   hasPreferences?: boolean;
@@ -277,8 +279,8 @@ export function ListingDetail({
   onClose,
   onRefresh,
   onNeedName,
-  onVote,
-  onRemoveVote,
+  onReact,
+  onRemoveReaction,
   onRescrape,
   budgetRange,
   hasPreferences,
@@ -352,8 +354,6 @@ export function ListingDetail({
     ? Math.round(listing.totalCost / adults)
     : null;
 
-  const voteTotal = listing.votes.reduce((sum, v) => sum + v.value, 0);
-  const userVote = listing.votes.find((v) => v.userName === userName);
   const isGenericName =
     listing.name.startsWith("Listing from") ||
     listing.name === "Loading..." ||
@@ -812,79 +812,44 @@ export function ListingDetail({
               )}
             </div>
 
-            {/* Edit / Vote controls */}
-            <div style={{ marginTop: 10, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                {editing ? (
-                  <>
-                    <button
-                      onClick={saveEdits}
-                      disabled={saving}
-                      style={{ padding: "5px 12px", fontSize: 12, fontWeight: 600, background: "var(--color-coral)", color: "#fff", borderRadius: 6, border: "none", cursor: "pointer", fontFamily: "inherit", opacity: saving ? 0.5 : 1 }}
-                    >
-                      {saving ? "Saving..." : "Save"}
-                    </button>
-                    <button
-                      onClick={() => setEditing(false)}
-                      style={{ padding: "5px 12px", fontSize: 12, color: "var(--color-text-mid)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}
-                    >
-                      Cancel
-                    </button>
-                  </>
-                ) : (
+            {/* Edit controls */}
+            <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 6 }}>
+              {editing ? (
+                <>
                   <button
-                    onClick={() => setEditing(true)}
-                    style={{ padding: "5px 12px", fontSize: 12, fontWeight: 500, background: "var(--color-panel)", border: "1px solid var(--color-border-dark)", color: "var(--color-text-mid)", borderRadius: 6, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}
+                    onClick={saveEdits}
+                    disabled={saving}
+                    style={{ padding: "5px 12px", fontSize: 12, fontWeight: 600, background: "var(--color-coral)", color: "#fff", borderRadius: 6, border: "none", cursor: "pointer", fontFamily: "inherit", opacity: saving ? 0.5 : 1 }}
                   >
-                    Edit
+                    {saving ? "Saving..." : "Save"}
                   </button>
-                )}
-              </div>
+                  <button
+                    onClick={() => setEditing(false)}
+                    style={{ padding: "5px 12px", fontSize: 12, color: "var(--color-text-mid)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setEditing(true)}
+                  style={{ padding: "5px 12px", fontSize: 12, fontWeight: 500, background: "var(--color-panel)", border: "1px solid var(--color-border-dark)", color: "var(--color-text-mid)", borderRadius: 6, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}
+                >
+                  Edit
+                </button>
+              )}
+            </div>
 
-              <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-                <button
-                  onClick={() => {
-                    if (!userName) { onNeedName(); return; }
-                    if (userVote?.value === 1) { onRemoveVote(); } else { onVote(1); }
-                  }}
-                  title={userVote?.value === 1 ? "Remove upvote" : "Upvote"}
-                  style={{
-                    padding: "4px 8px", borderRadius: 4, cursor: "pointer", fontFamily: "inherit", fontSize: 12, border: "none",
-                    background: userVote?.value === 1 ? "rgba(74,158,107,0.1)" : "transparent",
-                    color: userVote?.value === 1 ? "var(--color-green)" : "var(--color-text-mid)",
-                    transition: "all 0.15s",
-                  }}
-                >
-                  &#9650;
-                </button>
-                <span
-                  className="font-mono"
-                  style={{
-                    fontSize: 14,
-                    fontWeight: 700,
-                    minWidth: 24,
-                    textAlign: "center" as const,
-                    color: voteTotal > 0 ? "var(--color-green)" : voteTotal < 0 ? "var(--color-red)" : "var(--color-text-mid)",
-                  }}
-                >
-                  {voteTotal}
-                </span>
-                <button
-                  onClick={() => {
-                    if (!userName) { onNeedName(); return; }
-                    if (userVote?.value === -1) { onRemoveVote(); } else { onVote(-1); }
-                  }}
-                  title={userVote?.value === -1 ? "Remove downvote" : "Downvote"}
-                  style={{
-                    padding: "4px 8px", borderRadius: 4, cursor: "pointer", fontFamily: "inherit", fontSize: 12, border: "none",
-                    background: userVote?.value === -1 ? "rgba(185,28,28,0.1)" : "transparent",
-                    color: userVote?.value === -1 ? "var(--color-red)" : "var(--color-text-mid)",
-                    transition: "all 0.15s",
-                  }}
-                >
-                  &#9660;
-                </button>
-              </div>
+            {/* Reactions */}
+            <div style={{ marginTop: 12 }}>
+              <ReactionBar
+                votes={listing.votes}
+                userName={userName}
+                mode="full"
+                onReact={onReact}
+                onRemoveReaction={onRemoveReaction}
+                onNeedName={onNeedName}
+              />
             </div>
           </div>
 

@@ -20,9 +20,25 @@ export interface ListingFormData {
   addedBy?: string;
 }
 
+export type ReactionType = "fire" | "love" | "think" | "pass";
+
+export const REACTIONS: { type: ReactionType; emoji: string; label: string }[] = [
+  { type: "fire", emoji: "\uD83D\uDD25", label: "Fire" },
+  { type: "love", emoji: "\uD83D\uDE0D", label: "Love" },
+  { type: "think", emoji: "\uD83E\uDD14", label: "Hmm" },
+  { type: "pass", emoji: "\uD83D\uDC4E", label: "Pass" },
+];
+
+export const REACTION_VALUE: Record<ReactionType, number> = {
+  fire: 1,
+  love: 1,
+  think: 0,
+  pass: -1,
+};
+
 export interface VoteData {
   userName: string;
-  value: 1 | -1;
+  reactionType: ReactionType;
 }
 
 export interface CommentData {
