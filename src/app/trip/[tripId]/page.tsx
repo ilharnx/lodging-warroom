@@ -940,81 +940,94 @@ export default function TripPage({
         />
       )}
 
-      {/* Name prompt */}
+      {/* Name prompt — warm, casual, not a sign-up form */}
       {showNamePrompt && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center"
           style={{
-            background: "rgba(0,0,0,0.6)",
-            backdropFilter: "blur(4px)",
+            background: "rgba(42,37,32,0.5)",
+            backdropFilter: "blur(6px)",
           }}
         >
           <div
             className="animate-slide-up"
             style={{
-              background: "#fff",
-              borderRadius: 14,
-              padding: isMobile ? 20 : 28,
-              maxWidth: 360,
+              background: "linear-gradient(160deg, #FFF9F5 0%, #FFFFFF 100%)",
+              borderRadius: 20,
+              padding: isMobile ? 24 : 32,
+              maxWidth: 380,
               width: "100%",
               margin: 16,
-              boxShadow: "0 20px 60px rgba(0,0,0,0.15)",
+              boxShadow: "0 24px 60px rgba(0,0,0,0.12)",
+              textAlign: "center",
             }}
           >
+            <div style={{ fontSize: 32, marginBottom: 12 }}>&#128075;</div>
             <h2
               style={{
-                fontSize: 18,
+                fontSize: 24,
                 fontWeight: 600,
                 color: "var(--color-text)",
-                marginBottom: 4,
+                marginBottom: 6,
                 fontFamily: "var(--font-heading)",
+                fontStyle: "italic",
               }}
             >
-              What&apos;s your name?
+              Before we dive in&mdash;
             </h2>
             <p
               style={{
-                fontSize: 13,
+                fontSize: 16,
                 color: "var(--color-text-mid)",
-                marginBottom: 16,
+                marginBottom: 20,
               }}
             >
-              Used for votes and comments — no account needed.
+              What should we call you?
             </p>
             <form onSubmit={submitName}>
               <input
                 type="text"
                 autoFocus
-                placeholder="Your first name"
+                placeholder="First name is perfect"
                 value={nameInput}
                 onChange={(e) => setNameInput(e.target.value)}
                 style={{
                   width: "100%",
-                  padding: "12px 16px",
-                  fontSize: 16,
+                  padding: "14px 18px",
+                  fontSize: 17,
                   background: "var(--color-bg)",
-                  border: "1px solid var(--color-border-dark)",
-                  borderRadius: 8,
+                  border: "1.5px solid var(--color-border-dark)",
+                  borderRadius: 12,
                   color: "var(--color-text)",
                   fontFamily: "inherit",
+                  textAlign: "center",
                 }}
               />
+              <p style={{
+                fontSize: 12,
+                color: "var(--color-text-muted)",
+                marginTop: 8,
+                marginBottom: 16,
+              }}>
+                This is how your group will see your votes and comments.
+              </p>
               <button
                 type="submit"
                 disabled={!nameInput.trim()}
                 style={{
-                  marginTop: 12,
                   width: "100%",
-                  padding: "12px 16px",
+                  padding: "14px 16px",
                   fontSize: 16,
                   fontWeight: 600,
                   background: "var(--color-coral)",
                   color: "#fff",
-                  borderRadius: 8,
+                  borderRadius: 12,
                   border: "none",
                   cursor: "pointer",
                   fontFamily: "inherit",
                   opacity: nameInput.trim() ? 1 : 0.5,
+                  transition: "all 0.15s",
+                  boxShadow: nameInput.trim() ? "0 4px 14px rgba(224,90,71,0.25)" : "none",
                 }}
               >
                 Let&apos;s go

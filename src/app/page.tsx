@@ -2,12 +2,28 @@
 
 import { useState, useEffect } from "react";
 
+interface TripVote {
+  userName: string;
+  value: number;
+  createdAt: string;
+}
+
+interface TripComment {
+  userName: string;
+  text: string;
+  createdAt: string;
+}
+
 interface TripListing {
   id: string;
   name: string;
   scrapeStatus: string;
   perNight: number | null;
   totalCost: number | null;
+  addedBy: string | null;
+  createdAt: string;
+  votes: TripVote[];
+  comments: TripComment[];
 }
 
 interface Trip {
@@ -16,6 +32,7 @@ interface Trip {
   destination: string;
   adults: number;
   kids: number;
+  checkIn: string | null;
   createdAt: string;
   listings: TripListing[];
 }
@@ -53,13 +70,69 @@ function getFlag(destination: string): string {
   return "\u{1F30D}";
 }
 
-function formatAvgPrice(listings: TripListing[]): string | null {
-  const prices = listings
-    .map((l) => l.perNight || l.totalCost)
-    .filter((p): p is number => p != null && p > 0);
-  if (prices.length === 0) return null;
-  const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
-  return `$${Math.round(avg)}`;
+const USER_COLORS = [
+  "#E05A47", "#3D67FF", "#4A9E6B", "#D4A843", "#8B5CF6",
+  "#0891B2", "#DB2777", "#EA580C", "#6D28D9", "#059669",
+];
+
+function getUserColor(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return USER_COLORS[Math.abs(hash) % USER_COLORS.length];
+}
+
+function getMembers(trip: Trip): string[] {
+  const names = new Set<string>();
+  trip.listings.forEach((l) => {
+    if (l.addedBy) names.add(l.addedBy);
+    l.votes.forEach((v) => names.add(v.userName));
+    l.comments.forEach((c) => names.add(c.userName));
+  });
+  return Array.from(names);
+}
+
+function getActivityStatus(trip: Trip): string {
+  // Find most recent activity
+  const allComments = trip.listings.flatMap((l) => l.comments);
+  const allVotes = trip.listings.flatMap((l) => l.votes);
+
+  // Check for recent additions (listings added in the last 24 hours)
+  const recentListings = trip.listings.filter((l) => {
+    const age = Date.now() - new Date(l.createdAt).getTime();
+    return age < 24 * 60 * 60 * 1000 && l.addedBy;
+  });
+
+  if (recentListings.length > 0) {
+    const adder = recentListings[0].addedBy;
+    if (recentListings.length === 1) {
+      return `${adder} added a new place`;
+    }
+    return `${adder} added ${recentListings.length} new places`;
+  }
+
+  // Check for recent comments
+  if (allComments.length > 0) {
+    const latest = allComments.sort((a, b) =>
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )[0];
+    const age = Date.now() - new Date(latest.createdAt).getTime();
+    if (age < 24 * 60 * 60 * 1000) {
+      return `${latest.userName}: "${latest.text.slice(0, 40)}${latest.text.length > 40 ? "..." : ""}"`;
+    }
+  }
+
+  // Check who hasn't voted yet
+  const members = getMembers(trip);
+  const voters = new Set(allVotes.map((v) => v.userName));
+  const nonVoters = members.filter((m) => !voters.has(m));
+  if (nonVoters.length > 0 && members.length > 1) {
+    return `waiting on ${nonVoters[0]} to vote`;
+  }
+
+  // Fallback
+  return `${trip.listings.length} place${trip.listings.length !== 1 ? "s" : ""} saved`;
 }
 
 export default function Home() {
@@ -126,8 +199,8 @@ export default function Home() {
     <div className="min-h-screen" style={{ background: "var(--color-bg)" }}>
       <header style={{ borderBottom: "1px solid var(--color-border-dark)", padding: "16px 24px" }}>
         <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <h1 style={{ fontSize: 20, fontWeight: 600, color: "var(--color-coral)", fontFamily: "var(--font-heading)" }}>
-            Stay
+          <h1 style={{ fontSize: 22, fontWeight: 600, color: "var(--color-coral)", fontFamily: "var(--font-heading)", letterSpacing: -0.5 }}>
+            stay.
           </h1>
           <button
             onClick={() => setShowCreate(true)}
@@ -182,18 +255,37 @@ export default function Home() {
             </button>
           </div>
         ) : trips.length === 0 && !showCreate ? (
-          <div className="text-center py-20">
-            <h2 style={{ fontSize: 24, fontWeight: 600, color: "var(--color-text)", marginBottom: 8, fontFamily: "var(--font-heading)" }}>
-              Plan your next group trip
+          /* Empty state — warm and inviting */
+          <div
+            className="text-center animate-fade-in"
+            style={{
+              maxWidth: 420,
+              marginInline: "auto",
+              marginTop: 48,
+              padding: "40px 32px",
+              borderRadius: 20,
+              background: "linear-gradient(160deg, rgba(224,90,71,0.06) 0%, rgba(212,168,67,0.05) 50%, rgba(74,158,107,0.04) 100%)",
+              border: "1px solid var(--color-border)",
+            }}
+          >
+            <div style={{ fontSize: 40, marginBottom: 16 }}>&#9992;&#65039;</div>
+            <h2 style={{
+              fontSize: 26,
+              fontWeight: 600,
+              color: "var(--color-text)",
+              marginBottom: 8,
+              fontFamily: "var(--font-heading)",
+              fontStyle: "italic",
+            }}>
+              Where to next?
             </h2>
-            <p style={{ color: "var(--color-text-mid)", marginBottom: 32, maxWidth: 420, marginInline: "auto" }}>
-              Compare vacation rentals from Airbnb, VRBO, Booking.com and more
-              — all in one place, on one map.
+            <p style={{ color: "var(--color-text-mid)", marginBottom: 28, fontSize: 15, lineHeight: 1.5 }}>
+              Start planning your next trip
             </p>
             <button
               onClick={() => setShowCreate(true)}
               style={{
-                padding: "12px 24px",
+                padding: "14px 32px",
                 background: "var(--color-coral)",
                 color: "#fff",
                 fontWeight: 600,
@@ -202,9 +294,19 @@ export default function Home() {
                 cursor: "pointer",
                 fontFamily: "inherit",
                 fontSize: 16,
+                transition: "all 0.15s",
+                boxShadow: "0 4px 14px rgba(224,90,71,0.25)",
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.background = "var(--color-coral-hover)";
+                e.currentTarget.style.transform = "translateY(-1px)";
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.background = "var(--color-coral)";
+                e.currentTarget.style.transform = "none";
               }}
             >
-              Create Your First Trip
+              Create a trip
             </button>
           </div>
         ) : (
@@ -215,39 +317,66 @@ export default function Home() {
                   {trips.map((trip) => (
                     <TripCard key={trip.id} trip={trip} />
                   ))}
+
+                  {/* Create trip card — warm, inviting */}
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setShowCreate(true)}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setShowCreate(true); } }}
+                    style={{
+                      borderRadius: 14,
+                      overflow: "hidden",
+                      cursor: "pointer",
+                      transition: "all 0.2s var(--ease-spring)",
+                      background: "linear-gradient(160deg, rgba(224,90,71,0.05) 0%, rgba(212,168,67,0.04) 50%, rgba(74,158,107,0.03) 100%)",
+                      border: "1px solid var(--color-border)",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: "32px 24px",
+                      minHeight: 160,
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.borderColor = "var(--color-coral-border)";
+                      e.currentTarget.style.transform = "translateY(-2px)";
+                      e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.06)";
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.borderColor = "var(--color-border)";
+                      e.currentTarget.style.transform = "none";
+                      e.currentTarget.style.boxShadow = "none";
+                    }}
+                  >
+                    <div style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: "50%",
+                      background: "var(--color-coral-light)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 22,
+                      color: "var(--color-coral)",
+                      marginBottom: 12,
+                    }}>
+                      +
+                    </div>
+                    <p style={{
+                      fontSize: 15,
+                      fontWeight: 600,
+                      color: "var(--color-text-mid)",
+                      fontFamily: "var(--font-heading)",
+                      fontStyle: "italic",
+                    }}>
+                      Where to next?
+                    </p>
+                  </div>
                 </div>
 
-                {/* Empty state — prompt for another trip */}
-                <div
-                  style={{
-                    marginTop: 16,
-                    padding: "20px 24px",
-                    border: "2px dashed var(--color-border-dark)",
-                    borderRadius: 14,
-                    textAlign: "center",
-                    cursor: "pointer",
-                    transition: "all 0.2s",
-                  }}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setShowCreate(true)}
-                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setShowCreate(true); } }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.borderColor = "var(--color-coral)";
-                    e.currentTarget.style.background = "var(--color-coral-light)";
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.borderColor = "var(--color-border-dark)";
-                    e.currentTarget.style.background = "transparent";
-                  }}
-                >
-                  <p style={{ color: "var(--color-text-mid)", fontSize: 14 }}>
-                    Planning another escape?
-                  </p>
-                  <p style={{ color: "var(--color-coral)", fontSize: 13, fontWeight: 600, marginTop: 4 }}>
-                    + Create a new trip
-                  </p>
-                </div>
+                {/* Footer — stay. wordmark with wavy divider */}
+                <DashboardFooter />
               </>
             )}
           </>
@@ -474,9 +603,15 @@ export default function Home() {
 
 function TripCard({ trip }: { trip: Trip }) {
   const [hovered, setHovered] = useState(false);
-  const totalTravelers = trip.adults + trip.kids;
-  const avgPrice = formatAvgPrice(trip.listings);
   const flag = getFlag(trip.destination);
+  const members = getMembers(trip);
+  const activityStatus = getActivityStatus(trip);
+
+  // Countdown
+  const checkInDate = trip.checkIn ? new Date(trip.checkIn) : null;
+  const daysUntilTrip = checkInDate
+    ? Math.ceil((checkInDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    : null;
 
   return (
     <a
@@ -498,26 +633,51 @@ function TripCard({ trip }: { trip: Trip }) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {/* Warm gradient header with flag */}
+      {/* Warm gradient header */}
       <div
         style={{
-          padding: "16px 20px 12px",
-          background: "linear-gradient(135deg, #F9EDE8 0%, #F5EBE4 50%, #EDE7E0 100%)",
-          borderBottom: "1px solid var(--color-border)",
+          padding: "20px 20px 16px",
+          background: "linear-gradient(135deg, #FCEEE8 0%, #F7E4D8 40%, #EDE7E0 100%)",
           position: "relative",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 22 }}>{flag}</span>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+          <span style={{ fontSize: 26, lineHeight: 1 }}>{flag}</span>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <h3 style={{ fontSize: 17, fontWeight: 600, color: "var(--color-text)", margin: 0, lineHeight: 1.3, fontFamily: "var(--font-heading)" }}>
+            <h3 style={{
+              fontSize: 18,
+              fontWeight: 600,
+              color: "var(--color-text)",
+              margin: 0,
+              lineHeight: 1.25,
+              fontFamily: "var(--font-heading)",
+            }}>
               {trip.name}
             </h3>
-            <p style={{ fontSize: 13, color: "var(--color-text-mid)", margin: 0, marginTop: 2 }}>
+            <p style={{
+              fontSize: 13,
+              color: "var(--color-text-mid)",
+              margin: 0,
+              marginTop: 3,
+            }}>
               {trip.destination}
             </p>
+
+            {/* Countdown */}
+            {daysUntilTrip != null && daysUntilTrip > 0 && (
+              <p className="font-mono" style={{
+                fontSize: 12,
+                color: "var(--color-text-mid)",
+                margin: 0,
+                marginTop: 6,
+                letterSpacing: 0.3,
+              }}>
+                &#9728;&#65039; {daysUntilTrip}d away
+              </p>
+            )}
           </div>
         </div>
+
         {/* Coral accent bar on hover */}
         <div
           style={{
@@ -534,23 +694,72 @@ function TripCard({ trip }: { trip: Trip }) {
         />
       </div>
 
-      {/* Stats */}
+      {/* Body */}
       <div style={{ padding: "14px 20px 16px" }}>
-        <div style={{ display: "flex", gap: 16, fontSize: 13, color: "var(--color-text-mid)" }}>
-          <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-            <span style={{ fontSize: 14 }}>&#128101;</span>
-            {totalTravelers} travelers
-          </span>
-          <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-            <span style={{ fontSize: 14 }}>&#127968;</span>
-            {trip.listings.length} listing{trip.listings.length !== 1 ? "s" : ""}
-          </span>
-          {avgPrice && (
-            <span className="font-mono" style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              ~{avgPrice}/night
-            </span>
-          )}
-        </div>
+        {/* Member avatar pips */}
+        {members.length > 0 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+            <div style={{ display: "flex" }}>
+              {members.slice(0, 6).map((name, i) => (
+                <div
+                  key={name}
+                  title={name}
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: "50%",
+                    background: getUserColor(name),
+                    color: "#fff",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 11,
+                    fontWeight: 700,
+                    border: "2px solid #fff",
+                    marginLeft: i > 0 ? -6 : 0,
+                    position: "relative",
+                    zIndex: members.length - i,
+                  }}
+                >
+                  {name.charAt(0).toUpperCase()}
+                </div>
+              ))}
+              {members.length > 6 && (
+                <div
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: "50%",
+                    background: "var(--color-panel)",
+                    color: "var(--color-text-muted)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 9,
+                    fontWeight: 700,
+                    border: "2px solid #fff",
+                    marginLeft: -6,
+                  }}
+                >
+                  +{members.length - 6}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Activity status */}
+        <p style={{
+          fontSize: 13,
+          color: "var(--color-text-mid)",
+          margin: 0,
+          lineHeight: 1.4,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}>
+          {activityStatus}
+        </p>
 
         {/* Hover CTA */}
         <div
@@ -568,5 +777,40 @@ function TripCard({ trip }: { trip: Trip }) {
         </div>
       </div>
     </a>
+  );
+}
+
+/* ── Dashboard Footer ──────────────────────────────────────── */
+
+function DashboardFooter() {
+  return (
+    <div style={{ marginTop: 48, textAlign: "center", paddingBottom: 32 }}>
+      {/* Wavy line divider */}
+      <svg
+        width="120"
+        height="12"
+        viewBox="0 0 120 12"
+        fill="none"
+        style={{ display: "inline-block", marginBottom: 16, opacity: 0.25 }}
+      >
+        <path
+          d="M2 6c6-4 12 4 18 0s12-4 18 0 12 4 18 0 12-4 18 0 12 4 18 0 12-4 18 0"
+          stroke="var(--color-text-mid)"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          fill="none"
+        />
+      </svg>
+      <p style={{
+        fontSize: 18,
+        fontFamily: "var(--font-heading)",
+        color: "var(--color-text-light)",
+        fontWeight: 600,
+        letterSpacing: -0.5,
+        margin: 0,
+      }}>
+        stay.
+      </p>
+    </div>
   );
 }
