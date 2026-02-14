@@ -383,7 +383,7 @@ export default function TripPage({
     return (
       <div
         style={{
-          height: "100vh",
+          height: "100dvh",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -400,7 +400,7 @@ export default function TripPage({
     return (
       <div
         style={{
-          height: "100vh",
+          height: "100dvh",
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
@@ -649,7 +649,7 @@ export default function TripPage({
   );
 
   return (
-    <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
+    <div style={{ height: "100dvh", display: "flex", flexDirection: "column" }}>
       {/* Trip header */}
       <header
         style={{
@@ -752,7 +752,22 @@ export default function TripPage({
               {userName}
             </span>
           )}
-          {!isMobile && (
+          {isMobile ? (
+            <button
+              onClick={() => setShowPreferences(true)}
+              style={{
+                width: 36, height: 36, borderRadius: "50%",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                background: "var(--color-panel)", border: "1px solid var(--color-border-dark)",
+                cursor: "pointer", fontSize: userEmoji ? 18 : 13, fontWeight: 700,
+                color: "var(--color-text-mid)", fontFamily: "inherit",
+                transition: "all 0.15s", flexShrink: 0,
+              }}
+              title="Preferences"
+            >
+              {userEmoji || (userName ? userName.charAt(0).toUpperCase() : "\u2699")}
+            </button>
+          ) : (
             <button
               onClick={() => setShowPreferences(true)}
               style={{

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { FilterState, Platform, KitchenType } from "@/types";
+import type { FilterState, KitchenType } from "@/types";
 
 interface FilterBarProps {
   filters: FilterState;
@@ -9,25 +9,12 @@ interface FilterBarProps {
   isMobile?: boolean;
 }
 
-const SOURCES: { key: Platform; label: string }[] = [
-  { key: "airbnb", label: "Airbnb" },
-  { key: "vrbo", label: "VRBO" },
-  { key: "booking", label: "Booking" },
-];
-
 export function FilterBar({ filters, onChange, isMobile }: FilterBarProps) {
   const [expanded, setExpanded] = useState(false);
   const activeCount = countActiveFilters(filters);
 
   function update(partial: Partial<FilterState>) {
     onChange({ ...filters, ...partial });
-  }
-
-  function toggleSource(source: Platform) {
-    const sources = filters.sources.includes(source)
-      ? filters.sources.filter((s) => s !== source)
-      : [...filters.sources, source];
-    update({ sources });
   }
 
   function toggleKitchen(type: KitchenType) {
@@ -101,19 +88,6 @@ export function FilterBar({ filters, onChange, isMobile }: FilterBarProps) {
           <option value="price_asc">Sort: Price</option>
           <option value="rating">Sort: Rating</option>
         </select>
-
-        <span style={{ color: "#DDD8D0", margin: "0 2px" }}>|</span>
-
-        {/* Source chips */}
-        {SOURCES.map(({ key, label }) => (
-          <button
-            key={key}
-            onClick={() => toggleSource(key)}
-            style={chip(filters.sources.includes(key))}
-          >
-            {label}
-          </button>
-        ))}
 
         {/* More filters toggle */}
         <button

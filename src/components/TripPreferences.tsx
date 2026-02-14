@@ -172,7 +172,7 @@ export function TripPreferences({
   };
 
   return (
-    <div style={{ height: "100vh", display: "flex", flexDirection: "column", background: "var(--color-bg)" }}>
+    <div style={{ height: "100dvh", display: "flex", flexDirection: "column", background: "var(--color-bg)" }}>
       {/* Header */}
       <header style={{
         padding: "14px 24px",
