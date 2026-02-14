@@ -10,6 +10,7 @@ import { FilterBar } from "@/components/FilterBar";
 import { TripPreferences } from "@/components/TripPreferences";
 // budget range no longer used on cards/map
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { TRAVELER_COLORS, getNextColor } from "@/lib/traveler-colors";
 import type { FilterState, KitchenType, TripPreferences as TripPreferencesType, ReactionType } from "@/types";
 
 const MapView = dynamic(() => import("@/components/MapView"), { ssr: false });
@@ -19,7 +20,24 @@ type Trip = any;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Listing = any;
 
+interface Traveler {
+  id: string;
+  name: string;
+  color: string;
+  isCreator: boolean;
+}
+
 const POLL_INTERVAL = 4000;
+
+function getCookie(name: string): string | null {
+  if (typeof document === "undefined") return null;
+  const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
+  return match ? decodeURIComponent(match[2]) : null;
+}
+
+function clearCookie(name: string) {
+  document.cookie = `${name}=; path=/; max-age=0`;
+}
 
 function getStoredName(): string {
   if (typeof window === "undefined") return "";
@@ -197,6 +215,247 @@ function StepperRow({ label, value, min, max, onChange }: {
   );
 }
 
+/* ── Identity Picker (full-screen interstitial) ────────── */
+
+function IdentityPicker({
+  trip,
+  travelers,
+  onClaim,
+}: {
+  trip: { id: string; name: string; destination: string; checkIn: string | null; checkOut: string | null };
+  travelers: Traveler[];
+  onClaim: (traveler: Traveler) => void;
+}) {
+  const [showJoinForm, setShowJoinForm] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [claiming, setClaiming] = useState<string | null>(null);
+
+  const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const checkInDate = trip.checkIn ? new Date(trip.checkIn) : null;
+  const checkOutDate = trip.checkOut ? new Date(trip.checkOut) : null;
+  const dateLabel = checkInDate
+    ? `${MONTHS[checkInDate.getMonth()]} ${checkInDate.getDate()}${checkOutDate ? ` \u2013 ${checkInDate.getMonth() === checkOutDate.getMonth() ? checkOutDate.getDate() : `${MONTHS[checkOutDate.getMonth()]} ${checkOutDate.getDate()}`}` : ""}`
+    : null;
+
+  async function handleClaim(travelerId: string) {
+    setClaiming(travelerId);
+    try {
+      const res = await fetch(`/api/trips/${trip.id}/claim`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ travelerId }),
+      });
+      if (res.ok) {
+        const traveler = await res.json();
+        onClaim(traveler);
+      }
+    } finally {
+      setClaiming(null);
+    }
+  }
+
+  async function handleJoin() {
+    if (!newName.trim()) return;
+    setClaiming("new");
+    try {
+      const usedColors = travelers.map((t) => t.color);
+      const color = getNextColor(usedColors);
+      const res = await fetch(`/api/trips/${trip.id}/travelers`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newName.trim(), color }),
+      });
+      if (res.ok) {
+        const newTraveler = await res.json();
+        await handleClaim(newTraveler.id);
+      }
+    } finally {
+      setClaiming(null);
+    }
+  }
+
+  return (
+    <div style={{
+      minHeight: "100dvh",
+      background: "#F5F0E8",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "40px 20px",
+    }}>
+      {/* Logo */}
+      <h1 style={{
+        fontSize: 24,
+        fontWeight: 600,
+        color: "#2E2A26",
+        fontFamily: "var(--font-heading)",
+        margin: 0,
+        marginBottom: 32,
+      }}>
+        stay<span style={{ color: "#C4725A" }}>.</span>
+      </h1>
+
+      {/* Trip info */}
+      <div style={{ textAlign: "center", marginBottom: 32, maxWidth: 360 }}>
+        <h2 style={{
+          fontSize: 22,
+          fontWeight: 600,
+          fontFamily: "var(--font-heading)",
+          color: "var(--color-text)",
+          margin: 0,
+          marginBottom: 8,
+        }}>
+          {trip.name}
+        </h2>
+        <p style={{
+          fontSize: 13,
+          color: "var(--color-text-muted)",
+          margin: 0,
+        }}>
+          {trip.destination}{dateLabel ? ` \u00B7 ${dateLabel}` : ""}
+        </p>
+      </div>
+
+      {/* Question */}
+      <p style={{
+        fontSize: 16,
+        color: "var(--color-text)",
+        fontWeight: 500,
+        marginBottom: 20,
+      }}>
+        Which traveler are you?
+      </p>
+
+      {/* Traveler cards */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%", maxWidth: 320 }}>
+        {travelers.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => handleClaim(t.id)}
+            disabled={claiming !== null}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 14,
+              padding: "14px 18px",
+              background: "#FDFBF7",
+              border: "1px solid #E8E2D8",
+              borderRadius: 12,
+              cursor: claiming ? "default" : "pointer",
+              fontFamily: "inherit",
+              transition: "all 0.15s var(--ease-spring)",
+              opacity: claiming && claiming !== t.id ? 0.5 : 1,
+            }}
+            onMouseOver={(e) => {
+              if (!claiming) {
+                e.currentTarget.style.transform = "translateY(-2px)";
+                e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.06)";
+              }
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.transform = "none";
+              e.currentTarget.style.boxShadow = "none";
+            }}
+          >
+            <div style={{
+              width: 32,
+              height: 32,
+              borderRadius: "50%",
+              background: t.color,
+              color: "#fff",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 14,
+              fontWeight: 600,
+              flexShrink: 0,
+            }}>
+              {t.name.charAt(0).toUpperCase()}
+            </div>
+            <span style={{
+              fontSize: 15,
+              fontWeight: 500,
+              color: "var(--color-text)",
+            }}>
+              {t.name}
+            </span>
+            {claiming === t.id && (
+              <span style={{ marginLeft: "auto", fontSize: 12, color: "var(--color-text-muted)" }}>...</span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* "Someone else?" */}
+      {!showJoinForm ? (
+        <button
+          onClick={() => setShowJoinForm(true)}
+          style={{
+            marginTop: 20,
+            fontSize: 14,
+            fontFamily: "var(--font-heading)",
+            fontStyle: "italic",
+            color: "#C4725A",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            padding: 4,
+          }}
+        >
+          Someone else?
+        </button>
+      ) : (
+        <div style={{ marginTop: 20, width: "100%", maxWidth: 320 }}>
+          <input
+            type="text"
+            autoFocus
+            placeholder="Your name..."
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && newName.trim()) {
+                e.preventDefault();
+                handleJoin();
+              }
+            }}
+            style={{
+              width: "100%",
+              padding: "12px 14px",
+              background: "#FDFBF7",
+              border: "1px solid #E8E2D8",
+              borderRadius: 10,
+              color: "var(--color-text)",
+              fontFamily: "inherit",
+              fontSize: 15,
+            }}
+          />
+          <button
+            onClick={handleJoin}
+            disabled={!newName.trim() || claiming !== null}
+            style={{
+              width: "100%",
+              marginTop: 10,
+              padding: "12px 16px",
+              fontSize: 14,
+              fontWeight: 600,
+              background: newName.trim() ? "#C4725A" : "var(--color-panel)",
+              color: newName.trim() ? "#fff" : "var(--color-text-light)",
+              borderRadius: 10,
+              border: "none",
+              cursor: newName.trim() ? "pointer" : "default",
+              fontFamily: "inherit",
+              transition: "all 0.15s",
+            }}
+          >
+            {claiming === "new" ? "Joining..." : "Join trip"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── Trip Settings View ──────────────────────────────────── */
 
 interface TripSettingsProps {
@@ -213,6 +472,7 @@ interface TripSettingsProps {
     centerLng: number;
     coverPhotoUrl: string | null;
     coverPhotoAttribution: string | null;
+    travelers?: Traveler[];
   };
   onSave: (updates: {
     name?: string; destination?: string;
@@ -222,9 +482,10 @@ interface TripSettingsProps {
     coverPhotoUrl?: string | null; coverPhotoAttribution?: string | null;
   }) => Promise<void>;
   onClose: () => void;
+  onRefresh: () => void;
 }
 
-function TripSettingsView({ trip, onSave, onClose }: TripSettingsProps) {
+function TripSettingsView({ trip, onSave, onClose, onRefresh }: TripSettingsProps) {
   const [name, setName] = useState(trip.name);
   const [destination, setDestination] = useState(trip.destination);
   const [adults, setAdults] = useState(trip.adults);
@@ -240,6 +501,41 @@ function TripSettingsView({ trip, onSave, onClose }: TripSettingsProps) {
     trip.checkOut ? new Date(trip.checkOut).toISOString().split("T")[0] : ""
   );
   const [saving, setSaving] = useState(false);
+  const [travelers, setTravelers] = useState<Traveler[]>(trip.travelers || []);
+  const [newTravelerName, setNewTravelerName] = useState("");
+  const [addingTraveler, setAddingTraveler] = useState(false);
+
+  async function handleAddTraveler() {
+    if (!newTravelerName.trim() || addingTraveler) return;
+    setAddingTraveler(true);
+    try {
+      const usedColors = travelers.map((t) => t.color);
+      const color = getNextColor(usedColors);
+      const res = await fetch(`/api/trips/${trip.id}/travelers`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newTravelerName.trim(), color }),
+      });
+      if (res.ok) {
+        const t = await res.json();
+        setTravelers([...travelers, t]);
+        setNewTravelerName("");
+        onRefresh();
+      }
+    } finally {
+      setAddingTraveler(false);
+    }
+  }
+
+  async function handleRemoveTraveler(travelerId: string) {
+    const res = await fetch(`/api/trips/${trip.id}/travelers?travelerId=${travelerId}`, {
+      method: "DELETE",
+    });
+    if (res.ok) {
+      setTravelers(travelers.filter((t) => t.id !== travelerId));
+      onRefresh();
+    }
+  }
 
   const dateNights = checkIn && checkOut
     ? Math.max(1, Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / (1000 * 60 * 60 * 24)))
@@ -683,6 +979,112 @@ function TripSettingsView({ trip, onSave, onClose }: TripSettingsProps) {
           {saving ? "Saving..." : "Save changes"}
         </button>
       </form>
+
+      {/* Travelers section */}
+      <div style={{ marginTop: 32, paddingTop: 24, borderTop: "1px solid var(--color-border)" }}>
+        <label style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)", fontFamily: "var(--font-heading)", display: "block", marginBottom: 12 }}>
+          Travelers
+        </label>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {travelers.map((t) => (
+            <div
+              key={t.id}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "8px 12px",
+                background: "#fff",
+                border: "1px solid var(--color-border)",
+                borderRadius: 8,
+              }}
+            >
+              <div style={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                background: t.color,
+                flexShrink: 0,
+              }} />
+              <span style={{ fontSize: 14, color: "var(--color-text)", flex: 1 }}>
+                {t.name}
+              </span>
+              {t.isCreator && (
+                <span style={{
+                  fontSize: 10,
+                  color: "var(--color-text-muted)",
+                  background: "var(--color-panel)",
+                  borderRadius: 4,
+                  padding: "2px 6px",
+                  fontWeight: 500,
+                }}>
+                  creator
+                </span>
+              )}
+              {!t.isCreator && (
+                <button
+                  onClick={() => handleRemoveTraveler(t.id)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    color: "var(--color-text-muted)",
+                    fontSize: 16,
+                    padding: 0,
+                    lineHeight: 1,
+                    fontFamily: "inherit",
+                  }}
+                >
+                  &times;
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+        {/* Add traveler input */}
+        <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+          <input
+            type="text"
+            placeholder="Add traveler..."
+            value={newTravelerName}
+            onChange={(e) => setNewTravelerName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleAddTraveler();
+              }
+            }}
+            style={{
+              flex: 1,
+              padding: "10px 14px",
+              background: "#fff",
+              border: "1px solid var(--color-border-dark)",
+              borderRadius: 8,
+              color: "var(--color-text)",
+              fontFamily: "inherit",
+              fontSize: 14,
+            }}
+          />
+          <button
+            type="button"
+            onClick={handleAddTraveler}
+            disabled={!newTravelerName.trim() || addingTraveler}
+            style={{
+              padding: "10px 16px",
+              fontSize: 13,
+              fontWeight: 600,
+              background: newTravelerName.trim() ? "var(--color-coral)" : "var(--color-panel)",
+              color: newTravelerName.trim() ? "#fff" : "var(--color-text-light)",
+              borderRadius: 8,
+              border: "none",
+              cursor: newTravelerName.trim() ? "pointer" : "default",
+              fontFamily: "inherit",
+            }}
+          >
+            Add
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -707,6 +1109,9 @@ export default function TripPage({
   const [userEmoji, setUserEmoji] = useState("");
   const [showNamePrompt, setShowNamePrompt] = useState(false);
   const [nameInput, setNameInput] = useState("");
+  const [currentTraveler, setCurrentTraveler] = useState<Traveler | null>(null);
+  const [showIdentityPicker, setShowIdentityPicker] = useState(false);
+  const [identityChecked, setIdentityChecked] = useState(false);
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
   const [showPreferences, setShowPreferences] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -769,16 +1174,47 @@ export default function TripPage({
     return () => clearInterval(interval);
   }, [trip, fetchTrip]);
 
-  // Username + emoji
+  // Username + emoji + traveler identity
   useEffect(() => {
     const stored = getStoredName();
     if (stored) {
       setUserName(stored);
-    } else {
-      setShowNamePrompt(true);
     }
     setUserEmoji(getStoredEmoji());
   }, []);
+
+  // Resolve traveler identity from cookie once trip loads
+  useEffect(() => {
+    if (!trip || identityChecked) return;
+
+    const travelers: Traveler[] = trip.travelers || [];
+    if (travelers.length === 0) {
+      // Legacy trip without travelers — use localStorage name prompt
+      if (!getStoredName()) {
+        setShowNamePrompt(true);
+      }
+      setIdentityChecked(true);
+      return;
+    }
+
+    // Resolve from server (reads cookie server-side)
+    fetch(`/api/trips/${tripId}/me`)
+      .then((r) => r.ok ? r.json() : { traveler: null })
+      .then((data: { traveler: Traveler | null }) => {
+        if (data.traveler) {
+          setCurrentTraveler(data.traveler);
+          setUserName(data.traveler.name);
+          setStoredName(data.traveler.name);
+        } else {
+          setShowIdentityPicker(true);
+        }
+        setIdentityChecked(true);
+      })
+      .catch(() => {
+        setShowIdentityPicker(true);
+        setIdentityChecked(true);
+      });
+  }, [trip, tripId, identityChecked]);
 
   // Scroll-to-center: fly map to the most visible card in the sidebar
   useEffect(() => {
@@ -934,6 +1370,24 @@ export default function TripPage({
     );
   }
 
+  // Show identity picker if needed
+  const tripTravelers: Traveler[] = trip.travelers || [];
+  if (showIdentityPicker && tripTravelers.length > 0) {
+    return (
+      <IdentityPicker
+        trip={trip}
+        travelers={tripTravelers}
+        onClaim={(traveler) => {
+          setCurrentTraveler(traveler);
+          setUserName(traveler.name);
+          setStoredName(traveler.name);
+          setShowIdentityPicker(false);
+          setShowNamePrompt(false);
+        }}
+      />
+    );
+  }
+
   const listings: Listing[] = trip.listings || [];
   const filtered = applyFilters(listings, filters);
   const nights = trip.nights || 7;
@@ -961,6 +1415,7 @@ export default function TripPage({
           setShowSettings(false);
         }}
         onClose={() => setShowSettings(false)}
+        onRefresh={fetchTrip}
       />
     );
   }
@@ -1255,7 +1710,50 @@ export default function TripPage({
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 4 : 8, flexShrink: 0 }}>
-          {userName && !isMobile && (
+          {currentTraveler && !isMobile && (
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{
+                fontSize: 12,
+                color: "var(--color-text-mid)",
+                padding: "4px 10px",
+                background: "var(--color-panel)",
+                borderRadius: 20,
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+              }}>
+                <div style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  background: currentTraveler.color,
+                  flexShrink: 0,
+                }} />
+                {currentTraveler.name}
+              </span>
+              <button
+                onClick={() => {
+                  clearCookie(`stay_traveler_${tripId}`);
+                  setCurrentTraveler(null);
+                  setShowIdentityPicker(true);
+                  setIdentityChecked(false);
+                }}
+                style={{
+                  fontSize: 11,
+                  color: "var(--color-text-muted)",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  padding: 0,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Not {currentTraveler.name}?
+              </button>
+            </div>
+          )}
+          {!currentTraveler && userName && !isMobile && (
             <span
               style={{
                 fontSize: 12,
