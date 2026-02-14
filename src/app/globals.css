@@ -243,17 +243,16 @@ a:focus:not(:focus-visible) {
   z-index: 30;
   display: flex;
   flex-direction: column;
-  transition: none;
-  touch-action: none;
   will-change: transform;
 }
 
 .mobile-bottom-sheet .sheet-handle {
   display: flex;
   justify-content: center;
-  padding: 10px 0 6px;
+  padding: 12px 0 8px;
   cursor: grab;
   flex-shrink: 0;
+  touch-action: none;
 }
 
 .mobile-bottom-sheet .sheet-handle-bar {

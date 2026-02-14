@@ -45,6 +45,8 @@ export default function MapView({
   const prevSelectedId = useRef<string | null>(null);
   const userInteracting = useRef(false);
   const easeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isEasing = useRef(false);
+  const resizeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!mapContainer.current) return;
@@ -66,11 +68,21 @@ export default function MapView({
 
     map.current.addControl(new mapboxgl.NavigationControl(), "bottom-right");
 
-    const ro = new ResizeObserver(() => map.current?.resize());
+    // Debounced resize — prevents rapid resize() calls during CSS transitions
+    // from interrupting easeTo animations
+    const ro = new ResizeObserver(() => {
+      if (isEasing.current) return; // never resize while easing
+      if (resizeTimer.current) clearTimeout(resizeTimer.current);
+      resizeTimer.current = setTimeout(() => {
+        resizeTimer.current = null;
+        map.current?.resize();
+      }, 80);
+    });
     ro.observe(mapContainer.current);
 
     return () => {
       if (easeTimeout.current) clearTimeout(easeTimeout.current);
+      if (resizeTimer.current) clearTimeout(resizeTimer.current);
       ro.disconnect();
       map.current?.remove();
     };
@@ -158,8 +170,8 @@ export default function MapView({
 
   // Ease to selected listing — only when selectedId genuinely changes
   // and user is not actively dragging the map.
-  // Delay lets layout transitions (sidebar resize, detail panel mount) settle
-  // so resize() calls don't interrupt the animation.
+  // Uses isEasing ref to suppress ResizeObserver resize() calls that
+  // would otherwise interrupt the animation mid-flight.
   useEffect(() => {
     if (
       selectedId &&
@@ -168,16 +180,26 @@ export default function MapView({
       !userInteracting.current
     ) {
       if (easeTimeout.current) clearTimeout(easeTimeout.current);
+
       const listing = listings.find((l) => l.id === selectedId);
       if (listing && listing.lat !== 0) {
+        // Wait for layout transitions to settle, then do a single
+        // resize + ease sequence with resize suppressed during the ease.
         easeTimeout.current = setTimeout(() => {
           easeTimeout.current = null;
+          // Final resize before easing so the map has correct dimensions
+          map.current?.resize();
+
+          isEasing.current = true;
           map.current?.easeTo({
             center: [listing.lng, listing.lat],
             duration: 900,
             easing: (t) => t * (2 - t), // ease-out quadratic
           });
-        }, 300);
+
+          // Release resize lock after the animation finishes
+          setTimeout(() => { isEasing.current = false; }, 950);
+        }, 350);
       }
     }
     prevSelectedId.current = selectedId;
