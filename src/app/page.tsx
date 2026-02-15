@@ -193,8 +193,8 @@ export default function Home() {
   const [form, setForm] = useState({
     name: "",
     destination: "",
-    checkIn: "2026-05-02",
-    checkOut: "2026-05-10",
+    checkIn: "",
+    checkOut: "",
   });
   const [formTravelers, setFormTravelers] = useState<{ name: string; color: string }[]>([]);
   const [travelerInput, setTravelerInput] = useState("");
@@ -228,7 +228,7 @@ export default function Home() {
   const presets = ["Barbados", "Cancun", "Maui", "Lisbon", "Bali", "Tulum"];
 
   function openCreateModal() {
-    setForm({ name: "", destination: "", checkIn: "2026-05-02", checkOut: "2026-05-10" });
+    setForm({ name: "", destination: "", checkIn: "", checkOut: "" });
     setFormTravelers([]);
     setTravelerInput("");
     setCreatorNameInput("");
