@@ -48,6 +48,12 @@ export default function MapView({
   const isEasing = useRef(false);
   const resizeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Keep refs to latest callbacks so marker event listeners never go stale
+  const onSelectRef = useRef(onSelect);
+  const onHoverRef = useRef(onHover);
+  useEffect(() => { onSelectRef.current = onSelect; }, [onSelect]);
+  useEffect(() => { onHoverRef.current = onHover; }, [onHover]);
+
   useEffect(() => {
     if (!mapContainer.current) return;
 
@@ -121,9 +127,9 @@ export default function MapView({
         el.className = "price-marker";
         el.textContent = price;
 
-        el.addEventListener("click", () => onSelect(listing.id));
-        el.addEventListener("mouseenter", () => onHover(listing.id));
-        el.addEventListener("mouseleave", () => onHover(null));
+        el.addEventListener("click", () => onSelectRef.current(listing.id));
+        el.addEventListener("mouseenter", () => onHoverRef.current(listing.id));
+        el.addEventListener("mouseleave", () => onHoverRef.current(null));
 
         const marker = new mapboxgl.Marker({ element: el })
           .setLngLat([listing.lng, listing.lat])
@@ -132,7 +138,7 @@ export default function MapView({
         markers.current.set(listing.id, { marker, el });
       }
     });
-  }, [listings, noToken, onSelect, onHover, adults, nights]);
+  }, [listings, noToken, adults, nights]);
 
   // Track user map interaction to suppress flyTo during drags/zooms
   useEffect(() => {
