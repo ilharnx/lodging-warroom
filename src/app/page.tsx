@@ -1228,14 +1228,14 @@ function formatDateRange(checkIn: string | null, checkOut: string | null): strin
   if (!checkIn) return "Dates not set";
   const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const start = new Date(checkIn);
-  const startStr = `${MONTHS[start.getMonth()]} ${start.getDate()}`;
+  const startStr = `${MONTHS[start.getUTCMonth()]} ${start.getUTCDate()}`;
   if (!checkOut) return startStr;
   const end = new Date(checkOut);
   // Same month → "May 10 – 17"
-  if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
-    return `${startStr} \u2013 ${end.getDate()}`;
+  if (start.getUTCMonth() === end.getUTCMonth() && start.getUTCFullYear() === end.getUTCFullYear()) {
+    return `${startStr} \u2013 ${end.getUTCDate()}`;
   }
-  return `${startStr} \u2013 ${MONTHS[end.getMonth()]} ${end.getDate()}`;
+  return `${startStr} \u2013 ${MONTHS[end.getUTCMonth()]} ${end.getUTCDate()}`;
 }
 
 // Fallback photo when Unsplash is not configured

@@ -234,7 +234,7 @@ function IdentityPicker({
   const checkInDate = trip.checkIn ? new Date(trip.checkIn) : null;
   const checkOutDate = trip.checkOut ? new Date(trip.checkOut) : null;
   const dateLabel = checkInDate
-    ? `${MONTHS[checkInDate.getMonth()]} ${checkInDate.getDate()}${checkOutDate ? ` \u2013 ${checkInDate.getMonth() === checkOutDate.getMonth() ? checkOutDate.getDate() : `${MONTHS[checkOutDate.getMonth()]} ${checkOutDate.getDate()}`}` : ""}`
+    ? `${MONTHS[checkInDate.getUTCMonth()]} ${checkInDate.getUTCDate()}${checkOutDate ? ` \u2013 ${checkInDate.getUTCMonth() === checkOutDate.getUTCMonth() ? checkOutDate.getUTCDate() : `${MONTHS[checkOutDate.getUTCMonth()]} ${checkOutDate.getUTCDate()}`}` : ""}`
     : null;
 
   async function handleClaim(travelerId: string) {
