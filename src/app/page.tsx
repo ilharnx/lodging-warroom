@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { TRAVELER_COLORS, getNextColor } from "@/lib/traveler-colors";
 
 interface TripVote {
@@ -203,7 +203,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
-  useEffect(() => {
+  const fetchTrips = useCallback(() => {
     fetch("/api/trips")
       .then((r) => {
         if (!r.ok) throw new Error("Failed to fetch");
@@ -219,6 +219,27 @@ export default function Home() {
         setLoading(false);
       });
   }, []);
+
+  // Fetch on mount
+  useEffect(() => {
+    fetchTrips();
+  }, [fetchTrips]);
+
+  // Re-fetch when page is restored from bfcache or becomes visible again
+  useEffect(() => {
+    const handlePageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) fetchTrips();
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") fetchTrips();
+    };
+    window.addEventListener("pageshow", handlePageShow);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      window.removeEventListener("pageshow", handlePageShow);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [fetchTrips]);
 
   // Auto-calculate nights from dates
   const dateNights = form.checkIn && form.checkOut
