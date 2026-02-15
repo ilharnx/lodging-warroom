@@ -1397,6 +1397,7 @@ export default function TripPage({
   const [showDateEditor, setShowDateEditor] = useState(false);
   const [miniPreview, setMiniPreview] = useState<Listing | null>(null);
   const isMobile = useIsMobile();
+  const initialSelectDone = useRef(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
 
   // Mobile bottom sheet state — three positions: full (0%), half (50%), collapsed (88%)
@@ -1453,6 +1454,25 @@ export default function TripPage({
   useEffect(() => {
     fetchTrip();
   }, [fetchTrip]);
+
+  // On mobile, auto-select the most recently added listing so the map
+  // centers on it and the card is highlighted when the page first loads.
+  useEffect(() => {
+    if (initialSelectDone.current || !isMobile || !trip?.listings?.length) return;
+    initialSelectDone.current = true;
+    const sorted = [...trip.listings].sort(
+      (a: Listing, b: Listing) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+    if (sorted[0]) {
+      setSelectedId(sorted[0].id);
+      // Scroll to the card once the sheet has rendered
+      setTimeout(() => {
+        const cardEl = document.getElementById(`listing-${sorted[0].id}`);
+        if (cardEl) cardEl.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 400);
+    }
+  }, [isMobile, trip]);
 
   useEffect(() => {
     const hasPending = trip?.listings?.some(
