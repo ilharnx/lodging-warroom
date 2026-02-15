@@ -805,7 +805,7 @@ export default function Home() {
                       When are you going?
                     </h2>
 
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                       <div>
                         <span style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 4 }}>Arrival</span>
                         <input
@@ -820,7 +820,8 @@ export default function Home() {
                             borderRadius: 10,
                             color: form.checkIn ? "var(--color-text)" : "var(--color-text-muted)",
                             fontFamily: "inherit",
-                            fontSize: 15,
+                            fontSize: 16,
+                            boxSizing: "border-box",
                           }}
                         />
                       </div>
@@ -839,7 +840,8 @@ export default function Home() {
                             borderRadius: 10,
                             color: form.checkOut ? "var(--color-text)" : "var(--color-text-muted)",
                             fontFamily: "inherit",
-                            fontSize: 15,
+                            fontSize: 16,
+                            boxSizing: "border-box",
                           }}
                         />
                       </div>

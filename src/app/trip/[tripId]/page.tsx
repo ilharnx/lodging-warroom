@@ -839,7 +839,7 @@ function TripSettingsView({ trip, onSave, onClose, onRefresh }: TripSettingsProp
             </div>
           ) : (
             <>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 <div>
                   <span style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 4 }}>Arrival</span>
                   <input
@@ -848,6 +848,7 @@ function TripSettingsView({ trip, onSave, onClose, onRefresh }: TripSettingsProp
                     onChange={(e) => setCheckIn(e.target.value)}
                     style={{
                       ...inputStyle,
+                      fontSize: 16,
                       color: checkIn ? "var(--color-text)" : "var(--color-text-muted)",
                     }}
                   />
@@ -861,6 +862,7 @@ function TripSettingsView({ trip, onSave, onClose, onRefresh }: TripSettingsProp
                     onChange={(e) => setCheckOut(e.target.value)}
                     style={{
                       ...inputStyle,
+                      fontSize: 16,
                       color: checkOut ? "var(--color-text)" : "var(--color-text-muted)",
                     }}
                   />
@@ -1104,11 +1106,13 @@ function DateEditorDropdown({
   checkOut,
   onSave,
   onClose,
+  isMobile,
 }: {
   checkIn: string | null;
   checkOut: string | null;
   onSave: (checkIn: string | null, checkOut: string | null) => Promise<void>;
   onClose: () => void;
+  isMobile: boolean;
 }) {
   const [ci, setCi] = useState(
     checkIn ? new Date(checkIn).toISOString().split("T")[0] : ""
@@ -1130,6 +1134,129 @@ function DateEditorDropdown({
   const nights = ci && co
     ? Math.max(1, Math.round((new Date(co).getTime() - new Date(ci).getTime()) / (1000 * 60 * 60 * 24)))
     : null;
+
+  // On mobile, render as a fixed bottom sheet with backdrop
+  if (isMobile) {
+    return (
+      <>
+        <div
+          onClick={onClose}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.3)",
+            zIndex: 99,
+          }}
+        />
+        <div
+          ref={ref}
+          style={{
+            position: "fixed",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            background: "#fff",
+            borderRadius: "16px 16px 0 0",
+            padding: "20px 20px calc(20px + env(safe-area-inset-bottom))",
+            boxShadow: "0 -4px 24px rgba(0,0,0,0.15)",
+            zIndex: 100,
+          }}
+        >
+          <div style={{ width: 36, height: 4, borderRadius: 2, background: "var(--color-border-dark)", margin: "0 auto 16px" }} />
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div>
+              <span style={{ fontSize: 11, color: "var(--color-text-muted)", display: "block", marginBottom: 4, fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 600 }}>
+                Arrive
+              </span>
+              <input
+                type="date"
+                value={ci}
+                onChange={(e) => setCi(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "12px 14px",
+                  border: "1px solid var(--color-border-dark)",
+                  borderRadius: 10,
+                  fontFamily: "inherit",
+                  fontSize: 16,
+                  color: ci ? "var(--color-text)" : "var(--color-text-muted)",
+                  boxSizing: "border-box",
+                }}
+              />
+            </div>
+            <div>
+              <span style={{ fontSize: 11, color: "var(--color-text-muted)", display: "block", marginBottom: 4, fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 600 }}>
+                Depart
+              </span>
+              <input
+                type="date"
+                value={co}
+                min={ci || undefined}
+                onChange={(e) => setCo(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "12px 14px",
+                  border: "1px solid var(--color-border-dark)",
+                  borderRadius: 10,
+                  fontFamily: "inherit",
+                  fontSize: 16,
+                  color: co ? "var(--color-text)" : "var(--color-text-muted)",
+                  boxSizing: "border-box",
+                }}
+              />
+            </div>
+          </div>
+          {nights != null && (
+            <p className="font-mono" style={{ fontSize: 13, color: "var(--color-text-mid)", margin: "10px 0 0" }}>
+              {nights} night{nights !== 1 ? "s" : ""}
+            </p>
+          )}
+          <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={async () => {
+                setSaving(true);
+                await onSave(ci || null, co || null);
+                setSaving(false);
+              }}
+              style={{
+                flex: 1,
+                padding: "14px 16px",
+                fontSize: 15,
+                fontWeight: 600,
+                background: "var(--color-coral)",
+                color: "#fff",
+                border: "none",
+                borderRadius: 10,
+                cursor: saving ? "default" : "pointer",
+                fontFamily: "inherit",
+                opacity: saving ? 0.6 : 1,
+              }}
+            >
+              {saving ? "Saving..." : "Save"}
+            </button>
+            {(ci || co) && (
+              <button
+                type="button"
+                onClick={() => { setCi(""); setCo(""); }}
+                style={{
+                  padding: "14px 16px",
+                  fontSize: 15,
+                  color: "var(--color-text-muted)",
+                  background: "none",
+                  border: "1px solid var(--color-border-dark)",
+                  borderRadius: 10,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                }}
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <div
@@ -2002,6 +2129,7 @@ export default function TripPage({
               <DateEditorDropdown
                 checkIn={trip.checkIn}
                 checkOut={trip.checkOut}
+                isMobile={isMobile}
                 onSave={async (checkIn, checkOut) => {
                   const nights = checkIn && checkOut
                     ? Math.max(1, Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / (1000 * 60 * 60 * 24)))
