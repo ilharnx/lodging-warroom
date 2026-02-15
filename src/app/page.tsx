@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { TRAVELER_COLORS, getNextColor } from "@/lib/traveler-colors";
 
 interface TripVote {
@@ -193,8 +193,8 @@ export default function Home() {
   const [form, setForm] = useState({
     name: "",
     destination: "",
-    checkIn: "",
-    checkOut: "",
+    checkIn: "2026-05-02",
+    checkOut: "2026-05-10",
   });
   const [formTravelers, setFormTravelers] = useState<{ name: string; color: string }[]>([]);
   const [travelerInput, setTravelerInput] = useState("");
@@ -228,7 +228,7 @@ export default function Home() {
   const presets = ["Barbados", "Cancun", "Maui", "Lisbon", "Bali", "Tulum"];
 
   function openCreateModal() {
-    setForm({ name: "", destination: "", checkIn: "", checkOut: "" });
+    setForm({ name: "", destination: "", checkIn: "2026-05-02", checkOut: "2026-05-10" });
     setFormTravelers([]);
     setTravelerInput("");
     setCreatorNameInput("");
@@ -442,19 +442,7 @@ export default function Home() {
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {trips.map((trip, i) => (
                     <div key={trip.id} className="entrance" style={{ animationDelay: `${240 + i * 120}ms` }}>
-                      <TripCard trip={trip} onUpdateDates={async (tripId, checkIn, checkOut) => {
-                        const nights = checkIn && checkOut
-                          ? Math.max(1, Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / (1000 * 60 * 60 * 24)))
-                          : null;
-                        await fetch(`/api/trips/${tripId}`, {
-                          method: "PATCH",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ checkIn, checkOut, nights }),
-                        });
-                        // Refresh trips list
-                        const r = await fetch("/api/trips");
-                        if (r.ok) setTrips(await r.json());
-                      }} />
+                      <TripCard trip={trip} />
                     </div>
                   ))}
 
@@ -1214,17 +1202,9 @@ function formatDateRange(checkIn: string | null, checkOut: string | null): strin
 // Fallback photo when Unsplash is not configured
 const PLACEHOLDER_PHOTO = "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600&h=200&fit=crop";
 
-function TripCard({ trip, onUpdateDates }: {
-  trip: Trip;
-  onUpdateDates: (tripId: string, checkIn: string | null, checkOut: string | null) => Promise<void>;
-}) {
+function TripCard({ trip }: { trip: Trip }) {
   const [hovered, setHovered] = useState(false);
   const [unsplashPhoto, setUnsplashPhoto] = useState<{ url: string; attribution: string | null } | null>(null);
-  const [editingDates, setEditingDates] = useState(false);
-  const [editCi, setEditCi] = useState(trip.checkIn ? new Date(trip.checkIn).toISOString().split("T")[0] : "");
-  const [editCo, setEditCo] = useState(trip.checkOut ? new Date(trip.checkOut).toISOString().split("T")[0] : "");
-  const [dateSaving, setDateSaving] = useState(false);
-  const dateRef = useRef<HTMLDivElement>(null);
   const members = getMembers(trip);
   const activity = getActivityStatus(trip);
 
@@ -1232,22 +1212,6 @@ function TripCard({ trip, onUpdateDates }: {
   const checkInDate = trip.checkIn ? new Date(trip.checkIn) : null;
   const daysUntilTrip = checkInDate
     ? Math.ceil((checkInDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-    : null;
-
-  // Click-outside to close date editor
-  useEffect(() => {
-    if (!editingDates) return;
-    function handleClick(e: MouseEvent) {
-      if (dateRef.current && !dateRef.current.contains(e.target as Node)) {
-        setEditingDates(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [editingDates]);
-
-  const editNights = editCi && editCo
-    ? Math.max(1, Math.round((new Date(editCo).getTime() - new Date(editCi).getTime()) / (1000 * 60 * 60 * 24)))
     : null;
 
   // Fetch Unsplash photo if no user-uploaded cover
@@ -1420,144 +1384,14 @@ function TripCard({ trip, onUpdateDates }: {
           ) : (
             <span />
           )}
-          <div style={{ position: "relative" }} ref={dateRef}>
-            <span
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setEditCi(trip.checkIn ? new Date(trip.checkIn).toISOString().split("T")[0] : "");
-                setEditCo(trip.checkOut ? new Date(trip.checkOut).toISOString().split("T")[0] : "");
-                setEditingDates(true);
-              }}
-              style={{
-                fontSize: 12,
-                color: trip.checkIn ? "var(--color-text-light)" : "var(--color-coral)",
-                fontWeight: trip.checkIn ? 300 : 500,
-                fontStyle: trip.checkIn ? "normal" : "italic",
-                cursor: "pointer",
-                borderBottom: "1px dashed transparent",
-                transition: "border-color 0.15s",
-              }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderBottomColor = "var(--color-text-light)"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderBottomColor = "transparent"; }}
-            >
-              {dateLabel}
-            </span>
-            {editingDates && (
-              <div
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                style={{
-                  position: "absolute",
-                  top: "100%",
-                  right: 0,
-                  marginTop: 8,
-                  background: "#fff",
-                  border: "1px solid var(--color-border-dark)",
-                  borderRadius: 12,
-                  padding: 16,
-                  boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-                  zIndex: 100,
-                  width: 240,
-                }}
-              >
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  <div>
-                    <span style={{ fontSize: 11, color: "var(--color-text-muted)", display: "block", marginBottom: 4, fontFamily: "var(--font-mono)", textTransform: "uppercase" as const, letterSpacing: "0.05em", fontWeight: 600 }}>
-                      Arrive
-                    </span>
-                    <input
-                      type="date"
-                      value={editCi}
-                      onChange={(e) => setEditCi(e.target.value)}
-                      style={{
-                        width: "100%",
-                        padding: "8px 10px",
-                        border: "1px solid var(--color-border-dark)",
-                        borderRadius: 8,
-                        fontFamily: "inherit",
-                        fontSize: 14,
-                        color: editCi ? "var(--color-text)" : "var(--color-text-muted)",
-                        boxSizing: "border-box" as const,
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <span style={{ fontSize: 11, color: "var(--color-text-muted)", display: "block", marginBottom: 4, fontFamily: "var(--font-mono)", textTransform: "uppercase" as const, letterSpacing: "0.05em", fontWeight: 600 }}>
-                      Depart
-                    </span>
-                    <input
-                      type="date"
-                      value={editCo}
-                      min={editCi || undefined}
-                      onChange={(e) => setEditCo(e.target.value)}
-                      style={{
-                        width: "100%",
-                        padding: "8px 10px",
-                        border: "1px solid var(--color-border-dark)",
-                        borderRadius: 8,
-                        fontFamily: "inherit",
-                        fontSize: 14,
-                        color: editCo ? "var(--color-text)" : "var(--color-text-muted)",
-                        boxSizing: "border-box" as const,
-                      }}
-                    />
-                  </div>
-                </div>
-                {editNights != null && (
-                  <p className="font-mono" style={{ fontSize: 12, color: "var(--color-text-mid)", margin: "8px 0 0" }}>
-                    {editNights} night{editNights !== 1 ? "s" : ""}
-                  </p>
-                )}
-                <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                  <button
-                    type="button"
-                    disabled={dateSaving}
-                    onClick={async (e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setDateSaving(true);
-                      await onUpdateDates(trip.id, editCi || null, editCo || null);
-                      setDateSaving(false);
-                      setEditingDates(false);
-                    }}
-                    style={{
-                      flex: 1,
-                      padding: "8px 12px",
-                      fontSize: 13,
-                      fontWeight: 600,
-                      background: "var(--color-coral)",
-                      color: "#fff",
-                      border: "none",
-                      borderRadius: 8,
-                      cursor: dateSaving ? "default" : "pointer",
-                      fontFamily: "inherit",
-                      opacity: dateSaving ? 0.6 : 1,
-                    }}
-                  >
-                    {dateSaving ? "Saving..." : "Save"}
-                  </button>
-                  {(editCi || editCo) && (
-                    <button
-                      type="button"
-                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditCi(""); setEditCo(""); }}
-                      style={{
-                        padding: "8px 12px",
-                        fontSize: 13,
-                        color: "var(--color-text-muted)",
-                        background: "none",
-                        border: "1px solid var(--color-border-dark)",
-                        borderRadius: 8,
-                        cursor: "pointer",
-                        fontFamily: "inherit",
-                      }}
-                    >
-                      Clear
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
+          <span style={{
+            fontSize: 12,
+            color: "var(--color-text-light)",
+            fontWeight: 300,
+            fontStyle: trip.checkIn ? "normal" : "italic",
+          }}>
+            {dateLabel}
+          </span>
         </div>
 
         {/* Avatar row */}
