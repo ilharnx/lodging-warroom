@@ -310,7 +310,7 @@ function IdentityPicker({
           margin: 0,
           marginBottom: 8,
         }}>
-          which one&rsquo;s you?
+          Who dis
         </h2>
         <p style={{
           fontSize: 14,
@@ -839,7 +839,7 @@ function TripSettingsView({ trip, onSave, onClose, onRefresh }: TripSettingsProp
             </div>
           ) : (
             <>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 <div>
                   <span style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 4 }}>Arrival</span>
                   <input
@@ -848,6 +848,7 @@ function TripSettingsView({ trip, onSave, onClose, onRefresh }: TripSettingsProp
                     onChange={(e) => setCheckIn(e.target.value)}
                     style={{
                       ...inputStyle,
+                      fontSize: 16,
                       color: checkIn ? "var(--color-text)" : "var(--color-text-muted)",
                     }}
                   />
@@ -861,6 +862,7 @@ function TripSettingsView({ trip, onSave, onClose, onRefresh }: TripSettingsProp
                     onChange={(e) => setCheckOut(e.target.value)}
                     style={{
                       ...inputStyle,
+                      fontSize: 16,
                       color: checkOut ? "var(--color-text)" : "var(--color-text-muted)",
                     }}
                   />
@@ -1099,6 +1101,273 @@ function TripSettingsView({ trip, onSave, onClose, onRefresh }: TripSettingsProp
   );
 }
 
+function DateEditorDropdown({
+  checkIn,
+  checkOut,
+  onSave,
+  onClose,
+  isMobile,
+}: {
+  checkIn: string | null;
+  checkOut: string | null;
+  onSave: (checkIn: string | null, checkOut: string | null) => Promise<void>;
+  onClose: () => void;
+  isMobile: boolean;
+}) {
+  const [ci, setCi] = useState(
+    checkIn ? new Date(checkIn).toISOString().split("T")[0] : ""
+  );
+  const [co, setCo] = useState(
+    checkOut ? new Date(checkOut).toISOString().split("T")[0] : ""
+  );
+  const [saving, setSaving] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [onClose]);
+
+  const nights = ci && co
+    ? Math.max(1, Math.round((new Date(co).getTime() - new Date(ci).getTime()) / (1000 * 60 * 60 * 24)))
+    : null;
+
+  // On mobile, render as a fixed bottom sheet with backdrop
+  if (isMobile) {
+    return (
+      <>
+        <div
+          onClick={onClose}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.3)",
+            zIndex: 99,
+          }}
+        />
+        <div
+          ref={ref}
+          style={{
+            position: "fixed",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            background: "#fff",
+            borderRadius: "16px 16px 0 0",
+            padding: "20px 20px calc(20px + env(safe-area-inset-bottom))",
+            boxShadow: "0 -4px 24px rgba(0,0,0,0.15)",
+            zIndex: 100,
+          }}
+        >
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div>
+              <span style={{ fontSize: 11, color: "var(--color-text-muted)", display: "block", marginBottom: 4, fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 600 }}>
+                Arrive
+              </span>
+              <input
+                type="date"
+                value={ci}
+                onChange={(e) => setCi(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "12px 14px",
+                  border: "1px solid var(--color-border-dark)",
+                  borderRadius: 10,
+                  fontFamily: "inherit",
+                  fontSize: 16,
+                  color: ci ? "var(--color-text)" : "var(--color-text-muted)",
+                  boxSizing: "border-box",
+                }}
+              />
+            </div>
+            <div>
+              <span style={{ fontSize: 11, color: "var(--color-text-muted)", display: "block", marginBottom: 4, fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 600 }}>
+                Depart
+              </span>
+              <input
+                type="date"
+                value={co}
+                min={ci || undefined}
+                onChange={(e) => setCo(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "12px 14px",
+                  border: "1px solid var(--color-border-dark)",
+                  borderRadius: 10,
+                  fontFamily: "inherit",
+                  fontSize: 16,
+                  color: co ? "var(--color-text)" : "var(--color-text-muted)",
+                  boxSizing: "border-box",
+                }}
+              />
+            </div>
+          </div>
+          {nights != null && (
+            <p className="font-mono" style={{ fontSize: 13, color: "var(--color-text-mid)", margin: "10px 0 0" }}>
+              {nights} night{nights !== 1 ? "s" : ""}
+            </p>
+          )}
+          <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={async () => {
+                setSaving(true);
+                await onSave(ci || null, co || null);
+                setSaving(false);
+              }}
+              style={{
+                flex: 1,
+                padding: "14px 16px",
+                fontSize: 15,
+                fontWeight: 600,
+                background: "var(--color-coral)",
+                color: "#fff",
+                border: "none",
+                borderRadius: 10,
+                cursor: saving ? "default" : "pointer",
+                fontFamily: "inherit",
+                opacity: saving ? 0.6 : 1,
+              }}
+            >
+              {saving ? "Saving..." : "Save"}
+            </button>
+            {(ci || co) && (
+              <button
+                type="button"
+                onClick={() => { setCi(""); setCo(""); }}
+                style={{
+                  padding: "14px 16px",
+                  fontSize: 15,
+                  color: "var(--color-text-muted)",
+                  background: "none",
+                  border: "1px solid var(--color-border-dark)",
+                  borderRadius: 10,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                }}
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <div
+      ref={ref}
+      style={{
+        position: "absolute",
+        top: "100%",
+        left: 0,
+        marginTop: 6,
+        background: "#fff",
+        border: "1px solid var(--color-border-dark)",
+        borderRadius: 12,
+        padding: 16,
+        boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+        zIndex: 100,
+        minWidth: 260,
+      }}
+    >
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div>
+          <span style={{ fontSize: 11, color: "var(--color-text-muted)", display: "block", marginBottom: 4, fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 600 }}>
+            Arrive
+          </span>
+          <input
+            type="date"
+            value={ci}
+            onChange={(e) => setCi(e.target.value)}
+            style={{
+              width: "100%",
+              padding: "8px 10px",
+              border: "1px solid var(--color-border-dark)",
+              borderRadius: 8,
+              fontFamily: "inherit",
+              fontSize: 14,
+              color: ci ? "var(--color-text)" : "var(--color-text-muted)",
+            }}
+          />
+        </div>
+        <div>
+          <span style={{ fontSize: 11, color: "var(--color-text-muted)", display: "block", marginBottom: 4, fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 600 }}>
+            Depart
+          </span>
+          <input
+            type="date"
+            value={co}
+            min={ci || undefined}
+            onChange={(e) => setCo(e.target.value)}
+            style={{
+              width: "100%",
+              padding: "8px 10px",
+              border: "1px solid var(--color-border-dark)",
+              borderRadius: 8,
+              fontFamily: "inherit",
+              fontSize: 14,
+              color: co ? "var(--color-text)" : "var(--color-text-muted)",
+            }}
+          />
+        </div>
+      </div>
+      {nights != null && (
+        <p className="font-mono" style={{ fontSize: 12, color: "var(--color-text-mid)", margin: "8px 0 0" }}>
+          {nights} night{nights !== 1 ? "s" : ""}
+        </p>
+      )}
+      <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+        <button
+          type="button"
+          disabled={saving}
+          onClick={async () => {
+            setSaving(true);
+            await onSave(ci || null, co || null);
+            setSaving(false);
+          }}
+          style={{
+            flex: 1,
+            padding: "8px 12px",
+            fontSize: 13,
+            fontWeight: 600,
+            background: "var(--color-coral)",
+            color: "#fff",
+            border: "none",
+            borderRadius: 8,
+            cursor: saving ? "default" : "pointer",
+            fontFamily: "inherit",
+            opacity: saving ? 0.6 : 1,
+          }}
+        >
+          {saving ? "Saving..." : "Save"}
+        </button>
+        {(ci || co) && (
+          <button
+            type="button"
+            onClick={() => { setCi(""); setCo(""); }}
+            style={{
+              padding: "8px 12px",
+              fontSize: 13,
+              color: "var(--color-text-muted)",
+              background: "none",
+              border: "1px solid var(--color-border-dark)",
+              borderRadius: 8,
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            Clear
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function TripPage({
   params: paramsPromise,
 }: {
@@ -1125,6 +1394,7 @@ export default function TripPage({
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
   const [showPreferences, setShowPreferences] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showDateEditor, setShowDateEditor] = useState(false);
   const [miniPreview, setMiniPreview] = useState<Listing | null>(null);
   const isMobile = useIsMobile();
   const sidebarRef = useRef<HTMLDivElement>(null);
@@ -1824,23 +2094,52 @@ export default function TripPage({
             }}
           >
             {trip.destination}
-            {tripMonthLabel && (
-              <span style={{ color: "var(--color-text-mid)", fontWeight: 400, fontSize: isMobile ? 13 : 14 }}>
-                {" \u00B7 "}{tripMonthLabel}
-              </span>
-            )}
           </h1>
-          {daysUntilTrip != null && daysUntilTrip > 0 && (
-            <span
-              className="font-mono"
+          {/* Clickable date label / add dates */}
+          <div style={{ position: "relative", flexShrink: 0 }}>
+            <button
+              onClick={() => setShowDateEditor((v) => !v)}
               style={{
-                fontSize: 12, fontWeight: 600, color: "var(--color-text-mid)",
-                whiteSpace: "nowrap", flexShrink: 0,
+                background: "none", border: "none", cursor: "pointer",
+                fontFamily: "inherit", padding: "2px 6px", borderRadius: 6,
+                display: "flex", alignItems: "center", gap: 4,
+                color: tripMonthLabel ? "var(--color-text-mid)" : "var(--color-coral)",
+                fontSize: isMobile ? 13 : 14, fontWeight: tripMonthLabel ? 400 : 500,
+                whiteSpace: "nowrap",
+                transition: "background 0.15s",
               }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--color-panel)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "none"; }}
             >
-              {"\u2600\uFE0F"} {daysUntilTrip}d
-            </span>
-          )}
+              {tripMonthLabel ? (
+                <>
+                  <span>{"\u00B7"} {tripMonthLabel}</span>
+                  {daysUntilTrip != null && daysUntilTrip > 0 && (
+                    <span className="font-mono" style={{ fontSize: 12, fontWeight: 600 }}>
+                      {"\u2600\uFE0F"} {daysUntilTrip}d
+                    </span>
+                  )}
+                </>
+              ) : (
+                <span>+ dates</span>
+              )}
+            </button>
+            {showDateEditor && (
+              <DateEditorDropdown
+                checkIn={trip.checkIn}
+                checkOut={trip.checkOut}
+                isMobile={isMobile}
+                onSave={async (checkIn, checkOut) => {
+                  const nights = checkIn && checkOut
+                    ? Math.max(1, Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / (1000 * 60 * 60 * 24)))
+                    : null;
+                  await updateTripSettings({ checkIn, checkOut, nights });
+                  setShowDateEditor(false);
+                }}
+                onClose={() => setShowDateEditor(false)}
+              />
+            )}
+          </div>
           {/* Traveler avatar pips in header */}
           {!isMobile && tripTravelers.length > 0 && (
             <div style={{ display: "flex", marginLeft: 8, flexShrink: 0 }}>
