@@ -1368,6 +1368,149 @@ function DateEditorDropdown({
   );
 }
 
+function DateEditorInline({
+  checkIn,
+  checkOut,
+  onSave,
+  onClose,
+}: {
+  checkIn: string | null;
+  checkOut: string | null;
+  onSave: (checkIn: string | null, checkOut: string | null) => Promise<void>;
+  onClose: () => void;
+}) {
+  const [ci, setCi] = useState(
+    checkIn ? new Date(checkIn).toISOString().split("T")[0] : ""
+  );
+  const [co, setCo] = useState(
+    checkOut ? new Date(checkOut).toISOString().split("T")[0] : ""
+  );
+  const [saving, setSaving] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [onClose]);
+
+  const nights = ci && co
+    ? Math.max(1, Math.round((new Date(co).getTime() - new Date(ci).getTime()) / (1000 * 60 * 60 * 24)))
+    : null;
+
+  const inputStyle: React.CSSProperties = {
+    padding: "5px 8px",
+    border: "1px solid var(--color-border-dark)",
+    borderRadius: 6,
+    fontFamily: "inherit",
+    fontSize: 13,
+    color: "var(--color-text)",
+    width: 130,
+  };
+
+  const labelStyle: React.CSSProperties = {
+    fontSize: 10,
+    color: "var(--color-text-muted)",
+    fontFamily: "var(--font-mono)",
+    textTransform: "uppercase",
+    letterSpacing: "0.05em",
+    fontWeight: 600,
+    marginRight: 4,
+  };
+
+  return (
+    <div
+      ref={ref}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        marginTop: 6,
+        padding: "6px 0",
+      }}
+    >
+      <span style={labelStyle}>Arrive</span>
+      <input
+        type="date"
+        value={ci}
+        onChange={(e) => setCi(e.target.value)}
+        style={inputStyle}
+      />
+      <span style={labelStyle}>Depart</span>
+      <input
+        type="date"
+        value={co}
+        min={ci || undefined}
+        onChange={(e) => setCo(e.target.value)}
+        style={inputStyle}
+      />
+      {nights != null && (
+        <span className="font-mono" style={{ fontSize: 12, color: "var(--color-text-mid)" }}>
+          {nights}n
+        </span>
+      )}
+      <button
+        type="button"
+        disabled={saving}
+        onClick={async () => {
+          setSaving(true);
+          await onSave(ci || null, co || null);
+          setSaving(false);
+        }}
+        style={{
+          padding: "5px 12px",
+          fontSize: 12,
+          fontWeight: 600,
+          background: "var(--color-coral)",
+          color: "#fff",
+          border: "none",
+          borderRadius: 6,
+          cursor: saving ? "default" : "pointer",
+          fontFamily: "inherit",
+          opacity: saving ? 0.6 : 1,
+        }}
+      >
+        {saving ? "..." : "Save"}
+      </button>
+      {(ci || co) && (
+        <button
+          type="button"
+          onClick={() => { setCi(""); setCo(""); }}
+          style={{
+            padding: "5px 8px",
+            fontSize: 12,
+            color: "var(--color-text-muted)",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            fontFamily: "inherit",
+          }}
+        >
+          Clear
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={onClose}
+        style={{
+          padding: "4px 6px",
+          fontSize: 13,
+          color: "var(--color-text-muted)",
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          fontFamily: "inherit",
+          lineHeight: 1,
+        }}
+      >
+        {"\u2715"}
+      </button>
+    </div>
+  );
+}
+
 export default function TripPage({
   params: paramsPromise,
 }: {
@@ -2094,7 +2237,7 @@ export default function TripPage({
               gap: 6,
             }}
           >
-            stay<span style={{ color: "#C4725A", marginLeft: -4, letterSpacing: 0 }}>.</span>
+            stay<span style={{ color: "#C4725A", marginLeft: "-0.15em" }}>.</span>
             <span className="font-mono" style={{ fontSize: 9, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.1em", color: "#C4725A", background: "rgba(196,114,90,0.12)", borderRadius: 4, padding: "3px 8px" }}>
               Alpha
             </span>
@@ -2191,59 +2334,49 @@ export default function TripPage({
 
         {/* Row 2: Trip context info — destination · date · countdown */}
         <div style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 4,
-          padding: isMobile ? "4px 12px 8px" : "4px 20px 10px",
+          padding: isMobile ? "2px 12px 8px" : "2px 20px 10px",
           minWidth: 0,
-          overflow: "hidden",
+          overflow: "visible",
+          position: "relative",
         }}>
-          <h1
+          <button
+            onClick={() => setShowDateEditor((v) => !v)}
             style={{
-              fontSize: 14,
-              fontWeight: 500,
+              background: "none", border: "none", cursor: "pointer",
+              fontFamily: "var(--font-body)", padding: 0, borderRadius: 6,
+              display: "inline",
               color: "#8A847D",
-              margin: 0,
-              fontFamily: "var(--font-body)",
+              fontSize: 14, fontWeight: 500,
+              whiteSpace: "nowrap",
               overflow: "hidden",
               textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-              flexShrink: isMobile ? 1 : 0,
-              minWidth: 0,
+              maxWidth: "100%",
+              textAlign: "left",
             }}
           >
-            {trip.destination}
-          </h1>
-          {/* Clickable date label / add dates */}
-          <div style={{ position: "relative", flexShrink: 0 }}>
-            <button
-              onClick={() => setShowDateEditor((v) => !v)}
-              style={{
-                background: "none", border: "none", cursor: "pointer",
-                fontFamily: "var(--font-body)", padding: "2px 4px", borderRadius: 6,
-                display: "flex", alignItems: "center", gap: 4,
-                color: tripMonthLabel ? "#8A847D" : "var(--color-coral)",
-                fontSize: 14, fontWeight: tripMonthLabel ? 500 : 500,
-                whiteSpace: "nowrap",
-                transition: "background 0.15s",
-              }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--color-panel)"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "none"; }}
-            >
-              {tripMonthLabel ? (
-                <>
-                  <span>{"\u00B7"} {tripMonthLabel}</span>
-                  {daysUntilTrip != null && daysUntilTrip > 0 && (
-                    <span style={{ fontSize: 14, fontWeight: 500 }}>
-                      {"\u00B7"} {"\u2600\uFE0F"} {daysUntilTrip}d
-                    </span>
-                  )}
-                </>
-              ) : (
-                <span>+ dates</span>
-              )}
-            </button>
-            {showDateEditor && (
+            <span style={{
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}>
+              {trip.destination}
+            </span>
+            {tripMonthLabel ? (
+              <>
+                <span style={{ margin: "0 4px", color: "#B0AAA3" }}>{"\u00B7"}</span>
+                <span>{tripMonthLabel}</span>
+                {daysUntilTrip != null && daysUntilTrip > 0 && (
+                  <>
+                    <span style={{ margin: "0 4px", color: "#B0AAA3" }}>{"\u00B7"}</span>
+                    <span>{"\u2600\uFE0F"} {daysUntilTrip}d</span>
+                  </>
+                )}
+              </>
+            ) : (
+              <span style={{ color: "var(--color-coral)", marginLeft: 6 }}>+ dates</span>
+            )}
+          </button>
+          {showDateEditor && (
+            isMobile ? (
               <DateEditorDropdown
                 checkIn={trip.checkIn}
                 checkOut={trip.checkOut}
@@ -2257,8 +2390,21 @@ export default function TripPage({
                 }}
                 onClose={() => setShowDateEditor(false)}
               />
-            )}
-          </div>
+            ) : (
+              <DateEditorInline
+                checkIn={trip.checkIn}
+                checkOut={trip.checkOut}
+                onSave={async (checkIn, checkOut) => {
+                  const nights = checkIn && checkOut
+                    ? Math.max(1, Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / (1000 * 60 * 60 * 24)))
+                    : null;
+                  await updateTripSettings({ checkIn, checkOut, nights });
+                  setShowDateEditor(false);
+                }}
+                onClose={() => setShowDateEditor(false)}
+              />
+            )
+          )}
         </div>
       </header>
 
