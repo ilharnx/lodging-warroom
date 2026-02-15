@@ -2,8 +2,32 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Stay",
+  title: {
+    default: "Stay",
+    template: "%s — Stay",
+  },
   description: "Compare vacation rental listings with your crew",
+  metadataBase: new URL(
+    process.env.VERCEL_PROJECT_PRODUCTION_URL
+      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+      : "http://localhost:3000"
+  ),
+  openGraph: {
+    title: "Stay",
+    description: "Compare vacation rental listings with your crew",
+    siteName: "Stay",
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Stay",
+    description: "Compare vacation rental listings with your crew",
+  },
+  icons: {
+    icon: "/icon.svg",
+    apple: "/apple-icon.png",
+  },
 };
 
 export const viewport: Viewport = {
