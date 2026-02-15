@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { TRAVELER_COLORS, getNextColor } from "@/lib/traveler-colors";
+import { TripSettingsModal } from "@/components/TripSettingsModal";
 
 interface TripVote {
   userName: string;
@@ -202,6 +203,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [settingsTrip, setSettingsTrip] = useState<Trip | null>(null);
 
   const fetchTrips = useCallback(() => {
     fetch("/api/trips")
@@ -463,7 +465,7 @@ export default function Home() {
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {trips.map((trip, i) => (
                     <div key={trip.id} className="entrance" style={{ animationDelay: `${240 + i * 120}ms` }}>
-                      <TripCard trip={trip} />
+                      <TripCard trip={trip} onOpenSettings={() => setSettingsTrip(trip)} />
                     </div>
                   ))}
 
@@ -543,6 +545,22 @@ export default function Home() {
               </>
             )}
           </>
+        )}
+
+        {/* Trip settings modal */}
+        {settingsTrip && (
+          <TripSettingsModal
+            trip={settingsTrip}
+            onClose={() => setSettingsTrip(null)}
+            onSaved={() => {
+              setSettingsTrip(null);
+              fetchTrips();
+            }}
+            onDeleted={() => {
+              setSettingsTrip(null);
+              fetchTrips();
+            }}
+          />
         )}
 
         {/* Creation modal overlay */}
@@ -1223,8 +1241,9 @@ function formatDateRange(checkIn: string | null, checkOut: string | null): strin
 // Fallback photo when Unsplash is not configured
 const PLACEHOLDER_PHOTO = "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600&h=200&fit=crop";
 
-function TripCard({ trip }: { trip: Trip }) {
+function TripCard({ trip, onOpenSettings }: { trip: Trip; onOpenSettings: () => void }) {
   const [hovered, setHovered] = useState(false);
+  const [gearHovered, setGearHovered] = useState(false);
   const [unsplashPhoto, setUnsplashPhoto] = useState<{ url: string; attribution: string | null } | null>(null);
   const members = getMembers(trip);
   const activity = getActivityStatus(trip);
@@ -1384,7 +1403,44 @@ function TripCard({ trip }: { trip: Trip }) {
       </div>
 
       {/* Body — matches .trip-card-body in mockup */}
-      <div style={{ padding: "14px 18px 16px" }}>
+      <div style={{ padding: "14px 18px 16px", position: "relative" }}>
+        {/* Gear icon — top-right of card body */}
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onOpenSettings();
+          }}
+          onMouseEnter={() => setGearHovered(true)}
+          onMouseLeave={() => setGearHovered(false)}
+          aria-label="Trip settings"
+          style={{
+            position: "absolute",
+            top: 10,
+            right: 12,
+            width: 28,
+            height: 28,
+            borderRadius: "50%",
+            border: "none",
+            background: gearHovered ? "var(--color-panel)" : "transparent",
+            color: gearHovered ? "var(--color-text-mid)" : "var(--color-text-light)",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 0,
+            transition: "all 0.15s",
+            zIndex: 2,
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M6.86 1.33h2.28l.35 1.73.13.06c.33.14.64.32.92.54l.11.09 1.64-.68.94 1.63-1.29 1.06.02.14c.02.2.04.4.04.6s-.02.4-.04.6l-.02.14 1.29 1.06-.94 1.63-1.64-.68-.11.09c-.28.22-.59.4-.92.54l-.13.06-.35 1.73H6.86l-.35-1.73-.13-.06a4.5 4.5 0 01-.92-.54l-.11-.09-1.64.68-.94-1.63 1.29-1.06-.02-.14A4.5 4.5 0 014 8c0-.2.02-.4.04-.6l.02-.14-1.29-1.06.94-1.63 1.64.68.11-.09c.28-.22.59-.4.92-.54l.13-.06.35-1.73zM8 5.67a2.33 2.33 0 100 4.66 2.33 2.33 0 000-4.66z"
+              fill="currentColor"
+            />
+          </svg>
+        </button>
+
         {/* Meta row: countdown left, dates right */}
         <div style={{
           display: "flex",
