@@ -1160,7 +1160,6 @@ function DateEditorDropdown({
             zIndex: 100,
           }}
         >
-          <div style={{ width: 36, height: 4, borderRadius: 2, background: "var(--color-border-dark)", margin: "0 auto 16px" }} />
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div>
               <span style={{ fontSize: 11, color: "var(--color-text-muted)", display: "block", marginBottom: 4, fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 600 }}>
