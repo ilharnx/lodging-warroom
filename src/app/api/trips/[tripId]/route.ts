@@ -91,3 +91,24 @@ export async function PATCH(
     return NextResponse.json({ error: "Failed to update trip" }, { status: 500 });
   }
 }
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ tripId: string }> }
+) {
+  try {
+    const { tripId } = await params;
+
+    const existing = await prisma.trip.findUnique({ where: { id: tripId }, select: { id: true } });
+    if (!existing) {
+      return NextResponse.json({ error: "Trip not found" }, { status: 404 });
+    }
+
+    await prisma.trip.delete({ where: { id: tripId } });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error deleting trip:", error);
+    return NextResponse.json({ error: "Failed to delete trip" }, { status: 500 });
+  }
+}
