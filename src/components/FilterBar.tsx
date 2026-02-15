@@ -7,9 +7,10 @@ interface FilterBarProps {
   filters: FilterState;
   onChange: (filters: FilterState) => void;
   isMobile?: boolean;
+  onAddListing?: () => void;
 }
 
-export function FilterBar({ filters, onChange, isMobile }: FilterBarProps) {
+export function FilterBar({ filters, onChange, isMobile, onAddListing }: FilterBarProps) {
   const [expanded, setExpanded] = useState(false);
   const activeCount = countActiveFilters(filters);
 
@@ -110,6 +111,34 @@ export function FilterBar({ filters, onChange, isMobile }: FilterBarProps) {
             }}
           >
             Clear
+          </button>
+        )}
+
+        {/* Add Listing — desktop only */}
+        {onAddListing && !isMobile && (
+          <button
+            onClick={onAddListing}
+            style={{
+              padding: "6px 16px",
+              fontSize: 12,
+              fontWeight: 600,
+              background: "var(--color-coral)",
+              color: "#fff",
+              borderRadius: 20,
+              border: "none",
+              cursor: "pointer",
+              fontFamily: "inherit",
+              transition: "background 0.15s",
+              whiteSpace: "nowrap",
+            }}
+            onMouseOver={(e) =>
+              (e.currentTarget.style.background = "var(--color-coral-hover)")
+            }
+            onMouseOut={(e) =>
+              (e.currentTarget.style.background = "var(--color-coral)")
+            }
+          >
+            + Add Listing
           </button>
         )}
       </div>

@@ -344,7 +344,7 @@ export default function Home() {
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div className="entrance entrance-d0" style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <h1 style={{ fontSize: 22, fontWeight: 600, color: "#2E2A26", fontFamily: "var(--font-heading)", letterSpacing: -0.5, margin: 0 }}>
-              stay<span style={{ color: "#C4725A" }}>.</span>
+              stay<span style={{ color: "#C4725A", marginLeft: -2 }}>.</span>
             </h1>
             <span className="font-mono" style={{ fontSize: 9, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.1em", color: "#C4725A", background: "rgba(196,114,90,0.12)", borderRadius: 4, padding: "3px 8px" }}>
               Alpha
@@ -1373,7 +1373,7 @@ function TripCard({ trip, onOpenSettings }: { trip: Trip; onOpenSettings: () => 
         {attribution && (
           <div style={{
             position: "absolute",
-            top: 6,
+            bottom: 6,
             right: 8,
             fontSize: 8,
             color: "rgba(255,255,255,0.4)",
@@ -1384,6 +1384,43 @@ function TripCard({ trip, onOpenSettings }: { trip: Trip; onOpenSettings: () => 
             {attribution}
           </div>
         )}
+
+        {/* Three-dot menu — top-right of photo */}
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onOpenSettings();
+          }}
+          onMouseEnter={() => setGearHovered(true)}
+          onMouseLeave={() => setGearHovered(false)}
+          aria-label="Trip settings"
+          style={{
+            position: "absolute",
+            top: 12,
+            right: 12,
+            width: 24,
+            height: 24,
+            borderRadius: "50%",
+            border: "none",
+            background: "transparent",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 0,
+            transition: "opacity 0.15s",
+            zIndex: 2,
+            opacity: gearHovered ? 1 : 0.85,
+            filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.3))",
+          }}
+        >
+          <svg width="16" height="4" viewBox="0 0 16 4" fill="none">
+            <circle cx="2" cy="2" r="1.5" fill="#fff" />
+            <circle cx="8" cy="2" r="1.5" fill="#fff" />
+            <circle cx="14" cy="2" r="1.5" fill="#fff" />
+          </svg>
+        </button>
 
         {/* Coral accent bar on hover */}
         <div
@@ -1403,44 +1440,7 @@ function TripCard({ trip, onOpenSettings }: { trip: Trip; onOpenSettings: () => 
       </div>
 
       {/* Body — matches .trip-card-body in mockup */}
-      <div style={{ padding: "14px 18px 16px", position: "relative" }}>
-        {/* Gear icon — top-right of card body */}
-        <button
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onOpenSettings();
-          }}
-          onMouseEnter={() => setGearHovered(true)}
-          onMouseLeave={() => setGearHovered(false)}
-          aria-label="Trip settings"
-          style={{
-            position: "absolute",
-            top: 10,
-            right: 12,
-            width: 28,
-            height: 28,
-            borderRadius: "50%",
-            border: "none",
-            background: gearHovered ? "var(--color-panel)" : "transparent",
-            color: gearHovered ? "var(--color-text-mid)" : "var(--color-text-light)",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 0,
-            transition: "all 0.15s",
-            zIndex: 2,
-          }}
-        >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path
-              d="M6.86 1.33h2.28l.35 1.73.13.06c.33.14.64.32.92.54l.11.09 1.64-.68.94 1.63-1.29 1.06.02.14c.02.2.04.4.04.6s-.02.4-.04.6l-.02.14 1.29 1.06-.94 1.63-1.64-.68-.11.09c-.28.22-.59.4-.92.54l-.13.06-.35 1.73H6.86l-.35-1.73-.13-.06a4.5 4.5 0 01-.92-.54l-.11-.09-1.64.68-.94-1.63 1.29-1.06-.02-.14A4.5 4.5 0 014 8c0-.2.02-.4.04-.6l.02-.14-1.29-1.06.94-1.63 1.64.68.11-.09c.28-.22.59-.4.92-.54l.13-.06.35-1.73zM8 5.67a2.33 2.33 0 100 4.66 2.33 2.33 0 000-4.66z"
-              fill="currentColor"
-            />
-          </svg>
-        </button>
-
+      <div style={{ padding: "14px 18px 16px" }}>
         {/* Meta row: countdown left, dates right */}
         <div style={{
           display: "flex",
@@ -1615,7 +1615,7 @@ function DashboardFooter() {
         letterSpacing: -0.5,
         margin: 0,
       }}>
-        stay<span style={{ color: "#C4725A", opacity: 0.6 }}>.</span>
+        stay<span style={{ color: "#C4725A", opacity: 0.6, marginLeft: -2 }}>.</span>
       </p>
     </div>
   );

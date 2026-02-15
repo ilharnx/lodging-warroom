@@ -296,7 +296,7 @@ function IdentityPicker({
         margin: 0,
         marginBottom: 32,
       }}>
-        stay<span style={{ color: "#C4725A" }}>.</span>
+        stay<span style={{ color: "#C4725A", marginLeft: -2 }}>.</span>
       </h1>
 
       {/* Trip info */}
@@ -2045,20 +2045,24 @@ export default function TripPage({
 
   return (
     <div style={{ height: "100dvh", display: "flex", flexDirection: "column" }}>
-      {/* Trip header */}
+      {/* Trip header — Row 1: Logo + trip info + avatar */}
       <header
         style={{
           padding: isMobile ? "8px 12px" : "10px 20px",
           background: "#fff",
           borderBottom: "1px solid var(--color-border-dark)",
+          flexShrink: 0,
+        }}
+      >
+        {/* Top row: logo + trip info + avatar */}
+        <div style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          flexShrink: 0,
           gap: 8,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 6 : 10, minWidth: 0, flex: 1 }}>
+          flexWrap: isMobile ? "wrap" : "nowrap",
+        }}>
+          {/* Left: Logo + Alpha badge */}
           <a
             href="/"
             style={{
@@ -2073,263 +2077,176 @@ export default function TripPage({
               gap: 6,
             }}
           >
-            stay<span style={{ color: "#C4725A" }}>.</span>
+            stay<span style={{ color: "#C4725A", marginLeft: -2 }}>.</span>
             <span className="font-mono" style={{ fontSize: 9, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.1em", color: "#C4725A", background: "rgba(196,114,90,0.12)", borderRadius: 4, padding: "3px 8px" }}>
               Alpha
             </span>
           </a>
-          <h1
-            style={{
-              fontSize: isMobile ? 14 : 16,
-              fontWeight: 600,
-              color: "var(--color-text)",
-              margin: 0,
-              fontFamily: "var(--font-heading)",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-            }}
-          >
-            {trip.destination}
-          </h1>
-          {/* Clickable date label / add dates */}
-          <div style={{ position: "relative", flexShrink: 0 }}>
-            <button
-              onClick={() => setShowDateEditor((v) => !v)}
+
+          {/* Center: Trip info — destination · date · countdown */}
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+            minWidth: 0,
+            flex: 1,
+            overflow: "hidden",
+            order: isMobile ? 3 : 0,
+            width: isMobile ? "100%" : "auto",
+          }}>
+            <h1
               style={{
-                background: "none", border: "none", cursor: "pointer",
-                fontFamily: "inherit", padding: "2px 6px", borderRadius: 6,
-                display: "flex", alignItems: "center", gap: 4,
-                color: tripMonthLabel ? "var(--color-text-mid)" : "var(--color-coral)",
-                fontSize: isMobile ? 13 : 14, fontWeight: tripMonthLabel ? 400 : 500,
+                fontSize: isMobile ? 14 : 15,
+                fontWeight: 600,
+                color: "var(--color-text)",
+                margin: 0,
+                fontFamily: "var(--font-heading)",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
-                transition: "background 0.15s",
               }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--color-panel)"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "none"; }}
             >
-              {tripMonthLabel ? (
-                <>
-                  <span>{"\u00B7"} {tripMonthLabel}</span>
-                  {daysUntilTrip != null && daysUntilTrip > 0 && (
-                    <span className="font-mono" style={{ fontSize: 12, fontWeight: 600 }}>
-                      {"\u2600\uFE0F"} {daysUntilTrip}d
-                    </span>
-                  )}
-                </>
-              ) : (
-                <span>+ dates</span>
-              )}
-            </button>
-            {showDateEditor && (
-              <DateEditorDropdown
-                checkIn={trip.checkIn}
-                checkOut={trip.checkOut}
-                isMobile={isMobile}
-                onSave={async (checkIn, checkOut) => {
-                  const nights = checkIn && checkOut
-                    ? Math.max(1, Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / (1000 * 60 * 60 * 24)))
-                    : null;
-                  await updateTripSettings({ checkIn, checkOut, nights });
-                  setShowDateEditor(false);
+              {trip.destination}
+            </h1>
+            {/* Clickable date label / add dates */}
+            <div style={{ position: "relative", flexShrink: 0 }}>
+              <button
+                onClick={() => setShowDateEditor((v) => !v)}
+                style={{
+                  background: "none", border: "none", cursor: "pointer",
+                  fontFamily: "inherit", padding: "2px 6px", borderRadius: 6,
+                  display: "flex", alignItems: "center", gap: 4,
+                  color: tripMonthLabel ? "var(--color-text-mid)" : "var(--color-coral)",
+                  fontSize: isMobile ? 13 : 14, fontWeight: tripMonthLabel ? 400 : 500,
+                  whiteSpace: "nowrap",
+                  transition: "background 0.15s",
                 }}
-                onClose={() => setShowDateEditor(false)}
-              />
-            )}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--color-panel)"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "none"; }}
+              >
+                {tripMonthLabel ? (
+                  <>
+                    <span>{"\u00B7"} {tripMonthLabel}</span>
+                    {daysUntilTrip != null && daysUntilTrip > 0 && (
+                      <span className="font-mono" style={{ fontSize: 12, fontWeight: 600 }}>
+                        {"\u00B7"} {"\u2600\uFE0F"} {daysUntilTrip}d
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <span>+ dates</span>
+                )}
+              </button>
+              {showDateEditor && (
+                <DateEditorDropdown
+                  checkIn={trip.checkIn}
+                  checkOut={trip.checkOut}
+                  isMobile={isMobile}
+                  onSave={async (checkIn, checkOut) => {
+                    const nights = checkIn && checkOut
+                      ? Math.max(1, Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / (1000 * 60 * 60 * 24)))
+                      : null;
+                    await updateTripSettings({ checkIn, checkOut, nights });
+                    setShowDateEditor(false);
+                  }}
+                  onClose={() => setShowDateEditor(false)}
+                />
+              )}
+            </div>
           </div>
-          {/* Traveler avatar pips in header */}
-          {!isMobile && tripTravelers.length > 0 && (
-            <div style={{ display: "flex", marginLeft: 8, flexShrink: 0 }}>
-              {tripTravelers.slice(0, 5).map((t, i) => (
-                <div
-                  key={t.id}
-                  title={t.name}
-                  style={{
+
+          {/* Right: User avatar + actions */}
+          <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 4 : 8, flexShrink: 0 }}>
+            {/* Traveler avatar pips — desktop only */}
+            {!isMobile && tripTravelers.length > 0 && (
+              <div style={{ display: "flex", flexShrink: 0 }}>
+                {tripTravelers.slice(0, 5).map((t, i) => (
+                  <div
+                    key={t.id}
+                    title={t.name}
+                    style={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: "50%",
+                      background: t.color,
+                      color: "#fff",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 9,
+                      fontWeight: 600,
+                      border: currentTraveler?.id === t.id ? "2px solid var(--color-coral)" : "2px solid #fff",
+                      marginLeft: i > 0 ? -5 : 0,
+                      position: "relative" as const,
+                      zIndex: tripTravelers.length - i,
+                    }}
+                  >
+                    {t.name.charAt(0).toUpperCase()}
+                  </div>
+                ))}
+                {tripTravelers.length > 5 && (
+                  <div style={{
                     width: 22,
                     height: 22,
                     borderRadius: "50%",
-                    background: t.color,
-                    color: "#fff",
+                    background: "var(--color-panel)",
+                    color: "var(--color-text-muted)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    fontSize: 9,
+                    fontSize: 8,
                     fontWeight: 600,
-                    border: currentTraveler?.id === t.id ? "2px solid var(--color-coral)" : "2px solid #fff",
-                    marginLeft: i > 0 ? -5 : 0,
-                    position: "relative" as const,
-                    zIndex: tripTravelers.length - i,
-                  }}
-                >
-                  {t.name.charAt(0).toUpperCase()}
-                </div>
-              ))}
-              {tripTravelers.length > 5 && (
-                <div style={{
-                  width: 22,
-                  height: 22,
-                  borderRadius: "50%",
-                  background: "var(--color-panel)",
-                  color: "var(--color-text-muted)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 8,
-                  fontWeight: 600,
-                  border: "2px solid #fff",
-                  marginLeft: -5,
-                }}>
-                  +{tripTravelers.length - 5}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 4 : 8, flexShrink: 0 }}>
-          {currentTraveler && !isMobile && (
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{
-                fontSize: 12,
-                color: "var(--color-text-mid)",
-                padding: "4px 10px",
-                background: "var(--color-panel)",
-                borderRadius: 20,
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-              }}>
-                <div style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: "50%",
-                  background: currentTraveler.color,
-                  flexShrink: 0,
-                }} />
-                {currentTraveler.name}
-              </span>
+                    border: "2px solid #fff",
+                    marginLeft: -5,
+                  }}>
+                    +{tripTravelers.length - 5}
+                  </div>
+                )}
+              </div>
+            )}
+            {/* Trip settings gear — only visible to the trip creator */}
+            {(currentTraveler?.isCreator || tripTravelers.length === 0) && (
               <button
-                onClick={() => {
-                  clearCookie(`stay_traveler_${tripId}`);
-                  setCurrentTraveler(null);
-                  setShowIdentityPicker(true);
-                  setIdentityChecked(false);
-                }}
+                onClick={() => setShowSettings(true)}
                 style={{
-                  fontSize: 11,
-                  color: "var(--color-text-muted)",
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  padding: 0,
-                  whiteSpace: "nowrap",
+                  width: isMobile ? 36 : 32, height: isMobile ? 36 : 32, borderRadius: "50%",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  background: "transparent", border: "1px solid var(--color-border-dark)",
+                  cursor: "pointer", fontSize: 15, color: "var(--color-text-muted)",
+                  fontFamily: "inherit", transition: "all 0.15s", flexShrink: 0,
                 }}
+                title="Trip settings"
               >
-                Not {currentTraveler.name}?
+                &#9881;
               </button>
-            </div>
-          )}
-          {!currentTraveler && userName && !isMobile && (
-            <span
-              style={{
-                fontSize: 12,
-                color: "var(--color-text-mid)",
-                padding: "4px 10px",
-                background: "var(--color-panel)",
-                borderRadius: 20,
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-              }}
-            >
-              {userEmoji && <span style={{ fontSize: 14 }}>{userEmoji}</span>}
-              {userName}
-            </span>
-          )}
-          {/* Trip settings gear — only visible to the trip creator */}
-          {(currentTraveler?.isCreator || tripTravelers.length === 0) && (
+            )}
+            {/* User avatar circle */}
             <button
-              onClick={() => setShowSettings(true)}
+              onClick={() => setShowPreferences(true)}
               style={{
                 width: isMobile ? 36 : 32, height: isMobile ? 36 : 32, borderRadius: "50%",
                 display: "flex", alignItems: "center", justifyContent: "center",
-                background: "transparent", border: "1px solid var(--color-border-dark)",
-                cursor: "pointer", fontSize: 15, color: "var(--color-text-muted)",
-                fontFamily: "inherit", transition: "all 0.15s", flexShrink: 0,
-              }}
-              title="Trip settings"
-            >
-              &#9881;
-            </button>
-          )}
-          {isMobile ? (
-            <button
-              onClick={() => setShowPreferences(true)}
-              style={{
-                width: 36, height: 36, borderRadius: "50%",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                background: "var(--color-panel)", border: "1px solid var(--color-border-dark)",
-                cursor: "pointer", fontSize: userEmoji ? 18 : 13, fontWeight: 700,
-                color: "var(--color-text-mid)", fontFamily: "inherit",
+                background: currentTraveler ? currentTraveler.color : "var(--color-panel)",
+                border: currentTraveler ? "none" : "1px solid var(--color-border-dark)",
+                cursor: "pointer",
+                fontSize: currentTraveler ? 13 : (userEmoji ? 18 : 13),
+                fontWeight: 700,
+                color: currentTraveler ? "#fff" : "var(--color-text-mid)",
+                fontFamily: "inherit",
                 transition: "all 0.15s", flexShrink: 0,
               }}
-              title="Preferences"
+              title={currentTraveler ? currentTraveler.name : "Preferences"}
             >
-              {userEmoji || (userName ? userName.charAt(0).toUpperCase() : "\u2699")}
+              {currentTraveler
+                ? currentTraveler.name.charAt(0).toUpperCase()
+                : (userEmoji || (userName ? userName.charAt(0).toUpperCase() : "\u2699"))}
             </button>
-          ) : (
-            <button
-              onClick={() => setShowPreferences(true)}
-              style={{
-                padding: "7px 14px",
-                fontSize: 13,
-                fontWeight: 500,
-                background: "var(--color-panel)",
-                color: "var(--color-text-mid)",
-                borderRadius: 8,
-                border: "1px solid var(--color-border-dark)",
-                cursor: "pointer",
-                fontFamily: "inherit",
-                transition: "all 0.15s",
-              }}
-            >
-              Preferences
-            </button>
-          )}
-          {!isMobile && (
-            <button
-              onClick={() => setShowAddModal(true)}
-              style={{
-                padding: "7px 16px",
-                fontSize: 13,
-                fontWeight: 600,
-                background: "var(--color-coral)",
-                color: "#fff",
-                borderRadius: 8,
-                border: "none",
-                cursor: "pointer",
-                fontFamily: "inherit",
-                transition: "background 0.15s",
-              }}
-              onMouseOver={(e) =>
-                (e.currentTarget.style.background = "var(--color-coral-hover)")
-              }
-              onMouseOut={(e) =>
-                (e.currentTarget.style.background = "var(--color-coral)")
-              }
-            >
-              + Add Listing
-            </button>
-          )}
+          </div>
         </div>
       </header>
 
-      {/* Filter bar */}
-      <FilterBar filters={filters} onChange={setFilters} isMobile={isMobile} />
+      {/* Row 2: Sort & Filters */}
+      <FilterBar filters={filters} onChange={setFilters} isMobile={isMobile} onAddListing={() => setShowAddModal(true)} />
 
       {/* Main content */}
       {isMobile ? (
