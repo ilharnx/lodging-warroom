@@ -344,7 +344,7 @@ export default function Home() {
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div className="entrance entrance-d0" style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <h1 style={{ fontSize: 22, fontWeight: 600, color: "#2E2A26", fontFamily: "var(--font-heading)", letterSpacing: -0.5, margin: 0 }}>
-              stay<span style={{ color: "#C4725A" }}>.</span>
+              stay<span style={{ color: "#C4725A", marginLeft: -2 }}>.</span>
             </h1>
             <span className="font-mono" style={{ fontSize: 9, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.1em", color: "#C4725A", background: "rgba(196,114,90,0.12)", borderRadius: 4, padding: "3px 8px" }}>
               Alpha
@@ -1615,7 +1615,7 @@ function DashboardFooter() {
         letterSpacing: -0.5,
         margin: 0,
       }}>
-        stay<span style={{ color: "#C4725A", opacity: 0.6 }}>.</span>
+        stay<span style={{ color: "#C4725A", opacity: 0.6, marginLeft: -2 }}>.</span>
       </p>
     </div>
   );
