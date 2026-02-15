@@ -64,9 +64,9 @@ export function FilterBar({ filters, onChange, isMobile, onAddListing }: FilterB
   };
 
   return (
-    <div style={{ borderBottom: "1px solid #DDD8D0", flexShrink: 0, background: "#fff" }}>
+    <div style={{ borderTop: "1px solid #E8E3DC", borderBottom: "1px solid #DDD8D0", flexShrink: 0, background: "#fff" }}>
       <div style={{
-        padding: isMobile ? "8px 12px" : "12px 28px",
+        padding: isMobile ? "8px 12px" : "8px 20px",
         display: "flex",
         flexWrap: isMobile ? "nowrap" : "wrap",
         gap: isMobile ? 6 : 8,
@@ -74,21 +74,47 @@ export function FilterBar({ filters, onChange, isMobile, onAddListing }: FilterB
         overflowX: isMobile ? "auto" : undefined,
         WebkitOverflowScrolling: "touch" as const,
       }}>
-        {/* Sort */}
-        <select
-          value={filters.sortBy}
-          onChange={(e) => update({ sortBy: e.target.value as FilterState["sortBy"] })}
-          style={{
-            ...dropStyle,
-            background: "#F3F0EB",
-            borderColor: "#DDD8D0",
-          }}
-        >
-          <option value="recent">Sort: Recent</option>
-          <option value="votes_desc">Sort: Votes</option>
-          <option value="price_asc">Sort: Price</option>
-          <option value="rating">Sort: Rating</option>
-        </select>
+        {/* Sort — styled as a minimal text link with chevron */}
+        <div style={{ position: "relative", flexShrink: 0 }}>
+          <select
+            value={filters.sortBy}
+            onChange={(e) => update({ sortBy: e.target.value as FilterState["sortBy"] })}
+            style={{
+              appearance: "none",
+              WebkitAppearance: "none",
+              MozAppearance: "none" as const,
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              fontFamily: "var(--font-body)",
+              fontWeight: 500,
+              fontSize: 13,
+              color: "#8A847D",
+              padding: "4px 18px 4px 0",
+              borderRadius: 6,
+              outline: "none",
+              transition: "background 0.15s",
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--color-panel)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+          >
+            <option value="recent">Sort: Recent</option>
+            <option value="votes_desc">Sort: Votes</option>
+            <option value="price_asc">Sort: Price</option>
+            <option value="rating">Sort: Rating</option>
+          </select>
+          {/* Custom chevron */}
+          <span style={{
+            position: "absolute",
+            right: 2,
+            top: "50%",
+            transform: "translateY(-50%)",
+            pointerEvents: "none",
+            fontSize: 10,
+            color: "#8A847D",
+            lineHeight: 1,
+          }}>{"\u25BE"}</span>
+        </div>
 
         {/* More filters toggle */}
         <button
@@ -146,7 +172,7 @@ export function FilterBar({ filters, onChange, isMobile, onAddListing }: FilterB
       {/* Expanded filters */}
       {expanded && (
         <div style={{
-          padding: isMobile ? "12px 12px 16px" : "12px 28px 16px",
+          padding: isMobile ? "12px 12px 16px" : "12px 20px 16px",
           borderTop: "1px solid #E8E3DC",
           display: "grid",
           gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)",

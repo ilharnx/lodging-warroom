@@ -2065,22 +2065,19 @@ export default function TripPage({
 
   return (
     <div style={{ height: "100dvh", display: "flex", flexDirection: "column" }}>
-      {/* Trip header — Row 1: Logo + trip info + avatar */}
+      {/* Trip header */}
       <header
         style={{
-          padding: isMobile ? "8px 12px" : "10px 20px",
           background: "#fff",
-          borderBottom: "1px solid var(--color-border-dark)",
           flexShrink: 0,
         }}
       >
-        {/* Top row: logo + trip info + avatar */}
+        {/* Row 1: Logo + Alpha badge (left), avatar + actions (right) */}
         <div style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          gap: 8,
-          flexWrap: isMobile ? "wrap" : "nowrap",
+          padding: isMobile ? "8px 12px 0" : "10px 20px 0",
         }}>
           {/* Left: Logo + Alpha badge */}
           <a
@@ -2097,85 +2094,13 @@ export default function TripPage({
               gap: 6,
             }}
           >
-            stay<span style={{ color: "#C4725A", marginLeft: -2 }}>.</span>
+            stay<span style={{ color: "#C4725A", marginLeft: -4, letterSpacing: 0 }}>.</span>
             <span className="font-mono" style={{ fontSize: 9, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.1em", color: "#C4725A", background: "rgba(196,114,90,0.12)", borderRadius: 4, padding: "3px 8px" }}>
               Alpha
             </span>
           </a>
 
-          {/* Center: Trip info — destination · date · countdown */}
-          <div style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-            minWidth: 0,
-            flex: 1,
-            overflow: "hidden",
-            order: isMobile ? 3 : 0,
-            width: isMobile ? "100%" : "auto",
-          }}>
-            <h1
-              style={{
-                fontSize: isMobile ? 14 : 15,
-                fontWeight: 600,
-                color: "var(--color-text)",
-                margin: 0,
-                fontFamily: "var(--font-heading)",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {trip.destination}
-            </h1>
-            {/* Clickable date label / add dates */}
-            <div style={{ position: "relative", flexShrink: 0 }}>
-              <button
-                onClick={() => setShowDateEditor((v) => !v)}
-                style={{
-                  background: "none", border: "none", cursor: "pointer",
-                  fontFamily: "inherit", padding: "2px 6px", borderRadius: 6,
-                  display: "flex", alignItems: "center", gap: 4,
-                  color: tripMonthLabel ? "var(--color-text-mid)" : "var(--color-coral)",
-                  fontSize: isMobile ? 13 : 14, fontWeight: tripMonthLabel ? 400 : 500,
-                  whiteSpace: "nowrap",
-                  transition: "background 0.15s",
-                }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--color-panel)"; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "none"; }}
-              >
-                {tripMonthLabel ? (
-                  <>
-                    <span>{"\u00B7"} {tripMonthLabel}</span>
-                    {daysUntilTrip != null && daysUntilTrip > 0 && (
-                      <span className="font-mono" style={{ fontSize: 12, fontWeight: 600 }}>
-                        {"\u00B7"} {"\u2600\uFE0F"} {daysUntilTrip}d
-                      </span>
-                    )}
-                  </>
-                ) : (
-                  <span>+ dates</span>
-                )}
-              </button>
-              {showDateEditor && (
-                <DateEditorDropdown
-                  checkIn={trip.checkIn}
-                  checkOut={trip.checkOut}
-                  isMobile={isMobile}
-                  onSave={async (checkIn, checkOut) => {
-                    const nights = checkIn && checkOut
-                      ? Math.max(1, Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / (1000 * 60 * 60 * 24)))
-                      : null;
-                    await updateTripSettings({ checkIn, checkOut, nights });
-                    setShowDateEditor(false);
-                  }}
-                  onClose={() => setShowDateEditor(false)}
-                />
-              )}
-            </div>
-          </div>
-
-          {/* Right: User avatar + actions */}
+          {/* Right: Traveler pips + settings + user avatar */}
           <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 4 : 8, flexShrink: 0 }}>
             {/* Traveler avatar pips — desktop only */}
             {!isMobile && tripTravelers.length > 0 && (
@@ -2263,9 +2188,81 @@ export default function TripPage({
             </button>
           </div>
         </div>
+
+        {/* Row 2: Trip context info — destination · date · countdown */}
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 4,
+          padding: isMobile ? "4px 12px 8px" : "4px 20px 10px",
+          minWidth: 0,
+          overflow: "hidden",
+        }}>
+          <h1
+            style={{
+              fontSize: 14,
+              fontWeight: 500,
+              color: "#8A847D",
+              margin: 0,
+              fontFamily: "var(--font-body)",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              flexShrink: isMobile ? 1 : 0,
+              minWidth: 0,
+            }}
+          >
+            {trip.destination}
+          </h1>
+          {/* Clickable date label / add dates */}
+          <div style={{ position: "relative", flexShrink: 0 }}>
+            <button
+              onClick={() => setShowDateEditor((v) => !v)}
+              style={{
+                background: "none", border: "none", cursor: "pointer",
+                fontFamily: "var(--font-body)", padding: "2px 4px", borderRadius: 6,
+                display: "flex", alignItems: "center", gap: 4,
+                color: tripMonthLabel ? "#8A847D" : "var(--color-coral)",
+                fontSize: 14, fontWeight: tripMonthLabel ? 500 : 500,
+                whiteSpace: "nowrap",
+                transition: "background 0.15s",
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--color-panel)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "none"; }}
+            >
+              {tripMonthLabel ? (
+                <>
+                  <span>{"\u00B7"} {tripMonthLabel}</span>
+                  {daysUntilTrip != null && daysUntilTrip > 0 && (
+                    <span style={{ fontSize: 14, fontWeight: 500 }}>
+                      {"\u00B7"} {"\u2600\uFE0F"} {daysUntilTrip}d
+                    </span>
+                  )}
+                </>
+              ) : (
+                <span>+ dates</span>
+              )}
+            </button>
+            {showDateEditor && (
+              <DateEditorDropdown
+                checkIn={trip.checkIn}
+                checkOut={trip.checkOut}
+                isMobile={isMobile}
+                onSave={async (checkIn, checkOut) => {
+                  const nights = checkIn && checkOut
+                    ? Math.max(1, Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / (1000 * 60 * 60 * 24)))
+                    : null;
+                  await updateTripSettings({ checkIn, checkOut, nights });
+                  setShowDateEditor(false);
+                }}
+                onClose={() => setShowDateEditor(false)}
+              />
+            )}
+          </div>
+        </div>
       </header>
 
-      {/* Row 2: Sort & Filters */}
+      {/* Row 3: Sort & Filters — separated from header by border */}
       <FilterBar filters={filters} onChange={setFilters} isMobile={isMobile} onAddListing={() => setShowAddModal(true)} />
 
       {/* Main content */}
