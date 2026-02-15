@@ -24,6 +24,10 @@ interface MapViewProps {
   onHover: (id: string | null) => void;
   adults: number;
   nights: number;
+  editingLocationId?: string | null;
+  onLocationDrag?: (lat: number, lng: number) => void;
+  onLocationSave?: () => void;
+  onLocationCancel?: () => void;
 }
 
 export default function MapView({
@@ -35,12 +39,17 @@ export default function MapView({
   onHover,
   adults,
   nights,
+  editingLocationId,
+  onLocationDrag,
+  onLocationSave,
+  onLocationCancel,
 }: MapViewProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<Map<string, { marker: mapboxgl.Marker; el: HTMLDivElement }>>(
     new Map()
   );
+  const editMarker = useRef<mapboxgl.Marker | null>(null);
   const [noToken, setNoToken] = useState(false);
   const prevSelectedId = useRef<string | null>(null);
   const userInteracting = useRef(false);
@@ -112,9 +121,19 @@ export default function MapView({
         price = `$${Math.round(listing.totalCost / nights / adults)}`;
       }
 
+      // Skip creating/updating normal marker for listing being edited
+      if (listing.id === editingLocationId) {
+        const existing = markers.current.get(listing.id);
+        if (existing) {
+          existing.el.style.display = "none";
+        }
+        return;
+      }
+
       const existing = markers.current.get(listing.id);
       if (existing) {
         existing.el.textContent = price;
+        existing.el.style.display = "";
         existing.marker.setLngLat([listing.lng, listing.lat]);
       } else {
         const el = document.createElement("div");
@@ -132,7 +151,97 @@ export default function MapView({
         markers.current.set(listing.id, { marker, el });
       }
     });
-  }, [listings, noToken, onSelect, onHover, adults, nights]);
+  }, [listings, noToken, onSelect, onHover, adults, nights, editingLocationId]);
+
+  // Location editor: draggable pin for desktop
+  useEffect(() => {
+    if (!map.current || noToken) return;
+
+    // Clean up previous edit marker
+    if (editMarker.current) {
+      editMarker.current.remove();
+      editMarker.current = null;
+    }
+
+    if (!editingLocationId) return;
+
+    const listing = listings.find((l) => l.id === editingLocationId);
+    if (!listing) return;
+
+    // Create a terracotta pulsing draggable marker
+    const el = document.createElement("div");
+    el.className = "edit-location-marker";
+    el.innerHTML = `
+      <div class="edit-marker-pulse"></div>
+      <div class="edit-marker-pin"></div>
+    `;
+
+    const style = document.createElement("style");
+    style.textContent = `
+      .edit-location-marker {
+        position: relative;
+        width: 32px;
+        height: 32px;
+        cursor: grab;
+      }
+      .edit-location-marker:active { cursor: grabbing; }
+      .edit-marker-pulse {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 40px;
+        height: 40px;
+        margin: -20px 0 0 -20px;
+        border-radius: 50%;
+        background: rgba(196, 114, 90, 0.2);
+        animation: editPulse 1.5s ease-in-out infinite;
+      }
+      .edit-marker-pin {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 16px;
+        height: 16px;
+        margin: -8px 0 0 -8px;
+        border-radius: 50%;
+        background: #C4725A;
+        border: 3px solid #fff;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      }
+      @keyframes editPulse {
+        0%, 100% { transform: scale(1); opacity: 0.6; }
+        50% { transform: scale(1.6); opacity: 0; }
+      }
+    `;
+    document.head.appendChild(style);
+
+    const lat = listing.lat || center[1];
+    const lng = listing.lng || center[0];
+
+    const marker = new mapboxgl.Marker({ element: el, draggable: true })
+      .setLngLat([lng, lat])
+      .addTo(map.current);
+
+    marker.on("dragend", () => {
+      const lngLat = marker.getLngLat();
+      onLocationDrag?.(lngLat.lat, lngLat.lng);
+    });
+
+    editMarker.current = marker;
+
+    // Ease to the editing pin
+    map.current.easeTo({
+      center: [lng, lat],
+      duration: 600,
+      easing: (t) => t * (2 - t),
+    });
+
+    return () => {
+      marker.remove();
+      style.remove();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingLocationId, noToken]);
 
   // Track user map interaction to suppress flyTo during drags/zooms
   useEffect(() => {
@@ -173,6 +282,9 @@ export default function MapView({
   // Uses isEasing ref to suppress ResizeObserver resize() calls that
   // would otherwise interrupt the animation mid-flight.
   useEffect(() => {
+    // Don't ease when editing location — the edit marker effect handles it
+    if (editingLocationId) return;
+
     if (
       selectedId &&
       selectedId !== prevSelectedId.current &&
@@ -203,7 +315,7 @@ export default function MapView({
       }
     }
     prevSelectedId.current = selectedId;
-  }, [selectedId, listings]);
+  }, [selectedId, listings, editingLocationId]);
 
   if (noToken) {
     return (
@@ -245,5 +357,70 @@ export default function MapView({
     );
   }
 
-  return <div ref={mapContainer} style={{ height: "100%", width: "100%", borderRadius: 14 }} />;
+  return (
+    <div style={{ height: "100%", width: "100%", position: "relative" }}>
+      <div ref={mapContainer} style={{ height: "100%", width: "100%", borderRadius: 14 }} />
+
+      {/* Location editor banner */}
+      {editingLocationId && (
+        <div style={{
+          position: "absolute",
+          top: 12,
+          left: 12,
+          right: 12,
+          background: "#fff",
+          borderRadius: 10,
+          padding: "10px 14px",
+          boxShadow: "0 2px 12px rgba(0,0,0,0.12)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          zIndex: 5,
+        }}>
+          <span style={{
+            fontSize: 13,
+            color: "var(--color-text-mid)",
+            fontWeight: 500,
+          }}>
+            Drag pin to update location
+          </span>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={onLocationCancel}
+              style={{
+                padding: "6px 14px",
+                fontSize: 12,
+                fontWeight: 600,
+                background: "none",
+                border: "1px solid var(--color-border-dark)",
+                borderRadius: 6,
+                cursor: "pointer",
+                fontFamily: "inherit",
+                color: "var(--color-text-mid)",
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={onLocationSave}
+              style={{
+                padding: "6px 14px",
+                fontSize: 12,
+                fontWeight: 600,
+                background: "#C4725A",
+                color: "#fff",
+                border: "none",
+                borderRadius: 6,
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              Save
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }

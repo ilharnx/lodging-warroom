@@ -14,7 +14,7 @@ interface Photo {
 interface Vote {
   id: string;
   userName: string;
-  reactionType: ReactionType;
+  reactionType: string;
 }
 
 interface Comment {
@@ -51,6 +51,8 @@ interface Listing {
   reviewCount: number | null;
   address: string | null;
   neighborhood: string | null;
+  lat: number;
+  lng: number;
   aiFitAssessment: AIFitAssessmentData | null;
   scrapeStatus: string;
   scrapeError: string | null;
@@ -97,6 +99,9 @@ interface ListingDetailProps {
   hasPreferences?: boolean;
   isMobile?: boolean;
   travelers?: TravelerInfo[];
+  onLocationEdit?: (listingId: string, lat: number, lng: number) => void;
+  onLocationEditStart?: (listingId: string) => void;
+  onLocationEditEnd?: () => void;
 }
 
 function formatPrice(amount: number | null, currency: string = "USD"): string {
@@ -116,16 +121,6 @@ function sourceLabel(source: string): string {
     other: "Other",
   };
   return labels[source] || source;
-}
-
-function sourceColor(source: string): string {
-  const colors: Record<string, string> = {
-    airbnb: "bg-[#FF5A5F]/15 text-[#c4403f]",
-    vrbo: "bg-[#3D67FF]/15 text-[#2a4bb3]",
-    booking: "bg-[#003B95]/15 text-[#003B95]",
-    other: "bg-[#706B65]/15 text-[#706B65]",
-  };
-  return colors[source] || colors.other;
 }
 
 const USER_COLORS = [
@@ -238,9 +233,6 @@ function FitSection({ assessment, listingId, hasPreferences }: { assessment: AIF
     <div style={{ padding: "0 20px 16px" }}>
       <div style={{ padding: 16, background: "var(--color-bg)", borderRadius: 10, border: "1px solid var(--color-border-dark)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-          <h3 className="font-mono" style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", margin: 0 }}>
-            Group Fit
-          </h3>
           <FitBadge score={data.score} />
         </div>
         <p style={{ fontSize: 13, color: "var(--color-text)", lineHeight: 1.5, margin: "0 0 10px" }}>
@@ -272,6 +264,335 @@ function FitSection({ assessment, listingId, hasPreferences }: { assessment: AIF
   );
 }
 
+/* ── Collapsible section with accordion animation ── */
+function CollapsibleSection({
+  label,
+  children,
+  defaultOpen = false,
+}: {
+  label: string;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [height, setHeight] = useState<number | undefined>(defaultOpen ? undefined : 0);
+
+  useEffect(() => {
+    if (!contentRef.current) return;
+    if (open) {
+      const h = contentRef.current.scrollHeight;
+      setHeight(h);
+      const timer = setTimeout(() => setHeight(undefined), 250);
+      return () => clearTimeout(timer);
+    } else {
+      const h = contentRef.current.scrollHeight;
+      setHeight(h);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => setHeight(0));
+      });
+    }
+  }, [open]);
+
+  return (
+    <div style={{ borderTop: "1px solid var(--color-border)" }}>
+      <button
+        onClick={() => setOpen(!open)}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "12px 0",
+          border: "none",
+          background: "none",
+          width: "100%",
+          cursor: "pointer",
+          fontFamily: "inherit",
+        }}
+      >
+        <span style={{ fontSize: 13, color: "var(--color-text)", fontWeight: 500 }}>
+          {label}
+        </span>
+        <svg
+          width={16}
+          height={16}
+          viewBox="0 0 16 16"
+          fill="none"
+          style={{
+            color: "var(--color-text-muted)",
+            transition: "transform 0.25s var(--ease-spring, ease)",
+            transform: open ? "rotate(180deg)" : "rotate(0deg)",
+          }}
+        >
+          <path d="M4 6L8 10L12 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+      </button>
+      <div
+        ref={contentRef}
+        style={{
+          overflow: "hidden",
+          transition: "height 0.25s var(--ease-spring, ease)",
+          height: height !== undefined ? height : "auto",
+        }}
+      >
+        <div style={{ paddingBottom: 12 }}>
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Location Editor (inline, mobile) ── */
+function LocationEditor({
+  listing,
+  onSave,
+  onCancel,
+  isMobile,
+}: {
+  listing: Listing;
+  onSave: (address: string, lat: number, lng: number) => void;
+  onCancel: () => void;
+  isMobile?: boolean;
+}) {
+  const [address, setAddress] = useState(listing.address || listing.neighborhood || "");
+  const [lat, setLat] = useState(listing.lat);
+  const [lng, setLng] = useState(listing.lng);
+  const [saving, setSaving] = useState(false);
+  const [suggestions, setSuggestions] = useState<{ text: string; lat: number; lng: number }[]>([]);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mapRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<unknown>(null);
+  const markerRef = useRef<unknown>(null);
+
+  // Initialize mini map for mobile
+  useEffect(() => {
+    if (!isMobile || !mapRef.current) return;
+
+    const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+    if (!token) return;
+
+    // Dynamic import to avoid SSR issues
+    import("mapbox-gl").then((mapboxgl) => {
+      mapboxgl.default.accessToken = token;
+
+      const map = new mapboxgl.default.Map({
+        container: mapRef.current!,
+        style: "mapbox://styles/mapbox/light-v11",
+        center: [lng || -59.6, lat || 13.1],
+        zoom: 13,
+        interactive: true,
+      });
+
+      const marker = new mapboxgl.default.Marker({
+        color: "#C4725A",
+        draggable: true,
+      })
+        .setLngLat([lng || -59.6, lat || 13.1])
+        .addTo(map);
+
+      marker.on("dragend", () => {
+        const lngLat = marker.getLngLat();
+        setLat(lngLat.lat);
+        setLng(lngLat.lng);
+      });
+
+      mapInstanceRef.current = map;
+      markerRef.current = marker;
+
+      return () => {
+        map.remove();
+      };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMobile]);
+
+  // Update map when coordinates change from autocomplete
+  useEffect(() => {
+    if (!mapInstanceRef.current || !markerRef.current) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const map = mapInstanceRef.current as any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const marker = markerRef.current as any;
+    if (lat && lng) {
+      marker.setLngLat([lng, lat]);
+      map.easeTo({ center: [lng, lat], duration: 500 });
+    }
+  }, [lat, lng]);
+
+  function handleAddressChange(value: string) {
+    setAddress(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (value.length < 3) {
+      setSuggestions([]);
+      return;
+    }
+    debounceRef.current = setTimeout(async () => {
+      const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+      if (!token) return;
+      try {
+        const res = await fetch(
+          `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(value)}.json?access_token=${token}&limit=4`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          setSuggestions(
+            (data.features || []).map((f: { place_name: string; center: [number, number] }) => ({
+              text: f.place_name,
+              lng: f.center[0],
+              lat: f.center[1],
+            }))
+          );
+        }
+      } catch {
+        // silently fail
+      }
+    }, 300);
+  }
+
+  function selectSuggestion(s: { text: string; lat: number; lng: number }) {
+    setAddress(s.text);
+    setLat(s.lat);
+    setLng(s.lng);
+    setSuggestions([]);
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      await onSave(address, lat, lng);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div style={{
+      background: "var(--color-bg)",
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 20,
+      border: "1.5px solid var(--color-border-dark)",
+    }}>
+      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)", marginBottom: 10 }}>
+        Edit location
+      </div>
+      <div style={{ position: "relative" }}>
+        <input
+          type="text"
+          value={address}
+          onChange={(e) => handleAddressChange(e.target.value)}
+          placeholder="Search for a location..."
+          style={{
+            width: "100%",
+            border: "1px solid var(--color-border-dark)",
+            borderRadius: 8,
+            padding: "10px 14px",
+            fontSize: 13,
+            fontFamily: "inherit",
+            background: "#fff",
+            color: "var(--color-text)",
+            outline: "none",
+            marginBottom: suggestions.length > 0 ? 0 : 10,
+          }}
+        />
+        {suggestions.length > 0 && (
+          <div style={{
+            position: "absolute",
+            top: "100%",
+            left: 0,
+            right: 0,
+            background: "#fff",
+            border: "1px solid var(--color-border-dark)",
+            borderRadius: "0 0 8px 8px",
+            zIndex: 10,
+            overflow: "hidden",
+            marginBottom: 10,
+          }}>
+            {suggestions.map((s, i) => (
+              <button
+                key={i}
+                onClick={() => selectSuggestion(s)}
+                style={{
+                  display: "block",
+                  width: "100%",
+                  padding: "8px 14px",
+                  fontSize: 12,
+                  textAlign: "left" as const,
+                  background: "none",
+                  border: "none",
+                  borderTop: i > 0 ? "1px solid var(--color-border)" : "none",
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  color: "var(--color-text)",
+                }}
+                onMouseOver={(e) => (e.currentTarget.style.background = "var(--color-bg)")}
+                onMouseOut={(e) => (e.currentTarget.style.background = "none")}
+              >
+                {s.text}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Mini map for mobile */}
+      {isMobile && (
+        <div style={{ marginTop: suggestions.length > 0 ? 10 : 0 }}>
+          <div
+            ref={mapRef}
+            style={{
+              width: "100%",
+              height: 160,
+              borderRadius: 8,
+              overflow: "hidden",
+              marginBottom: 10,
+              background: "linear-gradient(135deg, #E8E2D8 0%, #D9C9A8 100%)",
+            }}
+          />
+          <div style={{ fontSize: 10, color: "var(--color-text-muted)", fontStyle: "italic", marginBottom: 10 }}>
+            Drag pin to adjust
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: suggestions.length > 0 && !isMobile ? 10 : 0 }}>
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          style={{
+            padding: "8px 20px",
+            background: "#C4725A",
+            color: "#fff",
+            border: "none",
+            borderRadius: 8,
+            fontSize: 13,
+            fontWeight: 500,
+            cursor: "pointer",
+            fontFamily: "inherit",
+            opacity: saving ? 0.5 : 1,
+          }}
+        >
+          {saving ? "Saving..." : "Save"}
+        </button>
+        <button
+          onClick={onCancel}
+          style={{
+            fontSize: 13,
+            color: "var(--color-text-muted)",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            fontFamily: "inherit",
+          }}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
 const photoCategories = [
   { key: "all", label: "All" },
   { key: "exterior", label: "Exterior" },
@@ -296,10 +617,12 @@ export function ListingDetail({
   onRemoveReaction,
   onRescrape,
   onNightsChange,
-  budgetRange,
   hasPreferences,
   isMobile,
   travelers,
+  onLocationEdit,
+  onLocationEditStart,
+  onLocationEditEnd,
 }: ListingDetailProps) {
   const [photoFilter, setPhotoFilter] = useState("all");
   const [commentText, setCommentText] = useState("");
@@ -320,10 +643,9 @@ export function ListingDetail({
     listing.bathrooms != null ? String(listing.bathrooms) : ""
   );
   const [saving, setSaving] = useState(false);
-  const [showAllAmenities, setShowAllAmenities] = useState(false);
-  const [showDescription, setShowDescription] = useState(false);
   const [showOverflow, setShowOverflow] = useState(false);
   const [previewNights, setPreviewNights] = useState(nights);
+  const [editingLocation, setEditingLocation] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number>(0);
 
@@ -331,7 +653,10 @@ export function ListingDetail({
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       if (e.key === "Escape") {
-        if (selectedPhotoIdx !== null) {
+        if (editingLocation) {
+          setEditingLocation(false);
+          onLocationEditEnd?.();
+        } else if (selectedPhotoIdx !== null) {
           setSelectedPhotoIdx(null);
         } else {
           onClose();
@@ -340,7 +665,7 @@ export function ListingDetail({
     }
     document.addEventListener("keydown", handleKey);
     return () => document.removeEventListener("keydown", handleKey);
-  }, [onClose, selectedPhotoIdx]);
+  }, [onClose, selectedPhotoIdx, editingLocation, onLocationEditEnd]);
 
   const filteredPhotos =
     photoFilter === "all"
@@ -367,9 +692,6 @@ export function ListingDetail({
     ? listing.amenities
     : [];
   const beds = Array.isArray(listing.beds) ? listing.beds : [];
-  const perPerson = listing.totalCost
-    ? Math.round(listing.totalCost / adults)
-    : null;
 
   const isGenericName =
     listing.name.startsWith("Listing from") ||
@@ -391,6 +713,9 @@ export function ListingDetail({
   const nightlyTotal = listing.perNight ? listing.perNight * 7 : 0;
   const fees = (listing.cleaningFee || 0) + (listing.serviceFee || 0);
   const hiddenCostWarning = nightlyTotal > 0 && fees > nightlyTotal * 0.15;
+
+  const hasLocation = listing.lat !== 0 || listing.lng !== 0;
+  const locationText = listing.neighborhood || listing.address || (hasLocation ? "" : "");
 
   async function submitComment(e: React.FormEvent) {
     e.preventDefault();
@@ -447,6 +772,28 @@ export function ListingDetail({
     } finally {
       setSaving(false);
     }
+  }
+
+  async function saveLocation(address: string, lat: number, lng: number) {
+    await fetch(`/api/listings/${listing.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ address, lat, lng }),
+    });
+    setEditingLocation(false);
+    onLocationEditEnd?.();
+    onLocationEdit?.(listing.id, lat, lng);
+    onRefresh();
+  }
+
+  function startLocationEdit() {
+    setEditingLocation(true);
+    onLocationEditStart?.(listing.id);
+  }
+
+  function cancelLocationEdit() {
+    setEditingLocation(false);
+    onLocationEditEnd?.();
   }
 
   return (
@@ -586,7 +933,7 @@ export function ListingDetail({
 
         {/* Scrollable content */}
         <div style={{ flex: 1, overflowY: "auto" }}>
-          {/* Mobile: photo hero at top, before title */}
+          {/* Mobile: photo hero at top, before title — NO source badge */}
           {isMobile && listing.photos.length > 0 && (
             <div
               style={{
@@ -603,12 +950,6 @@ export function ListingDetail({
                 alt={listing.name}
                 style={{ width: "100%", height: "100%", objectFit: "cover" }}
               />
-              <span
-                className={`shrink-0 px-2.5 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wide font-mono ${sourceColor(listing.source)}`}
-                style={{ position: "absolute", top: 12, left: 16 }}
-              >
-                {sourceLabel(listing.source)}
-              </span>
               {listing.photos.length > 1 && (
                 <div
                   className="font-mono"
@@ -630,7 +971,7 @@ export function ListingDetail({
             </div>
           )}
 
-          {/* Header info */}
+          {/* Header info: Title + Location (with rating inline) */}
           <div style={{ padding: "20px 20px 16px" }}>
             <div>
               {editing ? (
@@ -662,12 +1003,72 @@ export function ListingDetail({
                   {listing.name || "Untitled Listing"}
                 </h2>
               )}
-              <p style={{ fontSize: 13, color: "var(--color-text-mid)", marginTop: 4, margin: 0 }}>
-                {listing.neighborhood || listing.address || getDomain(listing.url)}
-                {listing.rating != null && listing.rating > 0 && (
-                  <span className="font-mono" style={{ fontSize: 12 }}>
-                    {" \u00B7 "}
-                    <span style={{ color: "#D4A017" }}>&#9733;</span>{" "}
+              {/* Location line with pencil icon + rating inline */}
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
+                {editingLocation ? (
+                  <span style={{ fontSize: 13, color: "#C4725A", fontWeight: 400 }}>
+                    Editing location...
+                  </span>
+                ) : locationText ? (
+                  <>
+                    <span style={{ fontSize: 13, color: "var(--color-text-mid)", fontWeight: 300 }}>
+                      {locationText}
+                    </span>
+                    {/* Pencil icon to edit location */}
+                    <svg
+                      onClick={startLocationEdit}
+                      width={14}
+                      height={14}
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      style={{ cursor: "pointer", opacity: 0.4, transition: "opacity 0.2s" }}
+                      onMouseOver={(e) => (e.currentTarget.style.opacity = "0.8")}
+                      onMouseOut={(e) => (e.currentTarget.style.opacity = "0.4")}
+                    >
+                      <path d="M11.5 1.5L14.5 4.5L5 14H2V11L11.5 1.5Z" stroke="#7A7269" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </>
+                ) : !hasLocation ? (
+                  <button
+                    onClick={startLocationEdit}
+                    style={{
+                      fontSize: 13,
+                      color: "#C4725A",
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      fontFamily: "inherit",
+                      padding: 0,
+                      textDecoration: "underline",
+                      textDecorationStyle: "dashed" as const,
+                      textUnderlineOffset: 2,
+                    }}
+                  >
+                    + Add location
+                  </button>
+                ) : (
+                  <>
+                    <span style={{ fontSize: 13, color: "var(--color-text-mid)", fontWeight: 300 }}>
+                      {getDomain(listing.url)}
+                    </span>
+                    <svg
+                      onClick={startLocationEdit}
+                      width={14}
+                      height={14}
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      style={{ cursor: "pointer", opacity: 0.4, transition: "opacity 0.2s" }}
+                      onMouseOver={(e) => (e.currentTarget.style.opacity = "0.8")}
+                      onMouseOut={(e) => (e.currentTarget.style.opacity = "0.4")}
+                    >
+                      <path d="M11.5 1.5L14.5 4.5L5 14H2V11L11.5 1.5Z" stroke="#7A7269" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </>
+                )}
+                {/* Rating inline with location */}
+                {!editingLocation && listing.rating != null && listing.rating > 0 && (
+                  <span className="font-mono" style={{ fontSize: 12, color: "var(--color-text-mid)" }}>
+                    &middot; <span style={{ color: "#D4A017" }}>&#9733;</span>{" "}
                     {listing.rating}
                     {listing.reviewCount != null && listing.reviewCount > 0 && (
                       <span style={{ color: "var(--color-text-muted)" }}>
@@ -676,8 +1077,32 @@ export function ListingDetail({
                     )}
                   </span>
                 )}
-              </p>
+              </div>
             </div>
+
+            {/* Location Editor (inline on mobile) */}
+            {editingLocation && isMobile && (
+              <div style={{ marginTop: 12 }}>
+                <LocationEditor
+                  listing={listing}
+                  onSave={saveLocation}
+                  onCancel={cancelLocationEdit}
+                  isMobile={true}
+                />
+              </div>
+            )}
+
+            {/* Location Editor (desktop: inline text input) */}
+            {editingLocation && !isMobile && (
+              <div style={{ marginTop: 12 }}>
+                <LocationEditor
+                  listing={listing}
+                  onSave={saveLocation}
+                  onCancel={cancelLocationEdit}
+                  isMobile={false}
+                />
+              </div>
+            )}
 
             {/* Scrape status */}
             {isScraping && (
@@ -730,7 +1155,7 @@ export function ListingDetail({
           </div>
 
           {/* Price block */}
-          <div style={{ padding: "0 20px 16px" }}>
+          <div style={{ padding: "0 20px 16px", opacity: editingLocation ? 0.5 : 1, pointerEvents: editingLocation ? "none" : undefined }}>
             <div style={{ padding: 16, background: "var(--color-bg)", borderRadius: 12, border: "1px solid var(--color-border-dark)" }}>
               {editing ? (
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -947,7 +1372,7 @@ export function ListingDetail({
                   </span>
                   {!isScraping && (
                     <p style={{ fontSize: 12, color: "var(--color-text-muted)", marginTop: 4 }}>
-                      Click Edit to add pricing manually
+                      Use the &middot;&middot;&middot; menu to add pricing manually
                     </p>
                   )}
                 </div>
@@ -974,7 +1399,7 @@ export function ListingDetail({
             )}
           </div>
 
-          {/* Reactions */}
+          {/* Reactions — no "GROUP VIBES" header, no "Your reaction:" label */}
           <div style={{ padding: "0 20px 16px" }}>
             <ReactionBar
               votes={listing.votes}
@@ -983,17 +1408,16 @@ export function ListingDetail({
               onReact={onReact}
               onRemoveReaction={onRemoveReaction}
               onNeedName={onNeedName}
+              travelers={travelers}
             />
           </div>
 
-          {/* Comments */}
+          {/* Comments — "Comments" label only if there are comments */}
           <div style={{ padding: "0 20px 16px" }}>
             {listing.comments.length > 0 && (
-              <>
               <h3 className="font-mono" style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", marginBottom: 10 }}>
                 Comments
               </h3>
-            </>
             )}
             {listing.comments.length > 0 && (
               <div style={{ display: "flex", flexDirection: "column", gap: 2, marginBottom: 10 }}>
@@ -1078,133 +1502,6 @@ export function ListingDetail({
             hasPreferences={!!hasPreferences}
           />
 
-          {/* Mobile: comments/discussion moved up — after group vibes, before details */}
-          {isMobile && (
-            <div style={{ padding: "0 20px 16px" }}>
-              <h3 className="font-mono" style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", marginBottom: 12 }}>
-                Discussion ({listing.comments.length})
-              </h3>
-
-              {listing.comments.length > 0 && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
-                  {listing.comments.map((comment) => (
-                    <div
-                      key={comment.id}
-                      style={{ display: "flex", gap: 8, alignItems: "flex-start" }}
-                    >
-                      <div style={{
-                        width: 28, height: 28, borderRadius: "50%",
-                        background: "var(--color-panel)",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        fontSize: 11, fontWeight: 700, color: "var(--color-text)",
-                        fontFamily: "inherit", flexShrink: 0,
-                      }}>{comment.userName[0]}</div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: "flex", gap: 6, alignItems: "baseline" }}>
-                          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--color-text)" }}>{comment.userName}</span>
-                          <span className="font-mono" style={{ fontSize: 10, color: "var(--color-text-muted)" }}>
-                            {new Date(comment.createdAt).toLocaleDateString()}
-                          </span>
-                          {comment.userName === userName && (
-                            <button
-                              onClick={() => deleteComment(comment.id)}
-                              style={{ fontSize: 10, color: "var(--color-text-muted)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", marginLeft: "auto" }}
-                            >
-                              delete
-                            </button>
-                          )}
-                        </div>
-                        <p style={{ fontSize: 13, color: "var(--color-text-mid)", margin: "2px 0 0", lineHeight: 1.4 }}>{comment.text}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <form onSubmit={submitComment} style={{ display: "flex", gap: 8 }}>
-                <input
-                  type="text"
-                  placeholder="Say something..."
-                  value={commentText}
-                  onChange={(e) => setCommentText(e.target.value)}
-                  style={{
-                    flex: 1, padding: "12px 14px", fontSize: 16,
-                    background: "var(--color-bg)", border: "1px solid var(--color-border-dark)",
-                    borderRadius: 20, color: "var(--color-text)", fontFamily: "inherit",
-                  }}
-                />
-                <button
-                  type="submit"
-                  disabled={submitting || !commentText.trim()}
-                  style={{
-                    width: 44, height: 44, borderRadius: "50%",
-                    background: commentText.trim() ? "var(--color-coral)" : "var(--color-border-dark)",
-                    color: "#fff", border: "none", cursor: "pointer",
-                    fontFamily: "inherit", fontSize: 16, fontWeight: 600,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    opacity: submitting ? 0.5 : 1,
-                    transition: "background 0.15s",
-                  }}
-                >
-                  &#8593;
-                </button>
-              </form>
-            </div>
-          )}
-
-          {/* Desktop: Photo gallery in original position */}
-          {!isMobile && listing.photos.length > 0 && (
-            <div style={{ padding: "0 20px 16px" }}>
-              {/* Category tabs */}
-              <div style={{ display: "flex", gap: 4, overflowX: "auto", paddingBottom: 8, marginBottom: 8 }}>
-                {photoCategories.map((cat) => {
-                  const count =
-                    cat.key === "all"
-                      ? listing.photos.length
-                      : listing.photos.filter((p) => p.category === cat.key).length;
-                  if (cat.key !== "all" && count === 0) return null;
-                  return (
-                    <button
-                      key={cat.key}
-                      onClick={() => setPhotoFilter(cat.key)}
-                      style={{
-                        padding: "4px 12px", fontSize: 11, borderRadius: 20, whiteSpace: "nowrap" as const, cursor: "pointer", fontFamily: "inherit", fontWeight: 600, border: "none",
-                        transition: "all 0.15s",
-                        background: photoFilter === cat.key ? "var(--color-coral)" : "var(--color-panel)",
-                        color: photoFilter === cat.key ? "#fff" : "var(--color-text-mid)",
-                      }}
-                    >
-                      {cat.label} ({count})
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Photo grid */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 2, borderRadius: 8, overflow: "hidden", maxHeight: 200, overflowY: "auto" }}>
-                {filteredPhotos.map((photo, idx) => (
-                  <div
-                    key={photo.id}
-                    role="button"
-                    tabIndex={0}
-                    style={{ aspectRatio: "16/10", position: "relative", cursor: "pointer", overflow: "hidden" }}
-                    onClick={() => setSelectedPhotoIdx(idx)}
-                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedPhotoIdx(idx); } }}
-                    aria-label={`View photo ${idx + 1}`}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={photo.url}
-                      alt={photo.caption || listing.name}
-                      style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.2s" }}
-                      loading="lazy"
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* Key details (Big 4 + kid-friendly) */}
           {!editing && (listing.bedrooms != null || listing.bathrooms != null || listing.kitchen || listing.beachDistance || listing.kidFriendly) ? (
             <div style={{ padding: "0 20px 16px" }}>
@@ -1266,89 +1563,94 @@ export function ListingDetail({
                 </p>
                 {!isScraping && (
                   <p style={{ fontSize: 12, color: "var(--color-text-muted)", marginTop: 4 }}>
-                    Click Edit to add details manually.
+                    Use the &middot;&middot;&middot; menu to add details manually.
                   </p>
                 )}
               </div>
             </div>
           ) : null}
 
-          {/* Amenities — collapsible, first 4 visible */}
-          {!editing && amenities.length > 0 && (
+          {/* Desktop: Photo gallery */}
+          {!isMobile && listing.photos.length > 0 && (
             <div style={{ padding: "0 20px 16px" }}>
-              <h3 className="font-mono" style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1, color: "var(--color-text-mid)", marginBottom: 8 }}>
-                Amenities
-              </h3>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                {(showAllAmenities ? amenities : amenities.slice(0, 4)).map((a: string, i: number) => (
-                  <span key={i} style={{ padding: "4px 10px", background: "var(--color-panel)", color: "var(--color-text-mid)", fontSize: 12, borderRadius: 6 }}>
-                    {a}
-                  </span>
+              {/* Category tabs */}
+              <div style={{ display: "flex", gap: 4, overflowX: "auto", paddingBottom: 8, marginBottom: 8 }}>
+                {photoCategories.map((cat) => {
+                  const count =
+                    cat.key === "all"
+                      ? listing.photos.length
+                      : listing.photos.filter((p) => p.category === cat.key).length;
+                  if (cat.key !== "all" && count === 0) return null;
+                  return (
+                    <button
+                      key={cat.key}
+                      onClick={() => setPhotoFilter(cat.key)}
+                      style={{
+                        padding: "4px 12px", fontSize: 11, borderRadius: 20, whiteSpace: "nowrap" as const, cursor: "pointer", fontFamily: "inherit", fontWeight: 600, border: "none",
+                        transition: "all 0.15s",
+                        background: photoFilter === cat.key ? "var(--color-coral)" : "var(--color-panel)",
+                        color: photoFilter === cat.key ? "#fff" : "var(--color-text-mid)",
+                      }}
+                    >
+                      {cat.label} ({count})
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Photo grid */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 2, borderRadius: 8, overflow: "hidden", maxHeight: 200, overflowY: "auto" }}>
+                {filteredPhotos.map((photo, idx) => (
+                  <div
+                    key={photo.id}
+                    role="button"
+                    tabIndex={0}
+                    style={{ aspectRatio: "16/10", position: "relative", cursor: "pointer", overflow: "hidden" }}
+                    onClick={() => setSelectedPhotoIdx(idx)}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedPhotoIdx(idx); } }}
+                    aria-label={`View photo ${idx + 1}`}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={photo.url}
+                      alt={photo.caption || listing.name}
+                      style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.2s" }}
+                      loading="lazy"
+                    />
+                  </div>
                 ))}
-                {amenities.length > 4 && !showAllAmenities && (
-                  <button
-                    onClick={() => setShowAllAmenities(true)}
-                    style={{
-                      padding: "4px 10px", background: "var(--color-panel)", color: "var(--color-coral)",
-                      fontSize: 12, fontWeight: 600, borderRadius: 6, border: "none", cursor: "pointer",
-                      fontFamily: "inherit", transition: "all 0.15s",
-                    }}
-                  >
-                    +{amenities.length - 4} more
-                  </button>
-                )}
-                {showAllAmenities && amenities.length > 4 && (
-                  <button
-                    onClick={() => setShowAllAmenities(false)}
-                    style={{
-                      padding: "4px 10px", background: "transparent", color: "var(--color-text-muted)",
-                      fontSize: 11, borderRadius: 6, border: "none", cursor: "pointer",
-                      fontFamily: "inherit",
-                    }}
-                  >
-                    Show less
-                  </button>
-                )}
               </div>
             </div>
           )}
 
-          {/* Description — collapsed by default */}
-          {!editing && listing.description && (
+          {/* Amenities & Description — BOTTOM of detail view, collapsible with accordion animation */}
+          {!editing && (amenities.length > 0 || listing.description) && (
             <div style={{ padding: "0 20px 16px" }}>
-              {!showDescription ? (
-                <button
-                  onClick={() => setShowDescription(true)}
-                  style={{
-                    width: "100%", padding: "10px 14px", fontSize: 13, fontWeight: 500,
-                    background: "var(--color-panel)", border: "1px solid var(--color-border-dark)",
-                    borderRadius: 8, cursor: "pointer", fontFamily: "inherit",
-                    color: "var(--color-text-mid)", textAlign: "left" as const,
-                    display: "flex", alignItems: "center", justifyContent: "space-between",
-                    transition: "all 0.15s",
-                  }}
-                >
-                  <span>Full description</span>
-                  <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>&#9660;</span>
-                </button>
-              ) : (
-                <div>
-                  <button
-                    onClick={() => setShowDescription(false)}
-                    className="font-mono"
-                    style={{
-                      fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const,
-                      letterSpacing: 1, color: "var(--color-text-mid)", marginBottom: 8,
-                      background: "none", border: "none", cursor: "pointer", fontFamily: "inherit",
-                      padding: 0, display: "flex", alignItems: "center", gap: 6,
-                    }}
-                  >
-                    Description <span style={{ fontSize: 9 }}>&#9650;</span>
-                  </button>
-                  <p style={{ fontSize: 13, color: "var(--color-text-mid)", lineHeight: 1.6, margin: 0 }}>
+              {amenities.length > 0 && (
+                <CollapsibleSection label={`Amenities (${amenities.length})`}>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {amenities.map((a: string, i: number) => (
+                      <span key={i} style={{
+                        fontSize: 12,
+                        color: "var(--color-text-mid)",
+                        background: "var(--color-bg)",
+                        padding: "6px 12px",
+                        borderRadius: 20,
+                        fontWeight: 400,
+                      }}>
+                        {a}
+                      </span>
+                    ))}
+                  </div>
+                </CollapsibleSection>
+              )}
+
+              {listing.description && (
+                <CollapsibleSection label="Full description">
+                  <p style={{ fontSize: 13, color: "var(--color-text-mid)", lineHeight: 1.6, margin: 0, fontWeight: 300 }}>
                     {listing.description}
                   </p>
-                </div>
+                </CollapsibleSection>
               )}
             </div>
           )}

@@ -20,19 +20,27 @@ export interface ListingFormData {
   addedBy?: string;
 }
 
-export type ReactionType = "fire" | "love" | "think" | "pass";
+export type ReactionType = "positive" | "maybe" | "pass";
 
-export const REACTIONS: { type: ReactionType; emoji: string; label: string }[] = [
-  { type: "fire", emoji: "\uD83D\uDD25", label: "Fire" },
-  { type: "love", emoji: "\uD83D\uDE0D", label: "Love" },
-  { type: "think", emoji: "\uD83E\uDD14", label: "Hmm" },
-  { type: "pass", emoji: "\uD83D\uDC4E", label: "Pass" },
+/** Legacy types kept for backwards compatibility during migration */
+export type LegacyReactionType = "fire" | "love" | "think";
+
+/** Map legacy reaction types to new ones */
+export function normalizeReactionType(type: string): ReactionType {
+  if (type === "fire" || type === "love" || type === "positive") return "positive";
+  if (type === "think" || type === "maybe") return "maybe";
+  return "pass";
+}
+
+export const REACTIONS: { type: ReactionType; label: string; color: string }[] = [
+  { type: "positive", label: "Positive", color: "#C4725A" },
+  { type: "maybe", label: "Maybe", color: "#B8A48E" },
+  { type: "pass", label: "Pass", color: "#7A7269" },
 ];
 
 export const REACTION_VALUE: Record<ReactionType, number> = {
-  fire: 1,
-  love: 1,
-  think: 0,
+  positive: 1,
+  maybe: 0,
   pass: -1,
 };
 

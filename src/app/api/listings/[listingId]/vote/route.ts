@@ -2,11 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ReactionType as ReactionTypeEnum } from "@prisma/client";
 
-const VALID_REACTIONS = new Set<string>(["fire", "love", "think", "pass"]);
+const VALID_REACTIONS = new Set<string>(["positive", "maybe", "pass"]);
+
+/** Map legacy reaction types to new ones */
+function normalizeReaction(type: string): "positive" | "maybe" | "pass" {
+  if (type === "fire" || type === "love" || type === "positive") return "positive";
+  if (type === "think" || type === "maybe") return "maybe";
+  return "pass";
+}
+
 const REACTION_VALUE: Record<string, number> = {
-  fire: 1,
-  love: 1,
-  think: 0,
+  positive: 1,
+  maybe: 0,
   pass: -1,
 };
 
@@ -17,11 +24,22 @@ export async function POST(
   try {
     const { listingId } = await params;
     const body = await request.json();
-    const { userName, reactionType } = body;
+    const { userName } = body;
+    let { reactionType } = body;
 
-    if (!userName || !VALID_REACTIONS.has(reactionType)) {
+    if (!userName) {
       return NextResponse.json(
-        { error: "userName and reactionType (fire|love|think|pass) are required" },
+        { error: "userName is required" },
+        { status: 400 }
+      );
+    }
+
+    // Normalize legacy reaction types
+    reactionType = normalizeReaction(reactionType);
+
+    if (!VALID_REACTIONS.has(reactionType)) {
+      return NextResponse.json(
+        { error: "reactionType must be positive|maybe|pass" },
         { status: 400 }
       );
     }

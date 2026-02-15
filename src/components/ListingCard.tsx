@@ -3,6 +3,46 @@
 import { useState, useRef, useCallback } from "react";
 import type { ReactionType } from "./ReactionBar";
 
+const REACTION_COLORS: Record<string, string> = {
+  positive: "#C4725A",
+  maybe: "#B8A48E",
+  pass: "#7A7269",
+};
+
+/** Normalize legacy reaction types from the database */
+function normalizeReaction(type: string): ReactionType {
+  if (type === "fire" || type === "love" || type === "positive") return "positive";
+  if (type === "think" || type === "maybe") return "maybe";
+  return "pass";
+}
+
+function MiniReactionIcon({ type, size = 10 }: { type: ReactionType; size?: number }) {
+  const color = REACTION_COLORS[type] || "#7A7269";
+  switch (type) {
+    case "positive":
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <path d="M7 11V4.5C7 4 7.5 3 9 3C10.5 3 11 4 11 4.5V10H16C17.5 10 18 11 18 12L16 19H9C7.5 19 7 18 7 17V11Z"
+            stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      );
+    case "maybe":
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <path d="M3 12C6 9 9 15 12 12C15 9 18 15 21 12"
+            stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+      );
+    case "pass":
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <path d="M7 13V19.5C7 20 7.5 21 9 21C10.5 21 11 20 11 19.5V14H16C17.5 14 18 13 18 12L16 5H9C7.5 5 7 6 7 7V13Z"
+            stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      );
+  }
+}
+
 interface Photo {
   id: string;
   url: string;
@@ -366,14 +406,13 @@ export function ListingCard({
               {/* Avatar pips with emoji */}
               <div style={{ display: "flex", gap: -4 }}>
                 {listing.votes.slice(0, 5).map((vote) => {
-                  const color = getUserColor(vote.userName, travelers);
+                  const voteColor = getUserColor(vote.userName, travelers);
                   const initial = vote.userName.charAt(0).toUpperCase();
-                  const REACTION_EMOJI: Record<string, string> = { fire: "\uD83D\uDD25", love: "\uD83D\uDE0D", think: "\uD83E\uDD14", pass: "\uD83D\uDC4E" };
-                  const emoji = REACTION_EMOJI[vote.reactionType] || "\uD83E\uDD14";
+                  const normalized = normalizeReaction(vote.reactionType);
                   return (
                     <div
                       key={vote.id}
-                      title={vote.userName}
+                      title={`${vote.userName}: ${normalized}`}
                       style={{
                         position: "relative",
                         width: 26,
@@ -385,7 +424,7 @@ export function ListingCard({
                         width: 24,
                         height: 24,
                         borderRadius: "50%",
-                        background: color,
+                        background: voteColor,
                         color: "#fff",
                         display: "flex",
                         alignItems: "center",
@@ -396,15 +435,20 @@ export function ListingCard({
                       }}>
                         {initial}
                       </div>
-                      <span style={{
+                      <div style={{
                         position: "absolute",
                         bottom: -2,
                         right: -3,
-                        fontSize: 10,
-                        lineHeight: 1,
+                        width: 12,
+                        height: 12,
+                        borderRadius: "50%",
+                        background: "#FDFBF7",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
                       }}>
-                        {emoji}
-                      </span>
+                        <MiniReactionIcon type={normalized} size={8} />
+                      </div>
                     </div>
                   );
                 })}

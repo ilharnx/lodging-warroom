@@ -83,13 +83,20 @@ const GROUP_META: Record<ConsensusGroup, { label: string; icon: string; color: s
   not:      { label: "Probably not",               icon: "\uD83D\uDC4B", color: "var(--color-text-muted)", bgColor: "rgba(0,0,0,0.03)" },
 };
 
+/** Normalize legacy reaction types from the database */
+function normalizeReaction(type: string): string {
+  if (type === "fire" || type === "love" || type === "positive") return "positive";
+  if (type === "think" || type === "maybe") return "maybe";
+  return "pass";
+}
+
 function computeConsensusGroups(listings: Listing[]): GroupedListings {
   const groups: GroupedListings = { into: [], deciding: [], not: [] };
   for (const listing of listings) {
     const votes: { reactionType: string }[] = listing.votes || [];
     const total = votes.length;
-    const positive = votes.filter((v) => v.reactionType === "fire" || v.reactionType === "love").length;
-    const negative = votes.filter((v) => v.reactionType === "pass").length;
+    const positive = votes.filter((v) => normalizeReaction(v.reactionType) === "positive").length;
+    const negative = votes.filter((v) => normalizeReaction(v.reactionType) === "pass").length;
 
     // Edge cases: 0 or 1 reaction → "Still deciding"
     if (total <= 1) {
@@ -167,8 +174,9 @@ function applyFilters(listings: Listing[], filters: FilterState): Listing[] {
         const score = (votes: { reactionType: string }[]) => {
           let s = 0;
           for (const v of votes) {
-            if (v.reactionType === "fire" || v.reactionType === "love") s += 1;
-            else if (v.reactionType === "pass") s -= 1;
+            const nr = normalizeReaction(v.reactionType);
+            if (nr === "positive") s += 1;
+            else if (nr === "pass") s -= 1;
           }
           return s;
         };
@@ -1394,6 +1402,8 @@ export default function TripPage({
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
   const [showPreferences, setShowPreferences] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [editingLocationId, setEditingLocationId] = useState<string | null>(null);
+  const editLocationCoords = useRef<{ lat: number; lng: number } | null>(null);
   const [showDateEditor, setShowDateEditor] = useState(false);
   const [miniPreview, setMiniPreview] = useState<Listing | null>(null);
   const isMobile = useIsMobile();
@@ -1632,6 +1642,41 @@ export default function TripPage({
   async function handleRescrape(listingId: string) {
     await fetch(`/api/listings/${listingId}/rescrape`, { method: "POST" });
     fetchTrip();
+  }
+
+  // Location editor handlers
+  function handleLocationEditStart(listingId: string) {
+    setEditingLocationId(listingId);
+    editLocationCoords.current = null;
+  }
+
+  function handleLocationEditEnd() {
+    setEditingLocationId(null);
+    editLocationCoords.current = null;
+  }
+
+  function handleLocationDrag(lat: number, lng: number) {
+    editLocationCoords.current = { lat, lng };
+  }
+
+  async function handleLocationEdit(listingId: string, lat: number, lng: number) {
+    await fetch(`/api/listings/${listingId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lat, lng }),
+    });
+    setEditingLocationId(null);
+    editLocationCoords.current = null;
+    fetchTrip();
+  }
+
+  async function handleLocationSaveFromMap() {
+    if (!editingLocationId || !editLocationCoords.current) return;
+    await handleLocationEdit(
+      editingLocationId,
+      editLocationCoords.current.lat,
+      editLocationCoords.current.lng,
+    );
   }
 
   async function updateTripSettings(updates: {
@@ -2023,6 +2068,9 @@ export default function TripPage({
       hasPreferences={!!tripPrefs}
       isMobile={isMobile}
       travelers={tripTravelers}
+      onLocationEdit={handleLocationEdit}
+      onLocationEditStart={handleLocationEditStart}
+      onLocationEditEnd={handleLocationEditEnd}
     />
   );
 
@@ -2060,6 +2108,10 @@ export default function TripPage({
       onHover={setHoveredId}
       adults={adults}
       nights={nights}
+      editingLocationId={editingLocationId}
+      onLocationDrag={handleLocationDrag}
+      onLocationSave={handleLocationSaveFromMap}
+      onLocationCancel={handleLocationEditEnd}
     />
   );
 

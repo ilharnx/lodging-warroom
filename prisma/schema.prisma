@@ -113,6 +113,8 @@ enum ReactionType {
   love
   think
   pass
+  positive
+  maybe
 }
 
 model Vote {
