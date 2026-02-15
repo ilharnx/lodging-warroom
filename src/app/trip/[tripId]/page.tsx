@@ -310,7 +310,7 @@ function IdentityPicker({
           margin: 0,
           marginBottom: 8,
         }}>
-          which one&rsquo;s you?
+          Who dis
         </h2>
         <p style={{
           fontSize: 14,

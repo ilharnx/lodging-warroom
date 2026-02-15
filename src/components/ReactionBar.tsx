@@ -155,20 +155,6 @@ export function ReactionBar({
               }}
             >
               <span style={{ fontSize: 20, lineHeight: 1 }}>{r.emoji}</span>
-              <span
-                className="font-mono"
-                style={{
-                  fontSize: 10,
-                  fontWeight: 600,
-                  color: isActive
-                    ? isNegative ? "#ef4444" : "var(--color-coral)"
-                    : "var(--color-text-muted)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.04em",
-                }}
-              >
-                {r.label}
-              </span>
               {count > 0 && (
                 <span
                   className="font-mono"
